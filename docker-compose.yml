@@ -16,11 +16,15 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ica}
       POSTGRES_DB: ${POSTGRES_DB:-ica}
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - '${POSTGRES_PORT:-5432}:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ica} -d ${POSTGRES_DB:-ica}"]
+      test:
+        [
+          'CMD-SHELL',
+          'pg_isready -U ${POSTGRES_USER:-ica} -d ${POSTGRES_DB:-ica}',
+        ]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -30,12 +34,15 @@ services:
     container_name: ica-redis
     restart: unless-stopped
     ports:
-      - "${REDIS_PORT:-6379}:6379"
+      - '${REDIS_PORT:-6379}:6379'
     volumes:
       - redis_data:/data
 
   minio:
-    image: minio/minio:latest
+    # MinIO dejó de permitir descargas anónimas de sus imágenes oficiales
+    # (Docker Hub ya no tiene el repo y Quay responde 401). Se usa el espejo
+    # pgsty/minio, que publica el mismo servidor MinIO con versiones fijadas.
+    image: pgsty/minio:RELEASE.2026-08-04T00-00-00Z
     container_name: ica-minio
     restart: unless-stopped
     command: server /data --console-address ":9001"
@@ -43,8 +50,8 @@ services:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
     ports:
-      - "${MINIO_PORT:-9000}:9000"
-      - "9001:9001"
+      - '${MINIO_PORT:-9000}:9000'
+      - '9001:9001'
     volumes:
       - minio_data:/data
 
