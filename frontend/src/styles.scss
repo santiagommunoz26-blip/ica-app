@@ -1,1 +1,17 @@
-/* You can add global styles to this file, and also import other style files */
+/* Estilos globales. Tailwind se importa primero; el tema de Angular Material
+   se carga desde angular.json (@angular/material/prebuilt-themes/azure-blue.css)
+   antes que este archivo. */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: Roboto, 'Helvetica Neue', sans-serif;
+  background-color: #f8fafc;
+}

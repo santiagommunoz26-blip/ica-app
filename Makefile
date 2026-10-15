@@ -1,6 +1,10 @@
 SHELL := /bin/bash
 .DEFAULT_GOAL := help
 
+# Navegador para Karma. En CI se usa ChromeHeadless (viene en el runner); en
+# local, si no hay Chrome: make test-frontend KARMA_BROWSER=FirefoxHeadless
+KARMA_BROWSER ?= ChromeHeadless
+
 .PHONY: help install infra dev dev-backend dev-frontend down logs \
         test test-backend test-backend-e2e test-frontend lint lint-backend lint-frontend \
         format format-check build build-backend build-frontend \
@@ -41,8 +45,8 @@ test-backend: ## Pruebas del backend
 test-backend-e2e: ## Pruebas de integración del backend (requieren la infraestructura arriba)
 	cd backend && npm run test:e2e
 
-test-frontend: ## Pruebas del frontend (requiere Chrome/Chromium instalado)
-	cd frontend && npm test -- --watch=false --browsers=ChromeHeadless
+test-frontend: ## Pruebas del frontend (ChromeHeadless por defecto; en local: make test-frontend KARMA_BROWSER=FirefoxHeadless)
+	cd frontend && npm test -- --watch=false --browsers=$(KARMA_BROWSER)
 
 lint: lint-backend lint-frontend ## Corre el linter en backend y frontend
 
