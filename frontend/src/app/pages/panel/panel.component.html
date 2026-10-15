@@ -1,0 +1,141 @@
+<div class="mx-auto flex w-full max-w-4xl flex-col gap-6">
+  <mat-card appearance="outlined" class="rounded-xl">
+    <mat-card-content class="flex flex-col gap-2 p-6">
+      <h1 class="text-2xl font-bold text-slate-900">
+        Hola, {{ auth.usuario()?.nombreCompleto }}
+      </h1>
+      <p class="text-sm text-slate-600">
+        Sesión iniciada como
+        <strong>{{ auth.usuario()?.etiquetaRol }}</strong> ({{
+          auth.usuario()?.correo
+        }}).
+      </p>
+      <p class="text-sm text-slate-500">
+        Cierre de sesión automático tras
+        {{ auth.minutosDeInactividad() }} minutos de inactividad.
+      </p>
+    </mat-card-content>
+  </mat-card>
+
+  <mat-card appearance="outlined" class="rounded-xl">
+    <mat-card-content class="flex flex-col gap-3 p-6">
+      <h2 class="text-lg font-semibold text-slate-900">
+        Qué puede hacer su rol
+      </h2>
+      <ul class="flex flex-col gap-2 text-sm text-slate-700">
+        @for (permiso of auth.usuario()?.permisos ?? []; track permiso) {
+          <li class="flex items-center gap-2">
+            <mat-icon class="text-base text-emerald-700">check_circle</mat-icon>
+            {{ etiquetas[permiso] }}
+          </li>
+        }
+      </ul>
+    </mat-card-content>
+  </mat-card>
+
+  <mat-card appearance="outlined" class="rounded-xl">
+    <mat-card-content class="flex flex-col gap-3 p-6">
+      <div class="flex items-center gap-2">
+        <mat-icon class="text-emerald-800">pin</mat-icon>
+        <h2 class="text-lg font-semibold text-slate-900">
+          Acceso sin conexión (PIN)
+        </h2>
+      </div>
+      <p class="text-sm text-slate-600">
+        Con el PIN puede entrar en este equipo cuando no tenga internet ({{
+          tienePin()
+            ? 'ya tiene un PIN configurado; puede cambiarlo aquí'
+            : 'todavía no tiene un PIN configurado'
+        }}).
+      </p>
+
+      @if (mensajePin(); as mensaje) {
+        <div
+          class="flex items-start gap-2 rounded-lg border border-emerald-300 bg-emerald-50 p-3 text-sm text-emerald-900"
+          role="status"
+        >
+          <mat-icon class="text-base">check_circle</mat-icon>
+          <span>{{ mensaje }}</span>
+        </div>
+      }
+      @if (errorPin(); as mensaje) {
+        <div
+          class="flex items-start gap-2 rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-800"
+          role="alert"
+        >
+          <mat-icon class="text-base">error_outline</mat-icon>
+          <span>{{ mensaje }}</span>
+        </div>
+      }
+
+      <form
+        class="flex flex-col gap-3 sm:flex-row sm:items-start"
+        [formGroup]="formularioPin"
+        (ngSubmit)="configurarPin()"
+      >
+        <mat-form-field appearance="outline" class="w-full sm:w-40">
+          <mat-label>PIN (6 dígitos)</mat-label>
+          <input
+            matInput
+            inputmode="numeric"
+            maxlength="6"
+            formControlName="pin"
+            autocomplete="off"
+          />
+          @if (formularioPin.controls.pin.hasError('pattern')) {
+            <mat-error>Debe tener 6 dígitos.</mat-error>
+          }
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="w-full sm:w-40">
+          <mat-label>Repita el PIN</mat-label>
+          <input
+            matInput
+            inputmode="numeric"
+            maxlength="6"
+            formControlName="repetir"
+            autocomplete="off"
+          />
+          @if (formularioPin.hasError('camposDistintos')) {
+            <mat-error>Los PIN no coinciden.</mat-error>
+          }
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="w-full sm:w-64">
+          <mat-label>Contraseña actual</mat-label>
+          <input
+            matInput
+            type="password"
+            formControlName="passwordActual"
+            autocomplete="current-password"
+          />
+          @if (formularioPin.controls.passwordActual.hasError('required')) {
+            <mat-error>Confirme su contraseña.</mat-error>
+          }
+        </mat-form-field>
+
+        <button
+          mat-flat-button
+          color="primary"
+          type="submit"
+          class="sm:mt-2"
+          [disabled]="guardandoPin()"
+        >
+          {{ guardandoPin() ? 'Guardando…' : 'Guardar PIN' }}
+        </button>
+      </form>
+    </mat-card-content>
+  </mat-card>
+
+  <mat-card appearance="outlined" class="rounded-xl bg-slate-50">
+    <mat-card-content class="flex flex-col gap-1 p-6">
+      <p class="text-sm text-slate-500">
+        Módulo en construcción: {{ moduloActual }}
+      </p>
+      <p class="text-sm text-slate-700">
+        Siguiente entregable: <strong>{{ proximoModulo }}</strong
+        >.
+      </p>
+    </mat-card-content>
+  </mat-card>
+</div>

@@ -1,0 +1,395 @@
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { Injectable, computed, inject, signal } from '@angular/core';
+import { Router } from '@angular/router';
+import {
+  Observable,
+  catchError,
+  finalize,
+  firstValueFrom,
+  map,
+  shareReplay,
+  tap,
+  throwError,
+} from 'rxjs';
+import { environment } from '../../../environments/environment';
+import { PinOfflineService } from './pin-offline.service';
+import type {
+  Permiso,
+  PeticionIniciarSesion,
+  SesionRespuesta,
+  Usuario,
+} from './auth.modelos';
+import { tienePermiso } from './auth.modelos';
+
+const CLAVE_REFRESCO = 'ica.refresco';
+const CLAVE_PERFIL = 'ica.perfil';
+/** Tiempo mínimo entre reinicios del temporizador de inactividad. */
+const ESPERA_ENTRE_REINICIOS_MS = 30_000;
+
+/** Estado de la sesión activa. */
+interface EstadoSesion {
+  usuario: Usuario;
+  sesionInactividadMinutos: number;
+}
+
+/**
+ * Autenticación y sesión (M1 · RF01–RF04, RF07).
+ *
+ * Almacenamiento de tokens (decisión registrada en docs/CONTEXTO_PROYECTO.txt):
+ * - el token de acceso vive **en memoria** (no se escribe en disco);
+ * - el token de refresco se guarda en el almacenamiento local del equipo,
+ *   porque es lo único que permite recuperar la sesión al recargar o entrar
+ *   sin conexión (RF03). Su cifrado en reposo se aborda en M2, junto con el
+ *   almacenamiento sin conexión (RNF09).
+ */
+@Injectable({ providedIn: 'root' })
+export class AuthService {
+  private readonly http = inject(HttpClient);
+  private readonly router = inject(Router);
+  private readonly pinOffline = inject(PinOfflineService);
+
+  private readonly estado = signal<EstadoSesion | null>(null);
+  /** Mensaje para mostrar en la pantalla de inicio de sesión. */
+  readonly aviso = signal<string | null>(null);
+  /** Verdadero cuando se entró con PIN y no hay conexión (RF03). */
+  readonly sinConexion = signal(false);
+
+  private accessToken: string | null = null;
+  private temporizador?: ReturnType<typeof setTimeout>;
+  private ultimoReinicio = 0;
+  private renovacionEnCurso$?: Observable<string>;
+  private escuchandoActividad = false;
+  private readonly alDetectarActividad = (): void =>
+    this.reiniciarInactividad();
+
+  /** Usuario de la sesión, o null. */
+  readonly usuario = computed(() => this.estado()?.usuario ?? null);
+  /** ¿Hay sesión activa? */
+  readonly autenticado = computed(() => this.estado() !== null);
+  /** ¿Debe cambiar la contraseña temporal en este primer acceso? (RF07) */
+  readonly debeCambiarPassword = computed(
+    () => this.estado()?.usuario.debeCambiarPassword ?? false,
+  );
+  /** Minutos de inactividad configurados (RF02). */
+  readonly minutosDeInactividad = computed(
+    () => this.estado()?.sesionInactividadMinutos ?? 0,
+  );
+  /** ¿El usuario de la sesión tiene un permiso concreto? (RF04) */
+  puede(permiso: Permiso): boolean {
+    return tienePermiso(this.usuario(), permiso);
+  }
+
+  // ------------------------------------------------------------- sesión
+
+  /** Inicia sesión con correo y contraseña (RF01). */
+  async iniciarSesion(peticion: PeticionIniciarSesion): Promise<Usuario> {
+    const sesion = await firstValueFrom(
+      this.http.post<SesionRespuesta>(
+        `${environment.apiUrl}/auth/login`,
+        peticion,
+      ),
+    );
+    this.aplicarSesion(sesion);
+    return sesion.usuario;
+  }
+
+  /**
+   * Restaura la sesión al abrir la aplicación: si hay token de refresco se
+   * renueva; si no hay conexión se conserva el perfil para poder entrar con el
+   * PIN (RF03).
+   */
+  async restaurarSesion(): Promise<void> {
+    const refresco = this.leerAlmacen(CLAVE_REFRESCO);
+    if (!refresco) {
+      this.limpiarSesion();
+      return;
+    }
+
+    try {
+      const sesion = await firstValueFrom(
+        this.http.post<SesionRespuesta>(`${environment.apiUrl}/auth/refresh`, {
+          token: refresco,
+        }),
+      );
+      this.aplicarSesion(sesion);
+    } catch (error) {
+      const sinRed = error instanceof HttpErrorResponse && error.status === 0;
+      const perfil = this.leerPerfilCacheado();
+      if (sinRed && perfil) {
+        // Sin conexión: se deja el perfil cacheado para el acceso con PIN.
+        this.estado.set({ usuario: perfil, sesionInactividadMinutos: 0 });
+      } else {
+        this.limpiarSesion();
+        this.aviso.set('Su sesión expiró. Ingrese de nuevo.');
+      }
+    }
+  }
+
+  /** Cierra la sesión (RF02). */
+  async cerrarSesion(): Promise<void> {
+    const refresco = this.leerAlmacen(CLAVE_REFRESCO);
+    try {
+      if (refresco && this.accessToken) {
+        await firstValueFrom(
+          this.http.post(`${environment.apiUrl}/auth/logout`, {
+            token: refresco,
+          }),
+        );
+      }
+    } catch {
+      // Aunque la API falle, la sesión local se cierra igual.
+    }
+    this.limpiarSesion();
+    await this.router.navigate(['/login']);
+  }
+
+  /** Renueva el token de acceso; comparte una sola petición en curso (RF02). */
+  renovarToken(): Observable<string> {
+    this.renovacionEnCurso$ ??= this.http
+      .post<SesionRespuesta>(`${environment.apiUrl}/auth/refresh`, {
+        token: this.leerAlmacen(CLAVE_REFRESCO),
+      })
+      .pipe(
+        tap((sesion) => this.aplicarSesion(sesion)),
+        map((sesion) => sesion.accessToken),
+        catchError((error: unknown) => {
+          this.limpiarSesion();
+          return throwError(() => error);
+        }),
+        finalize(() => {
+          this.renovacionEnCurso$ = undefined;
+        }),
+        shareReplay(1),
+      );
+    return this.renovacionEnCurso$;
+  }
+
+  /** Token de acceso actual (para el interceptor). */
+  tokenActual(): string | null {
+    return this.accessToken;
+  }
+
+  /** ¿La petición es de autenticación (no debe reintentarse con refresco)? */
+  esRutaDeAutenticacion(url: string): boolean {
+    return (
+      url.includes('/auth/login') ||
+      url.includes('/auth/refresh') ||
+      url.includes('/auth/recuperar-password') ||
+      url.includes('/auth/restablecer-password')
+    );
+  }
+
+  /** Recarga el perfil (por ejemplo, tras cambiar la contraseña). */
+  async cargarPerfil(): Promise<Usuario> {
+    const respuesta = await firstValueFrom(
+      this.http.get<{ usuario: Usuario; sesionInactividadMinutos: number }>(
+        `${environment.apiUrl}/auth/perfil`,
+      ),
+    );
+    this.estado.set(respuesta);
+    this.guardarPerfilCacheado(respuesta.usuario);
+    this.reiniciarInactividad();
+    return respuesta.usuario;
+  }
+
+  // ------------------------------------------------- contraseñas (RF06/RF07)
+
+  /** Cambia la contraseña del usuario de la sesión (RF07). */
+  async cambiarPassword(
+    passwordActual: string,
+    passwordNueva: string,
+  ): Promise<void> {
+    await firstValueFrom(
+      this.http.post(`${environment.apiUrl}/auth/cambiar-password`, {
+        passwordActual,
+        passwordNueva,
+      }),
+    );
+    await this.cargarPerfil();
+  }
+
+  /** Solicita el enlace de recuperación por correo (RF06). */
+  solicitarRecuperacion(correo: string): Observable<{ mensaje: string }> {
+    return this.http.post<{ mensaje: string }>(
+      `${environment.apiUrl}/auth/recuperar-password`,
+      { correo },
+    );
+  }
+
+  /** Restablece la contraseña con el token del correo (RF06). */
+  async restablecerPassword(
+    token: string,
+    passwordNueva: string,
+  ): Promise<void> {
+    await firstValueFrom(
+      this.http.post(`${environment.apiUrl}/auth/restablecer-password`, {
+        token,
+        passwordNueva,
+      }),
+    );
+  }
+
+  // ------------------------------------------------------- PIN (RF03)
+
+  /** Configura en la API y en el equipo el PIN de acceso sin conexión. */
+  async configurarPin(pin: string, passwordActual: string): Promise<void> {
+    await firstValueFrom(
+      this.http.put(`${environment.apiUrl}/auth/pin`, { pin, passwordActual }),
+    );
+    await this.pinOffline.guardar(pin, this.usuario()?.correo ?? '');
+    await this.cargarPerfil();
+  }
+
+  /**
+   * Entra sin conexión con el PIN (RF03). La comprobación es local; se
+   * restaura el último perfil guardado y la aplicación queda marcada como
+   * «sin conexión» hasta que vuelva la red.
+   */
+  async entrarConPin(pin: string): Promise<void> {
+    const perfil = this.leerPerfilCacheado();
+    if (!perfil) {
+      throw new Error('No hay una sesión anterior en este equipo.');
+    }
+    if (this.pinOffline.bloqueado()) {
+      throw new Error('El PIN está bloqueado. Ingrese con su contraseña.');
+    }
+    const correcto = await this.pinOffline.verificar(pin);
+    if (!correcto) {
+      const restantes = this.pinOffline.intentosRestantes();
+      throw new Error(
+        restantes > 0
+          ? `PIN incorrecto. Le quedan ${restantes} intento(s).`
+          : 'PIN incorrecto. El acceso con PIN quedó bloqueado.',
+      );
+    }
+    this.estado.set({ usuario: perfil, sesionInactividadMinutos: 0 });
+    this.sinConexion.set(true);
+  }
+
+  /** ¿Hay PIN configurado en este equipo? (RF03) */
+  hayPinEnEquipo(): boolean {
+    return this.pinOffline.hayPin();
+  }
+
+  /** Quita el aviso de la pantalla de inicio de sesión. */
+  limpiarAviso(): void {
+    this.aviso.set(null);
+  }
+
+  // ----------------------------------------------------------- internos
+
+  private aplicarSesion(sesion: SesionRespuesta): void {
+    this.accessToken = sesion.accessToken;
+    this.escribirAlmacen(CLAVE_REFRESCO, sesion.refreshToken);
+    this.guardarPerfilCacheado(sesion.usuario);
+    this.estado.set({
+      usuario: sesion.usuario,
+      sesionInactividadMinutos: sesion.sesionInactividadMinutos,
+    });
+    this.sinConexion.set(false);
+    this.aviso.set(null);
+    this.iniciarVigilanciaDeActividad(sesion.sesionInactividadMinutos);
+  }
+
+  private limpiarSesion(): void {
+    this.accessToken = null;
+    this.estado.set(null);
+    this.sinConexion.set(false);
+    this.borrarAlmacen(CLAVE_REFRESCO);
+    this.detenerVigilanciaDeActividad();
+  }
+
+  /** Cierra la sesión por inactividad (RF02). */
+  private cerrarPorInactividad(): void {
+    this.limpiarSesion();
+    this.aviso.set(
+      'La sesión se cerró por inactividad. Ingrese de nuevo para continuar.',
+    );
+    void this.router.navigate(['/login']);
+  }
+
+  private iniciarVigilanciaDeActividad(minutos: number): void {
+    this.detenerVigilanciaDeActividad();
+    if (minutos <= 0) return;
+
+    ['mousemove', 'keydown', 'click', 'touchstart', 'scroll'].forEach(
+      (evento) =>
+        document.addEventListener(evento, this.alDetectarActividad, {
+          passive: true,
+        }),
+    );
+    this.escuchandoActividad = true;
+    this.programarCierre(minutos);
+  }
+
+  private detenerVigilanciaDeActividad(): void {
+    if (this.escuchandoActividad) {
+      ['mousemove', 'keydown', 'click', 'touchstart', 'scroll'].forEach(
+        (evento) =>
+          document.removeEventListener(evento, this.alDetectarActividad),
+      );
+      this.escuchandoActividad = false;
+    }
+    if (this.temporizador) {
+      clearTimeout(this.temporizador);
+      this.temporizador = undefined;
+    }
+  }
+
+  /** Reinicia el contador de inactividad (como mucho cada 30 s). */
+  private reiniciarInactividad(): void {
+    const minutos = this.minutosDeInactividad();
+    if (!this.autenticado() || minutos <= 0) return;
+
+    const ahora = Date.now();
+    if (ahora - this.ultimoReinicio < ESPERA_ENTRE_REINICIOS_MS) return;
+    this.programarCierre(minutos);
+  }
+
+  private programarCierre(minutos: number): void {
+    if (this.temporizador) clearTimeout(this.temporizador);
+    this.ultimoReinicio = Date.now();
+    this.temporizador = setTimeout(
+      () => this.cerrarPorInactividad(),
+      minutos * 60_000,
+    );
+  }
+
+  private guardarPerfilCacheado(usuario: Usuario): void {
+    this.escribirAlmacen(CLAVE_PERFIL, JSON.stringify(usuario));
+  }
+
+  private leerPerfilCacheado(): Usuario | null {
+    const crudo = this.leerAlmacen(CLAVE_PERFIL);
+    if (!crudo) return null;
+    try {
+      return JSON.parse(crudo) as Usuario;
+    } catch {
+      return null;
+    }
+  }
+
+  private leerAlmacen(clave: string): string | null {
+    try {
+      return localStorage.getItem(clave);
+    } catch {
+      return null;
+    }
+  }
+
+  private escribirAlmacen(clave: string, valor: string): void {
+    try {
+      localStorage.setItem(clave, valor);
+    } catch {
+      // Sin almacenamiento disponible la sesión no persiste, pero se puede usar.
+    }
+  }
+
+  private borrarAlmacen(clave: string): void {
+    try {
+      localStorage.removeItem(clave);
+    } catch {
+      // Nada que hacer.
+    }
+  }
+}

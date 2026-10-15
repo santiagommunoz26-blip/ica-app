@@ -1,0 +1,243 @@
+<div class="grid min-h-screen lg:grid-cols-2">
+  <!-- Panel de marca (izquierda) -->
+  <aside
+    class="hidden flex-col justify-between bg-emerald-900 p-10 text-emerald-50 lg:flex"
+  >
+    <div class="flex items-center gap-2 text-lg font-semibold">
+      <mat-icon>flutter_dash</mat-icon>
+      <span>Aplicativo EBA Aves</span>
+    </div>
+
+    <div class="max-w-md">
+      <h1 class="text-4xl font-bold leading-tight">
+        Aves felices,<br />granjas mejores.
+      </h1>
+      <p class="mt-4 leading-relaxed text-emerald-100">
+        Evaluación del bienestar animal en aves con la metodología ICA v2.0
+        (2024): indicadores, puntajes y calificación por visita.
+      </p>
+      <ul class="mt-6 space-y-2 text-sm text-emerald-100">
+        <li class="flex items-center gap-2">
+          <mat-icon class="text-base">check_circle</mat-icon>
+          Inspección guiada por indicadores
+        </li>
+        <li class="flex items-center gap-2">
+          <mat-icon class="text-base">check_circle</mat-icon>
+          Trabajo en campo sin conexión
+        </li>
+        <li class="flex items-center gap-2">
+          <mat-icon class="text-base">check_circle</mat-icon>
+          Acta y reportes por visita
+        </li>
+      </ul>
+    </div>
+
+    <p class="text-sm text-emerald-200">
+      © 2026 EBA Aves · Basado en la metodología ICA
+    </p>
+  </aside>
+
+  <!-- Formulario (derecha) -->
+  <main class="flex items-center justify-center bg-slate-50 p-6">
+    <div class="w-full max-w-md">
+      <h2 class="text-2xl font-bold text-slate-900">Bienvenido de nuevo</h2>
+      <p class="mt-1 text-sm text-slate-600">
+        Ingrese para continuar con sus visitas de inspección.
+      </p>
+
+      @if (auth.aviso(); as aviso) {
+        <div
+          class="mt-4 flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900"
+          role="status"
+        >
+          <mat-icon class="text-base">info</mat-icon>
+          <span>{{ aviso }}</span>
+        </div>
+      }
+
+      @if (error(); as mensaje) {
+        <div
+          class="mt-4 flex items-start gap-2 rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-800"
+          role="alert"
+        >
+          <mat-icon class="text-base">error_outline</mat-icon>
+          <span>{{ mensaje }}</span>
+        </div>
+      }
+
+      <form
+        class="mt-6 flex flex-col gap-4"
+        [formGroup]="formulario"
+        (ngSubmit)="ingresar()"
+      >
+        <mat-form-field appearance="outline" class="w-full">
+          <mat-label>Correo electrónico</mat-label>
+          <input
+            matInput
+            type="email"
+            formControlName="correo"
+            autocomplete="username"
+            placeholder="ana.ruiz@entidad.gov.co"
+          />
+          @if (formulario.controls.correo.hasError('required')) {
+            <mat-error>El correo es obligatorio.</mat-error>
+          }
+          @if (formulario.controls.correo.hasError('email')) {
+            <mat-error>El correo no es válido.</mat-error>
+          }
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="w-full">
+          <mat-label>Contraseña</mat-label>
+          <input
+            matInput
+            [type]="verPassword() ? 'text' : 'password'"
+            formControlName="password"
+            autocomplete="current-password"
+          />
+          <button
+            mat-icon-button
+            matSuffix
+            type="button"
+            [attr.aria-label]="
+              verPassword() ? 'Ocultar la contraseña' : 'Ver la contraseña'
+            "
+            (click)="verPassword.set(!verPassword())"
+          >
+            <mat-icon>{{
+              verPassword() ? 'visibility_off' : 'visibility'
+            }}</mat-icon>
+          </button>
+          @if (formulario.controls.password.hasError('required')) {
+            <mat-error>La contraseña es obligatoria.</mat-error>
+          }
+        </mat-form-field>
+
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <mat-checkbox formControlName="recordarme">
+            Recordarme en este equipo
+          </mat-checkbox>
+          <button
+            mat-button
+            type="button"
+            class="!px-0"
+            (click)="recuperacionAbierta.set(!recuperacionAbierta())"
+          >
+            ¿Olvidó su contraseña?
+          </button>
+        </div>
+
+        <button
+          mat-flat-button
+          color="primary"
+          type="submit"
+          class="h-11"
+          [disabled]="cargando()"
+        >
+          {{ cargando() ? 'Ingresando…' : 'Ingresar →' }}
+        </button>
+      </form>
+
+      <!-- Recuperación de contraseña (RF06) -->
+      @if (recuperacionAbierta()) {
+        <div class="mt-4 rounded-lg border border-slate-200 bg-white p-4">
+          @if (recuperacionEnviada()) {
+            <p class="text-sm text-slate-700">
+              Si el correo está registrado, recibirá las instrucciones para
+              restablecer su contraseña. Revise también la carpeta de correo no
+              deseado.
+            </p>
+          } @else {
+            <p class="text-sm text-slate-600">
+              Escriba su correo institucional y le enviaremos un enlace para
+              restablecer la contraseña.
+            </p>
+            <form
+              class="mt-3 flex flex-col gap-2 sm:flex-row sm:items-start"
+              [formGroup]="formularioRecuperacion"
+              (ngSubmit)="enviarRecuperacion()"
+            >
+              <mat-form-field appearance="outline" class="w-full">
+                <mat-label>Correo electrónico</mat-label>
+                <input matInput type="email" formControlName="correo" />
+                @if (formularioRecuperacion.controls.correo.hasError('email')) {
+                  <mat-error>El correo no es válido.</mat-error>
+                }
+              </mat-form-field>
+              <button
+                mat-flat-button
+                color="primary"
+                type="submit"
+                class="sm:mt-2"
+                [disabled]="cargando()"
+              >
+                Enviar enlace
+              </button>
+            </form>
+          }
+        </div>
+      }
+
+      <div class="my-6 flex items-center gap-3 text-xs text-slate-400">
+        <span class="h-px grow bg-slate-200"></span>
+        <span>o</span>
+        <span class="h-px grow bg-slate-200"></span>
+      </div>
+
+      <!-- Acceso sin conexión con PIN (RF03) -->
+      <button
+        mat-stroked-button
+        type="button"
+        class="h-11 w-full"
+        [disabled]="!hayPin"
+        (click)="pinAbierto.set(!pinAbierto())"
+      >
+        <mat-icon>pin</mat-icon>
+        Entrar con PIN (modo sin conexión)
+      </button>
+      @if (!hayPin) {
+        <p class="mt-2 text-xs text-slate-500">
+          Todavía no hay un PIN configurado en este equipo. Puede crearlo desde
+          el panel, después de ingresar.
+        </p>
+      }
+
+      @if (pinAbierto() && hayPin) {
+        <form
+          class="mt-4 flex flex-col gap-2 rounded-lg border border-slate-200 bg-white p-4"
+          [formGroup]="formularioPin"
+          (ngSubmit)="entrarConPin()"
+        >
+          <p class="text-sm text-slate-600">
+            Escriba su PIN para trabajar sin conexión en este equipo.
+          </p>
+          <mat-form-field appearance="outline" class="w-full">
+            <mat-label>PIN de 6 dígitos</mat-label>
+            <input
+              matInput
+              inputmode="numeric"
+              maxlength="6"
+              formControlName="pin"
+              autocomplete="off"
+            />
+            @if (formularioPin.controls.pin.hasError('pattern')) {
+              <mat-error>El PIN tiene 6 dígitos.</mat-error>
+            }
+          </mat-form-field>
+          <button
+            mat-flat-button
+            color="primary"
+            type="submit"
+            [disabled]="cargando()"
+          >
+            Entrar sin conexión
+          </button>
+        </form>
+      }
+
+      <p class="mt-6 text-center text-xs text-slate-500">
+        ¿Primera vez? Solicite acceso al administrador del sistema.
+      </p>
+    </div>
+  </main>
+</div>
