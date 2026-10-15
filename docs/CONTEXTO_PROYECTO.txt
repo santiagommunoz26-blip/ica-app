@@ -8,7 +8,7 @@ PROYECTO ..................... Aplicativo EBA Aves (metodología ICA v2.0, 2024)
 FECHA DE ELABORACIÓN ......... 15 de octubre de 2026, 16:19 (UTC-5); actualizado el 15 de octubre de 2026, 19:40 (UTC-5)
 UBICACIÓN DEL PROYECTO ....... /home/santiago/Proyectos/universidad/Aplicacion de la IA/ica-app
 REPOSITORIO REMOTO ........... https://github.com/santiagommunoz26-blip/ica-app.git (origin por SSH; todo subido)
-ESTADO GENERAL ............... Sprint 0 terminado (T0, S0-1 a S0-6, ADRs 001–005 y spike) y **módulo M1 terminado y verificado** (autenticación y usuarios, RF01–RF07) en backend y frontend. Pendientes: proteger la rama main (acción manual del usuario), que el usuario confirme el tiempo de inactividad de sesión (30 min, decisión provisional del proyecto) y aclarar BACKLOG_INICIAL.md/LEARNING_LOG.md.
+ESTADO GENERAL ............... Sprint 0 terminado (T0, S0-1 a S0-6, ADRs 001–005 y spike) y **módulo M1 terminado y verificado** (autenticación y usuarios, RF01–RF07) en backend y frontend, con la aprobación del usuario. Pendientes: proteger la rama main (acción manual del usuario) y aclarar BACKLOG_INICIAL.md/LEARNING_LOG.md.
 ÚLTIMA TAREA COMPLETADA ...... Módulo M1: API de autenticación y usuarios (JWT + argon2id + PIN, migración CreateUsuarios y seed del administrador) y frontend (login, cambio obligatorio y restablecimiento de contraseña, PIN sin conexión, armazón con navegación por rol y Administración · Usuarios y roles).
 SIGUIENTE ACCIÓN RECOMENDADA . Mostrar al usuario las evidencias de M1 y, con su OK, empezar el módulo M2 (gestión de visitas, RF08–RF12).
 
@@ -48,7 +48,7 @@ Decisiones tomadas (confirmadas por el usuario; no revertir sin consultar):
 Decisiones nuevas de M1 (tomadas por la IA con el criterio del proyecto; el usuario debe confirmarlas):
 - Autenticación propia con JWT (ADR-002): access token de 900 s en memoria, refresh token de 7 días (30 si el usuario marca «Recordarme en este equipo»), rotado en cada uso y guardado en la base de datos solo como huella SHA-256.
 - Contraseñas con argon2id (@node-rs/argon2, parámetros por defecto de la biblioteca). Política del proyecto (no está en los documentos): mínimo 10 caracteres, una mayúscula, una minúscula y un número.
-- Inactividad de sesión: **30 minutos** por defecto, configurable con la variable SESION_INACTIVIDAD_MINUTOS. En los documentos figura como punto por definir (punto abierto E-2): está pendiente de que el usuario lo apruebe.
+- Inactividad de sesión: **15 minutos**, configurable con la variable SESION_INACTIVIDAD_MINUTOS. El documento lo dejaba por definir (punto abierto E-2) y el usuario lo confirmó el 15 oct 2026.
 - PIN de acceso sin conexión (RF03): 6 dígitos, exige la contraseña actual para crearlo o cambiarlo; en el servidor se guarda como argon2id y en el equipo como derivación PBKDF2-SHA256 (210.000 iteraciones, WebCrypto) que nunca contiene el PIN; 5 intentos fallidos lo bloquean en el equipo hasta un ingreso con contraseña.
 - Recuperación de contraseña (RF06): token opaco de un solo uso con vigencia de 30 minutos; el correo se envía por el transporte «consola» (CORREO_TRANSPORTE=consola) mientras no haya credenciales SMTP; la respuesta es siempre genérica para no revelar si el correo existe.
 - Roles y permisos fijos en código (backend/src/common/roles.ts) porque los fija el requisito; en la interfaz, el rol que no tiene permiso no ve la opción (RNF08).
@@ -80,7 +80,7 @@ Requisitos y reglas clave que no deben cambiarse sin consultar:
 
 Puntos abiertos conocidos (no resolver por cuenta propia; detalle en H, tarea T1):
 1. ¿El aplicativo debe incluir «recomendaciones con IA»? El docx del docente las pide (RF24–RF26 y RNFG04); el docx EBA Aves (RF01–RF53) no las incluye y la carpeta del curso se llama «Aplicacion de la IA». Confirmar con el usuario/docente antes de decidir arquitectura.
-2. Tiempo de inactividad que cierra la sesión (RF02): el propio documento dice que falta por definir. M1 se construyó con 30 minutos por defecto (variable SESION_INACTIVIDAD_MINUTOS); falta que el usuario lo confirme o lo cambie.
+2. Tiempo de inactividad que cierra la sesión (RF02): **RESUELTO** el 15 oct 2026 — el usuario fijó 15 minutos (variable SESION_INACTIVIDAD_MINUTOS).
 3. Lista final de documentos por indicador de gestión (RF27): el propio documento dice que falta por definir; el wireframe muestra una lista de 10 (calidad del agua, alimentación equilibrada, vigilancia sanitaria, POE de bienestar animal, condiciones térmicas, programa de iluminación, capacitación en bienestar animal, protocolo de eutanasia, mortalidad [5 ciclos], uso de medicamentos) que puede servir de base provisional.
 4. BACKLOG_INICIAL.md y LEARNING_LOG.md: citados por SPRINT_0_PLAN.md pero ausentes del proyecto. Preguntar si existen o si hay que crearlos.
 5. Documento fuente «Metodología para evaluar bienestar animal en aves de corral y de traspatio (ICA, v2.0, 2024)»: citado repetidamente pero no está en docs/. Necesario para validar fórmulas y escalas (RNF03).
@@ -112,7 +112,7 @@ Parcialmente terminado:
 
 Pendiente:
 - Acción manual del usuario: proteger la rama main en GitHub (Settings → Branches → Add branch protection rule) exigiendo los 3 checks del CI («Backend…», «Frontend…» y «Formato (Prettier)») y bloqueando el push directo.
-- Confirmar con el usuario: el tiempo de inactividad de 30 min (RF02), la política de contraseñas, el límite de 5 intentos del PIN y el resto de decisiones nuevas de M1 (sección B).
+- Confirmado por el usuario el 15 oct 2026: la inactividad de sesión queda en 15 minutos. Siguen como propuestas del proyecto (aceptadas con M1) la política de contraseñas y el límite de 5 intentos del PIN (sección B).
 - Aclarar con el docente los archivos BACKLOG_INICIAL.md y LEARNING_LOG.md (citados por el plan pero inexistentes) y el resto de puntos abiertos de E.
 - Credenciales SMTP reales para el correo (hoy se usa el transporte «consola») y su plantilla de mensaje.
 - Después: los módulos M2–M8 y el despliegue en GCP. Lista priorizada en H.
@@ -320,7 +320,7 @@ T3 · Módulo M1 · Autenticación y usuarios (RF01–RF07) [COMPLETADO el 15 oc
   Dependencias: T2. La expiración usa el timeout de T1-2.
   Verificación: RF01–RF07 cumplidos con pruebas; un usuario inactivo no ingresa; la contraseña temporal obliga cambio; el PIN permite trabajar sin conexión; permisos por rol correctos (RNF08).
   Riesgos: el PIN offline combina autenticación y almacenamiento cifrado local (RNF09); definir el alcance del modo sin conexión.
-  Resultado (15 oct 2026): completado. Backend con las entidades y la migración CreateUsuarios, los módulos auth y usuarios, y la configuración transversal (/api/v1, Swagger, CORS y guardas); frontend con login, cambio obligatorio y restablecimiento de contraseña, PIN sin conexión, panel y administración de usuarios, más el armazón con navegación por rol. Evidencias: 15 pruebas unitarias y 14 de integración en el backend, 37 pruebas en el frontend y 44 de 44 comprobaciones funcionales contra la API real. Quedan como decisiones por confirmar el tiempo de inactividad (30 min), la política de contraseñas y el límite de intentos del PIN (sección B); el cifrado del almacenamiento local y la sincronización sin conexión pasan a M2 (RNF09, RF11, RF12).
+  Resultado (15 oct 2026): completado y **aprobado por el usuario**. Backend con las entidades y la migración CreateUsuarios, los módulos auth y usuarios, y la configuración transversal (/api/v1, Swagger, CORS y guardas); frontend con login, cambio obligatorio y restablecimiento de contraseña, PIN sin conexión, panel y administración de usuarios, más el armazón con navegación por rol. Evidencias: 15 pruebas unitarias y 14 de integración en el backend, 37 pruebas en el frontend y 44 de 44 comprobaciones funcionales contra la API real. El usuario confirmó la inactividad de sesión en 15 minutos y aprobó el resto de decisiones (sección B); el cifrado del almacenamiento local y la sincronización sin conexión pasan a M2 (RNF09, RF11, RF12).
 
 T4 · Módulo M2 · Gestión de visitas (RF08–RF12)
   Qué: programar visitas (predio, inspector, fecha y hora); estados Programada / En curso / Pendiente de documentos / Cerrada; panel principal con indicadores y gráficas (visitas del mes, calificación promedio, pendientes, evolución, distribución y promedio por grupo); búsqueda y filtros; guardado local sin conexión y sincronización automática con contador de registros pendientes.
@@ -384,8 +384,8 @@ I. PUNTO EXACTO DE CONTINUACIÓN
 - Dónde estamos: Sprint 0 **terminado** (salvo la protección de la rama main, que es una acción manual del usuario en GitHub) y módulo **M1 terminado y verificado**. El siguiente es M2 (gestión de visitas, RF08–RF12).
 - Última tarea realizada: M1 (autenticación y usuarios), el 15 oct 2026.
 - Resultado obtenido: API de autenticación y usuarios (JWT con rotación, argon2id, PIN, recuperación de contraseña, roles, administración de usuarios y bitácora) con la migración CreateUsuarios aplicada; frontend con login, cambio obligatorio y restablecimiento de contraseña, PIN sin conexión, panel y administración de usuarios; 15 + 14 pruebas en el backend y 37 en el frontend, todas en verde, y 44 de 44 comprobaciones funcionales contra la API real.
-- Qué falta inmediatamente: (1) el OK del usuario a M1 (y su confirmación del tiempo de inactividad de 30 min y de las demás decisiones nuevas de la sección B); (2) que el usuario proteja la rama main en GitHub; (3) aclarar BACKLOG_INICIAL.md / LEARNING_LOG.md y el resto de puntos abiertos (sección E).
-- Siguiente acción recomendada: con el OK del usuario, empezar M2 (gestión de visitas, RF08–RF12): panel con indicadores y gráficas, programar visitas con estados, búsqueda y filtros, y guardado local sin conexión con sincronización y contador de pendientes. El cifrado del almacenamiento local (RNF09) entra aquí.
+- Qué falta inmediatamente: (1) que el usuario proteja la rama main en GitHub; (2) aclarar BACKLOG_INICIAL.md / LEARNING_LOG.md y el resto de puntos abiertos (sección E); (3) empezar M2 con el OK ya dado a M1.
+- Siguiente acción recomendada: empezar M2 (gestión de visitas, RF08–RF12): panel con indicadores y gráficas, programar visitas con estados, búsqueda y filtros, y guardado local sin conexión con sincronización y contador de pendientes. El cifrado del almacenamiento local (RNF09) entra aquí. M1 ya tiene el OK del usuario (15 oct 2026).
 - Qué debe comprobar la nueva sesión antes de actuar: git (log, status y ls-remote origin: ¿todo subido?); que la última ejecución del CI esté en verde; que la infraestructura (`make infra`), `make migrate`, `make test`, `make test-backend-e2e` y `make test-frontend KARMA_BROWSER=FirefoxHeadless` funcionen; que exista al menos un administrador (si no, `npm run seed:admin`); que `node docs/spike-form-engine/validar.mjs` pase; versiones reales en backend/package.json y frontend/package.json; si esa sesión necesita «newgrp docker»; que no haya cambios sin commitear.
 
 ---------------------------------------------------------------------

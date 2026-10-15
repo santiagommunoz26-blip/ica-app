@@ -77,9 +77,12 @@ export class AuthService {
     private readonly config: ConfigService,
   ) {}
 
-  /** Minutos de inactividad antes de cerrar la sesión (RF02). */
+  /**
+   * Minutos de inactividad antes de cerrar la sesión (RF02).
+   * Valor confirmado por el usuario el 15 oct 2026: 15 minutos.
+   */
   get sesionInactividadMinutos(): number {
-    return this.leerNumero('SESION_INACTIVIDAD_MINUTOS', 30);
+    return this.leerNumero('SESION_INACTIVIDAD_MINUTOS', 15);
   }
 
   private get expiracionAccesoSegundos(): number {
