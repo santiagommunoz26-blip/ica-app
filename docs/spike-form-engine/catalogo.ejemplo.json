@@ -1,0 +1,100 @@
+{
+  "versionId": "ica-aves-2.0-2024",
+  "metodologia": "Bienestar animal en aves — metodología ICA",
+  "version": "2.0",
+  "anio": 2024,
+  "vigenteDesde": "2024-01-01",
+  "nota": "Catálogo ILUSTRATIVO para el spike. Los nombres de indicadores y los tamaños de muestra son marcadores de posición: el catálogo real debe cargarse desde el documento de la metodología ICA v2.0 (2024), que todavía no se tiene.",
+  "tiposPreguntaPermitidos": [
+    "si_no",
+    "unica",
+    "multiple",
+    "escala",
+    "numerica",
+    "textual",
+    "evidencia"
+  ],
+  "escala": { "min": 0, "max": 2, "paso": 1 },
+  "perfiles": {
+    "corral": {
+      "descripcion": "Granja (corral): 200 aves o más",
+      "pesosGrupos": { "MBA": 35, "MBR": 35, "MBG": 30 }
+    },
+    "traspatio": {
+      "descripcion": "Traspatio: 199 aves o menos (la fase documental MBG no aplica)",
+      "pesosGrupos": { "MBA": 60, "MBR": 40, "MBG": 0 }
+    }
+  },
+  "clasificacion": [
+    { "nombre": "Excelente", "min": 90 },
+    { "nombre": "Alto", "min": 75 },
+    { "nombre": "Medio", "min": 50 },
+    { "nombre": "Bajo", "min": 0 }
+  ],
+  "grupos": [
+    {
+      "codigo": "MBA",
+      "nombre": "Medidas basadas en el animal",
+      "fase": "II · inspección en galpón",
+      "indicadores": [
+        {
+          "codigo": "MBA-01",
+          "nombre": "Indicador de ejemplo MBA-01 (nombre real: manual ICA)",
+          "preguntas": [
+            { "codigo": "MBA-01-P1", "tipo": "escala", "texto": "Muestra 1 (0-2)" },
+            { "codigo": "MBA-01-P2", "tipo": "escala", "texto": "Muestra 2 (0-2)" }
+          ]
+        },
+        {
+          "codigo": "MBA-02",
+          "nombre": "Indicador de ejemplo MBA-02 (nombre real: manual ICA)",
+          "preguntas": [
+            { "codigo": "MBA-02-P1", "tipo": "escala", "texto": "Muestra 1 (0-2)" },
+            { "codigo": "MBA-02-P2", "tipo": "escala", "texto": "Muestra 2 (0-2)" },
+            { "codigo": "MBA-02-P3", "tipo": "escala", "texto": "Muestra 3 (0-2)" },
+            { "codigo": "MBA-02-E1", "tipo": "evidencia", "texto": "Fotografía de respaldo" }
+          ]
+        }
+      ]
+    },
+    {
+      "codigo": "MBR",
+      "nombre": "Medidas basadas en los recursos",
+      "fase": "II · inspección en galpón",
+      "indicadores": [
+        {
+          "codigo": "MBR-01",
+          "nombre": "Indicador de ejemplo MBR-01 (nombre real: manual ICA)",
+          "preguntas": [
+            { "codigo": "MBR-01-P1", "tipo": "escala", "texto": "Muestra 1 (0-2)" },
+            { "codigo": "MBR-01-P2", "tipo": "escala", "texto": "Muestra 2 (0-2)" }
+          ]
+        },
+        {
+          "codigo": "MBR-02",
+          "nombre": "Indicador de ejemplo MBR-02 (nombre real: manual ICA)",
+          "preguntas": [
+            { "codigo": "MBR-02-P1", "tipo": "escala", "texto": "Muestra 1 (0-2)" },
+            { "codigo": "MBR-02-P2", "tipo": "escala", "texto": "Muestra 2 (0-2)" }
+          ]
+        }
+      ]
+    },
+    {
+      "codigo": "MBG",
+      "nombre": "Medidas basadas en la gestión",
+      "fase": "III · inspección documental",
+      "indicadores": [
+        {
+          "codigo": "MBG-01",
+          "nombre": "Indicador de ejemplo MBG-01 (nombre real: manual ICA)",
+          "preguntas": [
+            { "codigo": "MBG-01-P1", "tipo": "escala", "texto": "Registro verificado 1 (0-2)" },
+            { "codigo": "MBG-01-P2", "tipo": "escala", "texto": "Registro verificado 2 (0-2)" },
+            { "codigo": "MBG-01-T1", "tipo": "textual", "texto": "Observación del inspector" }
+          ]
+        }
+      ]
+    }
+  ]
+}

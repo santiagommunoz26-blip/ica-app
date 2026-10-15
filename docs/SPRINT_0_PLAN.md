@@ -1,6 +1,7 @@
 # Sprint 0 Plan - Setup y Arquitectura Base
 **Duracion**: 2 semanas (10 dias habiles)  
 **Objetivo**: Repo listo, CI verde, arquitectura decidida, spike formularios dinamicos  
+**Estado**: S0-1 a S0-6 hechos; ADRs 001–005 escritas; spike del motor de formularios hecho. Queda la protección de la rama `main` (acción manual del usuario).  
 **Fecha inicio**: 15 de octubre de 2026
 
 ---
@@ -27,7 +28,8 @@
 **Tema**: Motor de formularios dinamicos (US-08)  
 **Pregunta**: Como almacenar y versionar checklists anidados (Dimension -> Criterio -> Subcriterio -> Indicador -> Pregunta) con ponderaciones que sumen 100 en cada nivel?  
 **Entregable**: Prototipo en `docs/spike-form-engine/` + decision documentada en ADR-001  
-**Tiempo maximo**: 4 horas repartidas en 2 dias
+**Tiempo maximo**: 4 horas repartidas en 2 dias  
+**Resultado (15 oct 2026)**: hecho y **convergido**. Prototipo sin dependencias (`validar.mjs`) con 9 comprobaciones automáticas en verde: validación de pesos que suman 100, fórmulas de la metodología verificadas a mano, «No aplica», perfiles corral/traspatio e **inmutabilidad de la visita cerrada**. Decisión registrada en ADR-001 (modelo híbrido). Ver `docs/spike-form-engine/README.md`
 
 ---
 
@@ -35,22 +37,25 @@
 
 | ADR | Tema | Opciones a evaluar |
 |-----|------|-------------------|
-| ADR-001 | Modelo de datos formularios dinamicos | JSONB vs tablas relacionales normalizadas vs event sourcing |
-| ADR-002 | Autenticacion | Firebase Auth vs JWT propio (NestJS + Passport) |
-| ADR-003 | Almacenamiento evidencias | GCS directo (signed URLs) vs backend proxy |
-| ADR-004 | Comunicacion frontend-backend | REST + OpenAPI vs GraphQL vs tRPC |
-| ADR-005 | Despliegue GCP | Cloud Run vs GKE Autopilot vs Cloud Functions |
+| [ADR-001](adr/ADR-001-modelo-datos-formularios.md) | Modelo de datos formularios dinamicos | JSONB vs tablas relacionales normalizadas vs event sourcing |
+| [ADR-002](adr/ADR-002-autenticacion.md) | Autenticacion | Firebase Auth vs JWT propio (NestJS + Passport) |
+| [ADR-003](adr/ADR-003-almacenamiento-evidencias.md) | Almacenamiento evidencias | GCS directo (signed URLs) vs backend proxy |
+| [ADR-004](adr/ADR-004-comunicacion-api.md) | Comunicacion frontend-backend | REST + OpenAPI vs GraphQL vs tRPC |
+| [ADR-005](adr/ADR-005-despliegue-gcp.md) | Despliegue GCP | Cloud Run vs GKE Autopilot vs Cloud Functions |
+
+**Estado (15 oct 2026)**: las cinco ADRs están **escritas y aceptadas** (índice en `docs/adr/README.md`), con las alternativas descartadas, los requisitos relacionados y los puntos pendientes de confirmar con el docente.
 
 ---
 
 ## Definition of Done del Sprint 0
-- [ ] `make dev` levanta backend (puerto 3000) + frontend (puerto 4200) + BD + MinIO
-- [ ] `make test` corre unit + integration (cobertura > 60% en dominio)
-- [ ] `make lint` pasa sin warnings en ambos proyectos
-- [ ] Pipeline CI verde en GitHub Actions (main branch protegida)
-- [ ] ADR-001 escrito y aprobado (tu mismo como PO)
-- [ ] `LEARNING_LOG.md` actualizado con decisiones y dudas
-- [ ] README.md con instrucciones claras para nuevo dev
+- [x] `make dev` levanta backend (puerto 3000) + frontend (puerto 4200) + BD + MinIO — **verificado (S0-1)**
+- [x] `make test` corre unit + integration — **verificado**: backend 1/1, e2e 2/2, frontend 4/4. La *cobertura > 60 % en dominio* queda pendiente de medir cuando exista dominio (M1+)
+- [x] `make lint` pasa sin warnings en ambos proyectos — **verificado (S0-2)**, y el hook de pre-commit rechaza commits con errores
+- [x] Pipeline CI verde en GitHub Actions — **hecho (S0-6)**: 3 jobs en verde en ≈3 min
+- [ ] **Rama `main` protegida** — pendiente: acción manual del usuario en GitHub (Settings → Branches)
+- [x] ADRs escritas y aprobadas (las cinco, no solo la 001) — ver `docs/adr/`
+- [ ] `LEARNING_LOG.md` actualizado con decisiones y dudas — archivo **inexistente** (citado por el plan; por definir con el docente)
+- [x] README.md con instrucciones claras para nuevo dev — **hecho (S0-1…S0-6)**
 
 ---
 

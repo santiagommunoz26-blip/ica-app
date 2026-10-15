@@ -5,12 +5,12 @@ Proyecto: Aplicativo EBA Aves — Bienestar animal en aves de corral y de traspa
 =====================================================================
 
 PROYECTO ..................... Aplicativo EBA Aves (metodología ICA v2.0, 2024)
-FECHA DE ELABORACIÓN ......... 15 de octubre de 2026, 16:19 (UTC-5); actualizado el 15 de octubre de 2026, 17:45 (UTC-5)
+FECHA DE ELABORACIÓN ......... 15 de octubre de 2026, 16:19 (UTC-5); actualizado el 15 de octubre de 2026, 18:10 (UTC-5)
 UBICACIÓN DEL PROYECTO ....... /home/santiago/Proyectos/universidad/Aplicacion de la IA/ica-app
 REPOSITORIO REMOTO ........... https://github.com/santiagommunoz26-blip/ica-app.git (origin por SSH; todo subido)
-ESTADO GENERAL ............... Documentación completa. Sprint 0: T0 y S0-1 a S0-6 hechos y verificados; faltan las ADRs 001–005 y el spike.
-ÚLTIMA TAREA COMPLETADA ...... S0-6 (CI con GitHub Actions): pipeline en verde (backend con PostgreSQL, frontend y formato), en ≈3 minutos.
-SIGUIENTE ACCIÓN RECOMENDADA . Escribir las ADRs 001–005 y el spike del motor de formularios; después cerrar el Sprint 0 con evidencias antes de M1.
+ESTADO GENERAL ............... Documentación completa. Sprint 0 terminado: T0, S0-1 a S0-6, las cinco ADRs y el spike del motor de formularios. Pendiente solo la protección de la rama main (acción manual del usuario) y aclarar BACKLOG_INICIAL.md/LEARNING_LOG.md.
+ÚLTIMA TAREA COMPLETADA ...... ADRs 001–005 (docs/adr/) y spike del motor de formularios (docs/spike-form-engine/): 9 comprobaciones automáticas en verde.
+SIGUIENTE ACCIÓN RECOMENDADA . Cerrar el Sprint 0 mostrando evidencias y, con el OK del usuario, empezar el módulo M1 (autenticación y usuarios, RF01–RF07).
 
 Nota: este documento lo redactó una sesión de IA (OpenCode) a partir de los archivos reales del proyecto. Si algún dato no coincide con la realidad, prevalecen los archivos reales: hay que corregir este documento y avisar al usuario.
 
@@ -22,7 +22,7 @@ A. IDENTIFICACIÓN DEL PROYECTO
 - Problema que resuelve: hoy la evaluación se hace de forma manual (entrevista, inspección de galpón, revisión documental y cálculos ponderados). El sistema debe guiar las 4 fases de la visita, aplicar las reglas exactas de la metodología (pesos, escalas, tamaños de muestra y plazos), calcular los resultados en vivo, funcionar en campo sin conexión y emitir un acta oficial.
 - Resultado final esperado: aplicación web con 3 roles (Administrador, Inspector, Consulta), visitas de inspección de punta a punta (Fases I a IV), motor de cálculo automático, acta en PDF firmable y enviable por correo, administración de la metodología (catálogo de indicadores, escalas, pesos y versiones), panel con indicadores y gráficas, historial exportable (PDF/Excel/CSV) y despliegue en Google Cloud.
 - Criterio de alcance: RF01–RF53 y RNF01–RNF28 del documento «Requerimientos funcionales y no funcionales – Aplicativo EBA Aves.docx». Los requisitos adicionales para Google Cloud están en «Requerimientos Aplicación ICA.docx» (RNFG01–RNFG07).
-- Estado general: documentación y diseño completos; Sprint 0 en curso con código inicial creado (backend NestJS y frontend Angular) y repositorio git local listo (push pendiente de autenticación); entorno de desarrollo instalado y verificado (ver C y D).
+- Estado general: documentación y diseño completos; **Sprint 0 terminado** (repo, CI en verde, infraestructura local, scaffolds de backend y frontend, cinco ADRs y spike del motor de formularios); entorno de desarrollo instalado y verificado (ver C y D).
 
 ---------------------------------------------------------------------
 B. CONTEXTO E HISTORIAL RELEVANTE
@@ -89,13 +89,15 @@ Terminado:
 - S0-4 (backend + base de datos): NestJS conectado a PostgreSQL con TypeORM (@nestjs/typeorm), configuración por entorno (@nestjs/config), primera migración (tabla app_metadata) y runner propio de migraciones; health check en GET /health con @nestjs/terminus (200 si la API y la BD responden, 503 si la BD cae); scripts npm migration:run/migration:revert y targets make migrate/make migrate-revert. Verificado de extremo a extremo, incluso revirtiendo y reaplicando.
 - S0-5 (frontend): Angular Material 18 (tema azure-blue, animaciones asíncronas y tipografías Roboto/Material Icons), Tailwind CSS 3 (tailwind.config.js + directivas en src/styles.scss) y página inicial «Hola ICA» en la ruta '' (HomeComponent, src/app/pages/home/). El componente raíz quedó reducido al router-outlet; index.html con título y descripción en español. Pruebas unitarias reconfiguradas (AppComponent + HomeComponent) y ejecutables en local con Firefox headless.
 - S0-6 (CI): workflow de GitHub Actions (.github/workflows/ci.yml) con 3 jobs sobre ubuntu-latest y Node 22: backend (lint, typecheck, test, migraciones y e2e contra un PostgreSQL 16 como servicio, y build), frontend (lint, typecheck, pruebas en Chrome headless y build) y formato (Prettier). Se añadieron los scripts npm `typecheck` en ambos proyectos. Primera ejecución en verde el 15 oct 2026 (≈3 min): https://github.com/santiagommunoz26-blip/ica-app/actions/runs/38818687302
+- ADRs 001–005 (docs/adr/, con índice en docs/adr/README.md): ADR-001 modelo de datos (híbrido: catálogo normalizado y versionado + respuestas de la visita en JSONB con snapshot), ADR-002 autenticación (JWT propio con argon2id + PIN sin conexión), ADR-003 evidencias (URLs firmadas a Cloud Storage/MinIO), ADR-004 API (REST + OpenAPI), ADR-005 despliegue (Cloud Run + Cloud SQL + Cloud Storage + Firebase Hosting + Secret Manager). Cada una incluye contexto, opciones evaluadas, justificación, consecuencias y pendientes; todas citan los RF/RNF que las sustentan.
+- Spike del motor de formularios (docs/spike-form-engine/): prototipo sin dependencias (catalogo.ejemplo.json, respuestas.ejemplo.json y validar.mjs) que valida un catálogo versionado, comprueba que los pesos suman 100 en cada perfil, implementa las fórmulas de la metodología (indicador, grupo, final y clasificación), excluye los indicadores «No aplica», distingue corral/traspatio y demuestra la inmutabilidad de una visita cerrada. Se ejecuta con `node docs/spike-form-engine/validar.mjs`; las 9 comprobaciones pasan. Conclusión en docs/spike-form-engine/README.md y decisión en ADR-001.
 
 Parcialmente terminado:
 - Nada a medias: T0 y S0-1 a S0-5 quedaron terminados y verificados.
 
 Pendiente:
-- Las ADRs 001–005 y el spike del motor de formularios (últimas tareas del Sprint 0).
-- Acción manual del usuario: proteger la rama main en GitHub (Settings → Branches → Add branch protection rule) exigiendo el check del CI «CI / Backend…», «CI / Frontend…» y «CI / Formato (Prettier)» y bloqueando el push directo.
+- Acción manual del usuario: proteger la rama main en GitHub (Settings → Branches → Add branch protection rule) exigiendo los 3 checks del CI («Backend…», «Frontend…» y «Formato (Prettier)») y bloqueando el push directo.
+- Aclarar con el docente los archivos BACKLOG_INICIAL.md y LEARNING_LOG.md (citados por el plan pero inexistentes) y el resto de puntos abiertos de E.
 - Después: los módulos M1–M8 y el despliegue en GCP. Lista priorizada en H.
 
 Qué funciona correctamente:
@@ -202,17 +204,23 @@ Documentos existentes (conservar; no modificar sin permiso del usuario):
    - Uso: contexto académico y fuente del stack; no es el alcance del aplicativo de aves (ese es el documento n.º 2).
 6. docs/CONTEXTO_PROYECTO.txt y docs/PROMPT_MAESTRO.txt (creados el 15 oct 2026)
    - Función: continuidad entre sesiones y guía de construcción por módulos, respectivamente. Mantenerlos actualizados.
-7. Repositorio remoto en GitHub (ya conectado como origin; push pendiente)
+7. Repositorio remoto en GitHub (origin por SSH)
    - URL: https://github.com/santiagommunoz26-blip/ica-app.git
-   - Estado: creado por el usuario el 15 oct 2026; sigue vacío (el push local está bloqueado por falta de credenciales).
-   - Uso: destino del monorepo (git push -u origin main) y base para el CI de S0-6 (GitHub Actions).
-   - Nota: el repositorio local ya existe (git init -b main) y tiene 2 commits pendientes de subir.
+   - Estado: activo; rama main con todos los commits subidos (15 oct 2026). Autenticación por llave SSH (~/.ssh/id_ed25519), sin passphrase.
+   - Uso: destino del monorepo y base del CI (GitHub Actions) de S0-6.
+   - Pendiente: proteger la rama main (acción manual del usuario en GitHub).
+8. docs/adr/ (creado el 15 oct 2026)
+   - Función: las cinco decisiones de arquitectura (ADR-001 a ADR-005) y su índice (README.md).
+   - Uso: consultar antes de cambiar el modelo de datos, la autenticación, el almacenamiento, la API o el despliegue; cada ADR es reemplazable por una nueva, no reescribible.
+9. docs/spike-form-engine/ (creado el 15 oct 2026)
+   - Función: prototipo del motor de formularios dinámicos (catálogo versionado + cálculo) y sus conclusiones (README.md).
+   - Uso: referencia del modelo de datos para M6/M8; se ejecuta con `node docs/spike-form-engine/validar.mjs`.
 
 Recursos ausentes que los documentos citan:
 - BACKLOG_INICIAL.md y LEARNING_LOG.md (citados en SPRINT_0_PLAN.md; no están en el proyecto).
 - Documento fuente de la metodología ICA (v2.0, 2024).
 
-Estructura creada en S0-1: monorepo con backend/, frontend/ y docs/, más Makefile, README.md y docker-compose. Falta por crear en el resto del Sprint 0: .github/ (CI) y las ADRs.
+Estructura creada en S0-1: monorepo con backend/, frontend/ y docs/, más Makefile, README.md y docker-compose. Creado en el resto del Sprint 0: .github/workflows/ci.yml (CI), docs/adr/ (ADRs 001–005) y docs/spike-form-engine/ (spike).
 
 ---------------------------------------------------------------------
 F. ERRORES Y SOLUCIONES
@@ -268,12 +276,12 @@ T2 · Sprint 0 completo (fase de setup)
     S0-4 Backend NestJS + TypeORM + PostgreSQL (health check + migraciones). [HECHO el 15 oct 2026: /health 200/503, migraciones aplicadas/revertidas y e2e 2/2]
     S0-5 Frontend Angular 18 + Tailwind + Angular Material (página «Hola ICA»). [HECHO el 15 oct 2026: página «Hola ICA» en la ruta '', build/lint OK y 4/4 pruebas con Firefox headless]
     S0-6 CI GitHub Actions (lint + typecheck + test + build), rama main protegida. [HECHO el 15 oct 2026: 3 jobs en verde en ≈3 min; queda proteger la rama main (acción manual del usuario)]
-    ADRs 001–005 (motor de formularios, autenticación, evidencias, comunicación y despliegue GCP).
-    Spike del motor de formularios (máximo 4 horas; si no converge: «tablas normalizadas v1» y seguir).
+    ADRs 001–005 (modelo de datos, autenticación, evidencias, comunicación y despliegue GCP). [HECHO el 15 oct 2026: escritas y aceptadas en docs/adr/, con índice; ver C]
+    Spike del motor de formularios (máximo 4 horas; si no converge: «tablas normalizadas v1» y seguir). [HECHO el 15 oct 2026: convergió; prototipo con 9 comprobaciones en verde en docs/spike-form-engine/ y decisión en ADR-001]
   Por qué: deja el camino feliz listo (make dev, CI verde) antes de escribir módulos de negocio.
-  Archivos: SPRINT_0_PLAN.md; todo el repo (aún por crear).
-  Dependencias: T0. El remoto en GitHub ya existe y está conectado, pero falta autenticación de git para el primer push (bloquea también el CI de S0-6).
-  Verificación: Definición de Terminado del Sprint 0 en SPRINT_0_PLAN.md (make dev levanta todo; make lint/test pasan; CI verde; ADR-001 escrito; LEARNING_LOG actualizado; README claro).
+  Archivos: SPRINT_0_PLAN.md; todo el repo.
+  Dependencias: T0. El repositorio remoto ya está conectado y sincronizado por SSH.
+  Verificación: Definición de Terminado del Sprint 0 en SPRINT_0_PLAN.md (make dev levanta todo; make lint/test pasan; CI verde; ADRs escritas; README claro). Queda sin cumplir el punto «LEARNING_LOG.md actualizado» porque el archivo no existe (ver E).
   Riesgos: curva de aprendizaje NestJS/Angular; Docker en local; scope creep (regla: el Sprint 0 es solo setup, ninguna user story de negocio).
 
 T3 · Módulo M1 · Autenticación y usuarios (RF01–RF07)
@@ -342,12 +350,12 @@ Nota sobre Sprint 1 en adelante: SPRINT_0_PLAN.md menciona un BACKLOG_INICIAL.md
 ---------------------------------------------------------------------
 I. PUNTO EXACTO DE CONTINUACIÓN
 ---------------------------------------------------------------------
-- Dónde estamos: Sprint 0 casi cerrado. T0 y S0-1 a S0-6 terminados y verificados; faltan las ADRs 001–005 y el spike del motor de formularios.
-- Última tarea realizada: S0-6 (CI con GitHub Actions), el 15 oct 2026.
-- Resultado obtenido: el pipeline (backend con PostgreSQL de servicio, frontend y formato) queda en verde en cada push a main; primera ejecución correcta en https://github.com/santiagommunoz26-blip/ica-app/actions/runs/38818687302 (≈3 min).
-- Qué falta inmediatamente: las ADRs 001–005, el spike del motor de formularios y, como acción del usuario, proteger la rama main.
-- Siguiente acción recomendada: escribir las ADRs 001–005 y el spike; después cerrar el Sprint 0 mostrando evidencias y esperar el OK del usuario antes de empezar M1.
-- Qué debe comprobar la nueva sesión antes de actuar: git (log, status y ls-remote origin: ¿todo subido?); que la última ejecución del CI esté en verde; que `make infra`, `make dev`, `make migrate` y `make test` funcionen; versiones reales en backend/package.json y frontend/package.json; si esa sesión necesita «newgrp docker»; que no haya cambios sin commitear.
+- Dónde estamos: Sprint 0 **terminado** (salvo la protección de la rama main, que es una acción manual del usuario en GitHub). T0, S0-1 a S0-6, las cinco ADRs y el spike están hechos y verificados.
+- Última tarea realizada: ADRs 001–005 y el spike del motor de formularios, el 15 oct 2026.
+- Resultado obtenido: cinco ADRs aceptadas en docs/adr/ (con alternativas descartadas y pendientes) y un prototipo ejecutable del motor de formularios con 9 comprobaciones en verde (pesos que suman 100, fórmulas de la metodología, «No aplica», corral/traspatio e inmutabilidad de la visita cerrada).
+- Qué falta inmediatamente: (1) que el usuario proteja la rama main en GitHub; (2) aclarar BACKLOG_INICIAL.md / LEARNING_LOG.md y el resto de puntos abiertos de E; (3) empezar el módulo M1.
+- Siguiente acción recomendada: cerrar el Sprint 0 con el resumen de evidencias al usuario y, con su OK, empezar M1 (autenticación y usuarios, RF01–RF07, según ADR-002). Antes de M1 conviene resolver el timeout de inactividad de sesión (punto abierto E-2), porque M1 lo necesita.
+- Qué debe comprobar la nueva sesión antes de actuar: git (log, status y ls-remote origin: ¿todo subido?); que la última ejecución del CI esté en verde; que `make infra`, `make dev`, `make migrate` y `make test` funcionen; que `node docs/spike-form-engine/validar.mjs` pase; versiones reales en backend/package.json y frontend/package.json; si esa sesión necesita «newgrp docker»; que no haya cambios sin commitear.
 
 ---------------------------------------------------------------------
 J. INSTRUCCIONES PARA LA SIGUIENTE SESIÓN
@@ -367,6 +375,6 @@ J. INSTRUCCIONES PARA LA SIGUIENTE SESIÓN
 INSTRUCCIÓN DE ARRANQUE PARA LA SIGUIENTE SESIÓN
 (Copia y pega este bloque en una sesión nueva de OpenCode, dentro de la carpeta ica-app)
 =====================================================================
-Lee completo el archivo docs/CONTEXTO_PROYECTO.txt y consulta los documentos de docs/ según lo que indique (requerimientos EBA Aves, reglas y roles, wireframes y plan de Sprint 0). Antes de tocar nada, verifica el estado real del proyecto: qué archivos existen, si ya hay código o repositorio git, y qué herramientas están instaladas (node -v, npm -v, docker --version). Detecta y reporta cualquier diferencia con lo documentado; no empieces de cero ni repitas tareas ya completadas. Continúa desde la sección «I. Punto exacto de continuación» (por ahora: escribir las ADRs 001–005 y el spike, y luego cerrar el Sprint 0). Respeta las decisiones registradas: stack Angular + Node.js/NestJS + Google Cloud, trabajo por módulos con parada al final de cada uno para revisión del usuario, y metodología ICA sin inventar reglas. Si falta información esencial, investígala en el proyecto y pregunta al usuario solo si no puede resolverse. Empieza diciéndome brevemente qué vas a hacer, qué comprobaste y qué resultados obtuviste. Al terminar cada hito, actualiza docs/CONTEXTO_PROYECTO.txt y detente a esperar mi confirmación.
+Lee completo el archivo docs/CONTEXTO_PROYECTO.txt y consulta los documentos de docs/ según lo que indique (requerimientos EBA Aves, reglas y roles, wireframes y plan de Sprint 0). Antes de tocar nada, verifica el estado real del proyecto: qué archivos existen, si ya hay código o repositorio git, y qué herramientas están instaladas (node -v, npm -v, docker --version). Detecta y reporta cualquier diferencia con lo documentado; no empieces de cero ni repitas tareas ya completadas. Continúa desde la sección «I. Punto exacto de continuación» (por ahora: cerrar el Sprint 0 con las evidencias y empezar el módulo M1, autenticación y usuarios). Respeta las decisiones registradas: stack Angular + Node.js/NestJS + Google Cloud, trabajo por módulos con parada al final de cada uno para revisión del usuario, y metodología ICA sin inventar reglas. Si falta información esencial, investígala en el proyecto y pregunta al usuario solo si no puede resolverse. Empieza diciéndome brevemente qué vas a hacer, qué comprobaste y qué resultados obtuviste. Al terminar cada hito, actualiza docs/CONTEXTO_PROYECTO.txt y detente a esperar mi confirmación.
 
 FIN DEL DOCUMENTO
