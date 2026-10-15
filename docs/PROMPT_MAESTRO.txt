@@ -1,7 +1,7 @@
 =====================================================================
 PROMPT MAESTRO — Construcción del Aplicativo EBA Aves
 Instrucciones para la IA que desarrollará el proyecto, módulo por módulo.
-Última actualización: 15 de octubre de 2026 (T0 completado y S0-1 en curso: monorepo creado con backend NestJS 12 y frontend Angular 18; push pendiente de autenticación)
+Última actualización: 15 de octubre de 2026 (Sprint 0 terminado y módulo M1 terminado y verificado: autenticación y usuarios en backend y frontend; el siguiente es M2)
 =====================================================================
 
 CÓMO USAR ESTE ARCHIVO
@@ -25,7 +25,7 @@ Construir, de forma organizada y por módulos, el «Aplicativo EBA Aves»: una a
    - SPRINT_0_PLAN.md (setup del repositorio, ADRs, spike; tareas S0-1…S0-6).
    - Requerimientos Aplicación ICA.docx (documento marco del curso: stack, requisitos GCP e IA).
 3. Verifica el estado real antes de actuar: archivos existentes, si ya hay código o repositorio git, versiones de herramientas (node -v, npm -v, docker --version). Si algo difiere de lo documentado, repórtalo y actualiza el contexto.
-4. Confirma con el usuario los puntos abiertos (sección B del contexto): alcance de las recomendaciones con IA, timeout de sesión (RF02), lista de documentos MBG (RF27), BACKLOG_INICIAL.md / LEARNING_LOG.md y la metodología ICA fuente. No inventes las respuestas; no bloquees el Sprint 0 por los puntos que no le afectan.
+4. Confirma con el usuario los puntos abiertos (sección B del contexto): alcance de las recomendaciones con IA, timeout de sesión (RF02), lista de documentos MBG (RF27), BACKLOG_INICIAL.md / LEARNING_LOG.md y la metodología ICA fuente. No inventes las respuestas; no bloquees el Sprint 0 por los puntos que no le afectan. Nota de M1: el timeout de sesión quedó provisionalmente en 30 minutos (variable SESION_INACTIVIDAD_MINUTOS) y la política de contraseñas y el límite de intentos del PIN son propuestas del proyecto: hay que confirmarlas con el usuario (sección B).
 5. Si los .docx/.pdf no se pueden abrir directamente, extrae su texto (pandoc para docx; pdftotext -layout para pdf). Nota: el archivo «Requerimientos Aplicación ICA.docx» está guardado con la tilde en Unicode NFD; si una ruta escrita a mano falla, usa comodines.
 
 ---------------------------------------------------------------------
@@ -35,19 +35,19 @@ Construir, de forma organizada y por módulos, el «Aplicativo EBA Aves»: una a
 - Backend: Node.js con NestJS (12.0.x en el scaffold de S0-1; ESM, Vitest y oxlint).
 - Base de datos: PostgreSQL en desarrollo (Docker); en producción, BD administrada de Google Cloud (Cloud SQL; alternativa Firebase evaluada con ADR).
 - Almacenamiento de evidencias: Cloud Storage en producción; MinIO local en desarrollo.
-- Autenticación: Firebase Auth o JWT con NestJS (decidir en ADR-002).
+- Autenticación: JWT propio con NestJS + Passport y contraseñas argon2id, más PIN de acceso sin conexión (decidido en ADR-002; se descartó Firebase Auth por el modo sin conexión).
 - Nube: Google Cloud. Despliegue administrado (ADR-005: Cloud Run / GKE / Functions), monitoreo y observabilidad GCP, credenciales fuera del código (RNFG06), ambientes separados de desarrollo, pruebas y producción (RNFG07).
 - IA (solo si el usuario confirma su alcance): API externa o servicio de IA en GCP; nunca sustituye el criterio del inspector (RNF25 del docx del docente) y su caída no debe bloquear la evaluación (RNF26).
 - Desarrollo local: Docker Compose con PostgreSQL, Redis y MinIO; CI con GitHub Actions; automatización con make (install/dev/test/lint) según SPRINT_0_PLAN.md.
-- Repositorio remoto: https://github.com/santiagommunoz26-blip/ica-app.git (rama main; ya conectado como origin en S0-1, pero el push requiere configurar autenticación — SSH o PAT; usarlo en S0-6 para el CI).
-- ADRs del Sprint 0 (escribirlas en docs/ o docs/adr/ antes de decidir en código): ADR-001 motor de formularios dinámicos; ADR-002 autenticación; ADR-003 almacenamiento de evidencias; ADR-004 comunicación frontend-backend; ADR-005 despliegue en GCP.
+- Repositorio remoto: https://github.com/santiagommunoz26-blip/ica-app.git (rama main, ya conectada como origin y con push funcionando por SSH; pendiente proteger la rama main, acción manual del usuario).
+- ADRs del Sprint 0: **ya escritas y aceptadas** en docs/adr/ (con índice en docs/adr/README.md): ADR-001 motor de formularios dinámicos; ADR-002 autenticación; ADR-003 almacenamiento de evidencias; ADR-004 comunicación frontend-backend; ADR-005 despliegue en GCP. Para cambiar una decisión, se escribe una ADR nueva que reemplace la anterior.
 
 ---------------------------------------------------------------------
 3) ORDEN DE TRABAJO (por fases y módulos)
 ---------------------------------------------------------------------
-Fase 0 — Sprint 0 «setup»: S0-1 monorepo; S0-2 lint/format/husky; S0-3 Docker Compose; S0-4 backend NestJS + TypeORM (health y migraciones); S0-5 frontend Angular + Tailwind + Material; S0-6 CI; ADRs 001–005; spike del motor de formularios (máximo 4 h; si no converge: «tablas normalizadas v1»). Definición de terminado: la del SPRINT_0_PLAN.md.
-Fase 1 — M1 · Autenticación y usuarios (RF01–RF07). Pantallas: Login; Administración · Usuarios.
-Fase 2 — M2 · Gestión de visitas (RF08–RF12). Pantallas: Panel; Visitas.
+Fase 0 — Sprint 0 «setup»: S0-1 monorepo; S0-2 lint/format/husky; S0-3 Docker Compose; S0-4 backend NestJS + TypeORM (health y migraciones); S0-5 frontend Angular + Tailwind + Material; S0-6 CI; ADRs 001–005; spike del motor de formularios (máximo 4 h; si no converge: «tablas normalizadas v1»). Definición de terminado: la del SPRINT_0_PLAN.md. **[TERMINADO el 15 oct 2026, salvo proteger la rama main]**
+Fase 1 — M1 · Autenticación y usuarios (RF01–RF07). Pantallas: Login; Administración · Usuarios. **[TERMINADO y verificado el 15 oct 2026]**
+Fase 2 — M2 · Gestión de visitas (RF08–RF12). Pantallas: Panel; Visitas. Incluye el cifrado del almacenamiento local y la sincronización sin conexión (RNF09, RF11, RF12). **[SIGUIENTE]**
 Fase 3 — M3 · Apertura y ficha general, Fase I (RF13–RF17).
 Fase 4 — M4 · Inspección en galpón, Fase II (RF18–RF26), con cálculo en vivo y guardado parcial.
 Fase 5 — M5 · Inspección documental, Fase III (RF27–RF33).
