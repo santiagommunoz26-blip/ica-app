@@ -19,7 +19,7 @@
 | S0-3 | Docker Compose local (PostgreSQL, Redis, MinIO para S3 local) | 3 | Dev | `docker compose up -d` -> BD y storage listos — **completado (15 oct 2026)**: 3 servicios verificados (imagen de MinIO: espejo `pgsty/minio`) |
 | S0-4 | Backend: NestJS + TypeORM + PostgreSQL (health check + migration runner) | 3 | Dev | `make migrate` crea tablas, `/health` retorna 200 — **completado (15 oct 2026)**: tablas `app_metadata`+`migrations`, `/health` 200/503 y e2e 2/2 |
 | S0-5 | Frontend: Angular 18 + Tailwind + Angular Material (estructura basica) | 2 | Dev | `ng serve` compila, pagina "Hola ICA" visible — **completado (15 oct 2026)**: página «Hola ICA» en la ruta '', bundle 403 kB y 4/4 pruebas (Firefox headless) |
-| S0-6 | CI GitHub Actions: lint + typecheck + test + build (backend + frontend) | 2 | Dev | Push a main -> pipeline verde en < 8 min |
+| S0-6 | CI GitHub Actions: lint + typecheck + test + build (backend + frontend) | 2 | Dev | Push a main -> pipeline verde en < 8 min — **hecho (15 oct 2026)**: 3 jobs (backend con PostgreSQL, frontend, formato) en verde en ≈3 min; queda proteger la rama main (acción manual del usuario) |
 
 ---
 
