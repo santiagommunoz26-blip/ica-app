@@ -1,0 +1,321 @@
+=====================================================================
+CONTEXTO_PROYECTO.txt
+Documento de continuidad entre sesiones de IA
+Proyecto: Aplicativo EBA Aves — Bienestar animal en aves de corral y de traspatio
+=====================================================================
+
+PROYECTO ..................... Aplicativo EBA Aves (metodología ICA v2.0, 2024)
+FECHA DE ELABORACIÓN ......... 15 de octubre de 2026, 16:19 (UTC-5); actualizado el 15 de octubre de 2026, 16:35 (UTC-5)
+UBICACIÓN DEL PROYECTO ....... /home/santiago/Proyectos/universidad/Aplicacion de la IA/ica-app
+REPOSITORIO REMOTO ........... https://github.com/santiagommunoz26-blip/ica-app.git (creado por el usuario; verificado vacío y accesible el 15 oct 2026)
+ESTADO GENERAL ............... Documentación y diseño completos. Aún no existe código. Entorno preparado y verificado (Node 22 LTS, npm, Docker); identidad de git pendiente.
+ÚLTIMA TAREA COMPLETADA ...... T0: entorno instalado y verificado (Node.js 22.23.3, npm 12.2.0, Docker 29.9.1, Docker Compose 5.6.0; prueba hello-world correcta) y repositorio remoto de GitHub definido.
+SIGUIENTE ACCIÓN RECOMENDADA . Ejecutar S0-1 del Sprint 0: definir la identidad de git, git init, conectar el remoto, crear la estructura del monorepo (backend/, frontend/, Makefile, README) y hacer el primer commit/push.
+
+Nota: este documento lo redactó una sesión de IA (OpenCode) a partir de los archivos reales del proyecto. Si algún dato no coincide con la realidad, prevalecen los archivos reales: hay que corregir este documento y avisar al usuario.
+
+---------------------------------------------------------------------
+A. IDENTIFICACIÓN DEL PROYECTO
+---------------------------------------------------------------------
+- Nombre: «Aplicativo EBA Aves» (Evaluación de Bienestar Animal en aves de corral y de traspatio).
+- Propósito: aplicación web que digitaliza las visitas de inspección de bienestar animal en aves, aplicando la metodología del ICA (Instituto Colombiano Agropecuario), versión 2.0 de 2024.
+- Problema que resuelve: hoy la evaluación se hace de forma manual (entrevista, inspección de galpón, revisión documental y cálculos ponderados). El sistema debe guiar las 4 fases de la visita, aplicar las reglas exactas de la metodología (pesos, escalas, tamaños de muestra y plazos), calcular los resultados en vivo, funcionar en campo sin conexión y emitir un acta oficial.
+- Resultado final esperado: aplicación web con 3 roles (Administrador, Inspector, Consulta), visitas de inspección de punta a punta (Fases I a IV), motor de cálculo automático, acta en PDF firmable y enviable por correo, administración de la metodología (catálogo de indicadores, escalas, pesos y versiones), panel con indicadores y gráficas, historial exportable (PDF/Excel/CSV) y despliegue en Google Cloud.
+- Criterio de alcance: RF01–RF53 y RNF01–RNF28 del documento «Requerimientos funcionales y no funcionales – Aplicativo EBA Aves.docx». Los requisitos adicionales para Google Cloud están en «Requerimientos Aplicación ICA.docx» (RNFG01–RNFG07).
+- Estado general: solo documentación y wireframes; sin código, sin repositorio git y sin herramientas de desarrollo instaladas (ver D y C).
+
+---------------------------------------------------------------------
+B. CONTEXTO E HISTORIAL RELEVANTE
+---------------------------------------------------------------------
+Qué se ha hecho hasta ahora (verificado):
+- Existen 5 archivos en docs/: requerimientos funcionales/no funcionales por módulos, reglas y roles por módulo, wireframes, plan del Sprint 0 y documento de requerimientos genérico del curso (ver E).
+- Se construyó la segmentación por módulos M1–M8, las 8 pantallas de wireframe y la planificación del Sprint 0 (6 tareas, 5 ADRs y un spike técnico).
+- En esta sesión: se analizaron todos los documentos, se verificó el entorno real de la máquina y se crearon docs/CONTEXTO_PROYECTO.txt (este archivo) y docs/PROMPT_MAESTRO.txt (prompt de construcción por módulos).
+- El usuario ejecutó la instalación de herramientas (T0) y creó el repositorio remoto en GitHub: https://github.com/santiagommunoz26-blip/ica-app.git (verificado vacío y accesible el 15 oct 2026). La IA verificó la instalación: Node 22.23.3, npm 12.2.0, Docker 29.9.1 y Docker Compose 5.6.0; servicio docker activo y prueba docker run hello-world correcta.
+
+Solicitudes del usuario:
+- Analizar toda la documentación del proyecto y preparar un prompt para que una IA desarrolle el trabajo de forma organizada y por módulos.
+- Crear un documento de contexto que permita a otra sesión de IA continuar el trabajo sin empezar de cero.
+
+Decisiones tomadas (confirmadas por el usuario; no revertir sin consultar):
+- Se trabajará con dos documentos de continuidad: este contexto y docs/PROMPT_MAESTRO.txt.
+- Orden de trabajo: primero el Sprint 0 (setup: repo, CI, Docker, scaffolds, ADRs, spike) y después los módulos M1 → M8 en orden.
+- Stack tecnológico fijado según el pedido del docente en «Requerimientos Aplicación ICA.docx»: Angular (frontend), Node.js/NestJS (backend) y Google Cloud (despliegue, BD administrada, almacenamiento, IA y monitoreo). No se elige otro stack sin consultar.
+- Autonomía de la IA: completar un módulo, mostrar cómo probarlo y DETENERSE a esperar el OK del usuario antes de continuar.
+
+Alternativas consideradas y descartadas:
+- Dejar el stack a elección de la IA (descartada: el usuario pidió fijar el pedido del docente).
+- Camino simplificado Angular + Firebase completo (Firestore/Auth/Hosting): descartada por ahora; el docente permite «Cloud SQL o Firebase según complejidad», así que sigue abierta dentro de los ADRs.
+- Trabajar sin checkpoints intermedios (descartada).
+
+Requisitos y reglas clave que no deben cambiarse sin consultar:
+- La metodología ICA manda: cálculos, pesos, escalas, tamaños de muestra y plazos deben coincidir exactamente con la metodología (RNF03 y RNF27). Los documentos marcan las reglas que vienen de la metodología con «(PDF)» y las que son decisión de diseño con «(propuesta)»; solo las «(propuesta)» se pueden ajustar.
+- Clasificación del predio: 200 aves o más = corral (granja); 199 o menos = traspatio (RF14).
+- Pesos: corral = 35 % animal (MBA) + 35 % recursos (MBR) + 30 % gestión (MBG); traspatio = 60 % MBA + 40 % MBR, sin MBG (RF14, RF33).
+- Galpones a evaluar: 1 si el predio tiene menos de 50.000 aves; 2 si tiene 50.000 o más, priorizando el galpón de aves de mayor edad (RF16).
+- Puntos de muestreo: 9 por galpón (RF18). Muestras: piso, 15–30 aves por punto; jaula, 3–5 jaulas con 10–20 aves en total y conteo previo obligatorio (RF20, RF21).
+- Hojas centinela (partículas en el aire): mínimo 3 en corral y 1 en traspatio (RF22).
+- Escala de calificación: puntajes 0, 1 o 2 con descripción visible (RF19).
+- Fórmulas: indicador = (promedio de puntajes × 100) / 2; grupo = promedio de indicadores × peso; final = suma de grupos (RF34–RF36).
+- Clasificación final: Excelente 90 % o más; Alto 75 % o más y menos de 90 %; Medio 50 % o más y menos de 75 %; Bajo menos de 50 % (RF36).
+- Mortalidad: ponedoras, 12 % o menos = 2 pts, más de 12 % y hasta 14 % = 1 pt, más de 14 % = 0; pollo de engorde, 6 % o menos = 2 pts, más de 6 % y hasta 9 % = 1 pt, más de 9 % = 0 (RF30).
+- Documentos de gestión: si no se presenta el documento, el indicador se califica 0 (RF29); los pendientes se entregan dentro de 1 día hábil y luego se recalcula y emite acta definitiva (RF43, RF44).
+- Las visitas/actas cerradas no se editan salvo por el flujo de documentos pendientes (RNF10, RF44).
+- El predio tipo traspatio no tiene fase documental ni indicadores de gestión (RF33).
+- Referencias de UI: las 8 pantallas de «Aplicativo EBA Aves – Wireframes.pdf» (Login con PIN sin conexión, Panel, Visitas, Fase I, Fase II, Fase III, Fase IV y Administración con Usuarios/Catálogo/Historial).
+- Requisitos GCP (RNFG01–07 del docx del docente): servicios administrados de Google Cloud, evidencias en Cloud Storage, BD administrada, IA consumida como servicio externo (si se confirma su alcance), monitoreo cloud, credenciales fuera del código y ambientes separados.
+
+Puntos abiertos conocidos (no resolver por cuenta propia; detalle en H, tarea T1):
+1. ¿El aplicativo debe incluir «recomendaciones con IA»? El docx del docente las pide (RF24–RF26 y RNFG04); el docx EBA Aves (RF01–RF53) no las incluye y la carpeta del curso se llama «Aplicacion de la IA». Confirmar con el usuario/docente antes de decidir arquitectura.
+2. Tiempo de inactividad que cierra la sesión (RF02): el propio documento dice que falta por definir.
+3. Lista final de documentos por indicador de gestión (RF27): el propio documento dice que falta por definir; el wireframe muestra una lista de 10 (calidad del agua, alimentación equilibrada, vigilancia sanitaria, POE de bienestar animal, condiciones térmicas, programa de iluminación, capacitación en bienestar animal, protocolo de eutanasia, mortalidad [5 ciclos], uso de medicamentos) que puede servir de base provisional.
+4. BACKLOG_INICIAL.md y LEARNING_LOG.md: citados por SPRINT_0_PLAN.md pero ausentes del proyecto. Preguntar si existen o si hay que crearlos.
+5. Documento fuente «Metodología para evaluar bienestar animal en aves de corral y de traspatio (ICA, v2.0, 2024)»: citado repetidamente pero no está en docs/. Necesario para validar fórmulas y escalas (RNF03).
+
+---------------------------------------------------------------------
+C. ESTADO ACTUAL DEL TRABAJO
+---------------------------------------------------------------------
+Terminado:
+- Documentación completa de análisis y diseño: requerimientos por módulo (2 docx), reglas y roles (pdf), wireframes (pdf) y plan de Sprint 0 (md).
+- Este documento y el prompt maestro de construcción.
+- T0: entorno de desarrollo instalado y verificado (Node 22.23.3 LTS, npm 12.2.0, Docker 29.9.1, Docker Compose 5.6.0; servicio docker habilitado, activo y probado con hello-world).
+
+Parcialmente terminado:
+- Nada a medias. El proyecto pasa de documentación a implementación cuando se completen T0/T2 de la sección H.
+
+Pendiente:
+- Todo el desarrollo: Sprint 0 (setup) y módulos M1–M8, más el despliegue en GCP. Lista priorizada en H.
+
+Qué funciona correctamente:
+- No hay software del proyecto todavía. La documentación es coherente y suficiente para empezar.
+
+Qué presenta errores o problemas:
+- Resuelto (15 oct 2026): el entorno ya tiene Node.js, npm y Docker funcionando y probados (ver D). Nota menor: en terminales abiertas antes del cambio de grupo, docker puede pedir sudo; en una terminal nueva funciona directo.
+- Recursos ausentes citados por los documentos: BACKLOG_INICIAL.md, LEARNING_LOG.md y la metodología ICA fuente (ver E).
+
+Pruebas realizadas y resultados:
+- No hay pruebas de software (no hay código).
+- Verificaciones de preparación (15 oct 2026): extracción de texto de los .docx y .pdf con pandoc/pdftotext (exitosa); inventario de archivos con find (5 archivos, ninguno de código); versiones de herramientas del sistema (ver D). Resultado: documentación accesible; entorno de desarrollo incompleto.
+- Verificación de T0 (15 oct 2026): node -v = v22.23.3; npm -v = 12.2.0; docker --version = 29.9.1; docker compose version = 5.6.0; systemctl is-enabled/is-active docker = enabled/active; usuario en el grupo docker (docker:x:950:santiago); docker run --rm hello-world correcto (con el grupo activo). Resultado: herramientas correctamente instaladas y funcionales.
+
+Hechos comprobados / suposiciones / desconocidos:
+- Hechos: contenido y existencia de los 5 documentos; versiones instaladas (git, make, python3, pandoc, pdftotext y, desde T0, node/npm/docker; ver D); la carpeta local no es un repositorio git todavía; el repositorio remoto de GitHub existe, está vacío y es accesible; el archivo SPRINT_0_PLAN.md tiene la fecha de inicio sin llenar («[PON FECHA AQUI]»).
+- Suposiciones razonables (confirmar al avanzar): el documento EBA Aves rige el alcance y el genérico es solo marco del curso; el desarrollo se hará dentro de esta carpeta (ica-app/); el plan de sprint sigue vigente con adaptaciones menores (versiones de herramientas).
+- Desconocidos: los 5 puntos abiertos de B; disponibilidad de cuentas/proyecto de Google Cloud; valor del timeout de RF02; alcance final del módulo de IA. (Resuelto: el repositorio remoto ya existe.)
+
+---------------------------------------------------------------------
+D. ENTORNO TÉCNICO (verificado el 15 oct 2026)
+---------------------------------------------------------------------
+- Sistema operativo: CachyOS (Arch Linux), kernel 7.2.9-2-cachyos, x86_64. Gestor de paquetes: pacman.
+- Instalado y verificado: git 2.56.0; GNU Make 4.4.1; Python 3.14.8; pandoc; pdftotext (poppler).
+- Instalado el 15 oct 2026 (T0, verificado): Node.js v22.23.3 (paquete nodejs-lts-jod), npm 12.2.0, Docker 29.9.1 y Docker Compose 5.6.0 (paquetes pacman). Servicio docker: habilitado y activo. Usuario en el grupo docker (docker:x:950:santiago); prueba docker run --rm hello-world correcta con el grupo activo.
+- Nota: en terminales/sesiones abiertas antes del cambio de grupo, docker puede pedir sudo; una terminal nueva (o reiniciar sesión) ya lo evita. pnpm/yarn/bun/deno/nvm no están instalados y no se necesitan.
+- Comandos de instalación ejecutados por el usuario (T0): sudo pacman -S --needed nodejs-lts-jod npm docker docker-compose; sudo systemctl enable --now docker; sudo usermod -aG docker $USER.
+- Herramientas de apoyo disponibles: pandoc y pdftotext para leer los .docx/.pdf sin depender de ofimática.
+- Estructura de carpetas actual de ica-app/:
+    docs/    -> únicos archivos del proyecto (5 documentos)
+    (no hay backend/, frontend/, Makefile, README ni .git todavía)
+- Comandos ya ejecutados y su propósito (referencia):
+    find . -type f                          -> inventario de archivos del proyecto
+    pandoc <docx> -t plain                  -> extracción de texto de los .docx
+    pdftotext -layout <pdf>                 -> extracción de texto de los .pdf
+    uname -srm; grep /etc/os-release        -> sistema operativo
+    node/npm/git/make/docker --version; command -v pnpm/yarn/bun/deno -> herramientas
+    node -v; npm -v; docker --version; docker compose version; systemctl is-enabled/is-active docker; getent group docker -> verificación de la instalación (T0)
+- Extracción temporal de los documentos (consulta rápida): /tmp/opencode/ica-docs/ con req_ica.txt, reqf_ynf.txt, objetivos_modulos.txt y wireframes.txt. Es temporal: puede desaparecer; se regenera con pandoc/pdftotext.
+- Restricción de nombres de archivo: «Requerimientos Aplicación ICA.docx» está guardado con la tilde en forma Unicode NFD (no NFC). Si un script falla con «No such file», usar comodines (por ejemplo docs/Requerimientos\ Aplicaci*.docx) o normalizar el nombre.
+- Nota: el 15 oct 2026 a las 16:19 existía un archivo de bloqueo .~lock.SPRINT_0_PLAN.md# (el plan estaba abierto en LibreOffice); a las 16:27 ya no estaba (archivo cerrado). Verificar de todos modos antes de editar ese archivo.
+- Sin otros problemas de compatibilidad detectados (no hay software del proyecto instalado aún).
+
+---------------------------------------------------------------------
+E. ARCHIVOS Y RECURSOS IMPORTANTES
+---------------------------------------------------------------------
+Documentos existentes (conservar; no modificar sin permiso del usuario):
+1. docs/SPRINT_0_PLAN.md
+   - Función: plan del Sprint 0 (setup): tareas S0-1 a S0-6, ADRs 001–005, spike del motor de formularios, definición de terminado, riesgos y notas para Sprint 1.
+   - Estado: completo; tiene campos por llenar («[PON FECHA AQUI]», estimación de horas).
+   - Relación: guía de la fase 0 del desarrollo; alimenta la sección H (tarea T2).
+   - Uso: leer al iniciar el Sprint 0; actualizar fecha de inicio y marcar tareas completadas.
+2. docs/Requerimientos funcionales y no funcionales – Aplicativo EBA Aves.docx
+   - Función: fuente de verdad funcional (RF01–RF53 en módulos M1–M8 y RNF01–RNF28; incluye «Supuestos y puntos por definir»).
+   - Estado: vigente; referencia para construir y verificar cada módulo.
+   - Uso: leer al trabajar cada módulo; no modificar.
+3. docs/Objetivos, reglas y roles por módulo – Aplicativo EBA Aves.pdf
+   - Función: objetivo, reglas y roles de cada módulo (M1–M8); tabla resumen de permisos por rol. Marca reglas de metodología «(PDF)» frente a propuestas de diseño.
+   - Uso: consulta de reglas por módulo durante el desarrollo.
+4. docs/Aplicativo EBA Aves – Wireframes.pdf
+   - Función: referencia visual de las 8 pantallas principales (Login, Panel, Visitas, Fase I, Fase II, Fase III, Fase IV y Administración con Usuarios/Catálogo/Historial).
+   - Uso: guía de UI para el frontend (RNF14 exige línea gráfica homogénea). PDF grande (4,6 MB).
+5. docs/Requerimientos Aplicación ICA.docx
+   - Función: documento marco del curso (genérico y multi-especie), redactado por la docente PhD. Paola Andrea Valencia A.; allí están el stack recomendado (Angular + Node.js/NestJS + Google Cloud), los requisitos GCP (RNFG01–07) y las recomendaciones con IA (RF24–26).
+   - Uso: contexto académico y fuente del stack; no es el alcance del aplicativo de aves (ese es el documento n.º 2).
+6. docs/CONTEXTO_PROYECTO.txt y docs/PROMPT_MAESTRO.txt (creados el 15 oct 2026)
+   - Función: continuidad entre sesiones y guía de construcción por módulos, respectivamente. Mantenerlos actualizados.
+7. Repositorio remoto en GitHub (aún no vinculado a la carpeta local)
+   - URL: https://github.com/santiagommunoz26-blip/ica-app.git
+   - Estado: creado por el usuario el 15 oct 2026; verificado vacío y accesible (git ls-remote sin errores).
+   - Uso: destino del monorepo (git init + git remote add origin + push en S0-1) y base para el CI de S0-6 (GitHub Actions).
+   - Nota: la carpeta local todavía no es un repositorio git.
+
+Recursos ausentes que los documentos citan:
+- BACKLOG_INICIAL.md y LEARNING_LOG.md (citados en SPRINT_0_PLAN.md; no están en el proyecto).
+- Documento fuente de la metodología ICA (v2.0, 2024).
+
+Estructura futura esperada (la crea el Sprint 0): monorepo con backend/, frontend/ y docs/, más Makefile, README.md, .github/ (CI) y docker-compose.
+
+---------------------------------------------------------------------
+F. ERRORES Y SOLUCIONES
+---------------------------------------------------------------------
+- No hay errores de software (todavía no hay código).
+- Incidencia de herramienta (causa confirmada): pandoc no encontraba «docs/Requerimientos Aplicación ICA.docx» escrito con la tilde en NFC. Causa: el nombre real está en NFD (Unicode). Solución que funcionó: comodines (docs/Requerimientos\ Aplicaci*.docx). No repetir la ruta escrita a mano.
+- El modelo de IA de esta sesión no podía abrir los PDF directamente. Solución: pdftotext -layout para extraer el texto (funcionó con ambos PDF).
+- Procedimientos que no se deben repetir sin justificación: (1) escribir a mano rutas de archivos con tildes sin normalizar; (2) intentar leer PDFs con un modelo que no los soporta; (3) modificar los documentos fuente del proyecto; (4) ejecutar acciones destructivas o instalaciones de sistema sin confirmar con el usuario.
+- No se presentaron fallos de instalación ni de sistema.
+
+---------------------------------------------------------------------
+G. REQUISITOS Y PREFERENCIAS DEL USUARIO
+---------------------------------------------------------------------
+Preferencias generales (cómo trabajar):
+- Responder en español, de forma clara y breve: qué se va a hacer, qué se comprobó y qué resultado se obtuvo.
+- Trabajar organizado y por módulos; DETENERSE al final de cada módulo y esperar el OK del usuario antes de continuar.
+- No inventar información (reglas, versiones, resultados); marcar los desconocidos; preguntar solo cuando algo esencial no pueda resolverse con la información del proyecto.
+- No incluir contraseñas, tokens ni secretos en documentos ni en el repositorio.
+- Mantener actualizado docs/CONTEXTO_PROYECTO.txt después de cada hito.
+
+Instrucciones específicas de este proyecto:
+- Stack fijado por el pedido del docente: Angular + Node.js/NestJS + Google Cloud. No cambiarlo sin consultar.
+- Alcance = RF01–RF53 del documento EBA Aves; la metodología ICA se respeta al pie de la letra.
+- UI en español, siguiendo los wireframes; interfaz usable en campo (RNF12).
+- El trabajo de desarrollo se hace en la carpeta ica-app/ (aquí está el proyecto).
+- Decisiones que no deben revertirse sin consultar: las de la sección B (orden de trabajo, stack, checkpoints y los dos documentos de continuidad).
+
+---------------------------------------------------------------------
+H. PRÓXIMAS TAREAS (priorizadas)
+---------------------------------------------------------------------
+Orden recomendado: T0 -> T1 (en paralelo, solo lo resoluble) -> T2 (Sprint 0) -> T3..T10 (M1..M8) -> T11.
+
+T0 · Preparar el entorno de desarrollo [COMPLETADO el 15 oct 2026 — ver C y D]
+  Qué: instalar Node.js 22 LTS (o versión compatible con Angular 18) + npm, y Docker + Docker Compose en CachyOS (pacman); habilitar el servicio docker y agregar el usuario al grupo docker.
+  Por qué: sin node/npm/docker no se puede ejecutar nada del Sprint 0 (make install, ng serve, docker compose, make test).
+  Archivos/componentes: sistema operativo; SPRINT_0_PLAN.md (S0-3, S0-4, S0-5).
+  Dependencias: ninguna; es lo primero. Requiere contraseña de sudo del usuario (pedir que la ejecute él).
+  Verificación: node -v (20 o superior), npm -v, docker --version, docker compose version, docker run --rm hello-world (tras reiniciar sesión si se agregó al grupo docker).
+  Riesgos: incompatibilidad de versión de Node con Angular 18 (usar LTS 22); permisos de docker (grupo + reinicio de sesión); actualizaciones rolling de CachyOS.
+  Resultado (15 oct 2026): completado — Node 22.23.3, npm 12.2.0, Docker 29.9.1 y Docker Compose 5.6.0 instalados, servicio activo y hello-world correcto. Solo queda abrir una terminal nueva para usar docker sin sudo.
+
+T1 · Confirmar los puntos abiertos de la sección B [paralelo; no bloquea el Sprint 0 salvo el primero]
+  Qué: (1) alcance de las recomendaciones con IA; (2) timeout de inactividad de sesión (RF02); (3) lista final de documentos MBG (RF27); (4) BACKLOG_INICIAL.md / LEARNING_LOG.md; (5) conseguir la metodología ICA fuente.
+  Por qué: (1) afecta la arquitectura (¿habrá módulo/API de IA?); (2) se necesita en M1; (3) se necesita en M5; (4) higiene del plan (Sprint 1 en adelante); (5) valida cálculos y escalas (RNF03).
+  Verificación: cada punto marcado en este documento como resuelto (con su respuesta) o explícitamente pospuesto.
+  Riesgos: posponer (2) bloquea M1; no inventar respuestas.
+
+T2 · Sprint 0 completo (fase de setup)
+  Qué: ejecutar las tareas del plan:
+    S0-1 Inicializar monorepo (backend + frontend + docs) con make install/dev.
+    S0-2 ESLint + Prettier + Husky (pre-commit).
+    S0-3 Docker Compose local (PostgreSQL, Redis, MinIO).
+    S0-4 Backend NestJS + TypeORM + PostgreSQL (health check + migraciones).
+    S0-5 Frontend Angular 18 + Tailwind + Angular Material (página «Hola ICA»).
+    S0-6 CI GitHub Actions (lint + typecheck + test + build), rama main protegida.
+    ADRs 001–005 (motor de formularios, autenticación, evidencias, comunicación y despliegue GCP).
+    Spike del motor de formularios (máximo 4 horas; si no converge: «tablas normalizadas v1» y seguir).
+  Por qué: deja el camino feliz listo (make dev, CI verde) antes de escribir módulos de negocio.
+  Archivos: SPRINT_0_PLAN.md; todo el repo (aún por crear).
+  Dependencias: T0. Para S0-6 hace falta un remoto en GitHub (confirmar con el usuario).
+  Verificación: Definición de Terminado del Sprint 0 en SPRINT_0_PLAN.md (make dev levanta todo; make lint/test pasan; CI verde; ADR-001 escrito; LEARNING_LOG actualizado; README claro).
+  Riesgos: curva de aprendizaje NestJS/Angular; Docker en local; scope creep (regla: el Sprint 0 es solo setup, ninguna user story de negocio).
+
+T3 · Módulo M1 · Autenticación y usuarios (RF01–RF07)
+  Qué: login con correo y contraseña; cierre y expiración de sesión; PIN sin conexión; roles Administrador/Inspector/Consulta (un rol por usuario); crear/editar/activar/inactivar usuarios; recuperación de contraseña por correo; cambio obligatorio de contraseña temporal en el primer acceso.
+  Pantallas de referencia: Login y Administración · Usuarios y roles.
+  Dependencias: T2. La expiración usa el timeout de T1-2.
+  Verificación: RF01–RF07 cumplidos con pruebas; un usuario inactivo no ingresa; la contraseña temporal obliga cambio; el PIN permite trabajar sin conexión; permisos por rol correctos (RNF08).
+  Riesgos: el PIN offline combina autenticación y almacenamiento cifrado local (RNF09); definir el alcance del modo sin conexión.
+
+T4 · Módulo M2 · Gestión de visitas (RF08–RF12)
+  Qué: programar visitas (predio, inspector, fecha y hora); estados Programada / En curso / Pendiente de documentos / Cerrada; panel principal con indicadores y gráficas (visitas del mes, calificación promedio, pendientes, evolución, distribución y promedio por grupo); búsqueda y filtros; guardado local sin conexión y sincronización automática con contador de registros pendientes.
+  Pantallas: Panel y Visitas.
+  Dependencias: T3 (sesión y roles).
+  Verificación: RF08–RF12; la sincronización informa cuántos registros faltan (RF12); filtros funcionan.
+  Riesgos: la sincronización offline es compleja; los gráficos deben respetar los datos reales (RF10).
+
+T5 · Módulo M3 · Apertura y ficha general, Fase I (RF13–RF17)
+  Qué: ficha del predio y del responsable; clasificación automática (200 o más = corral; 199 o menos = traspatio) con pesos aplicables; selección del grupo productivo (pollo de engorde, ponedora en piso/pastoreo, ponedora en jaula); sugerencia de galpones (1 o 2 según 50.000 aves, priorizando aves de mayor edad); carga de los indicadores aplicables.
+  Pantalla: Inspección · I Apertura.
+  Dependencias: T4; datos iniciales del catálogo (M8); pesos del motor (M6).
+  Verificación: RF13–RF17; clasificación y pesos correctos; indicadores aplicables según grupo productivo.
+  Riesgos: dependencia de datos del catálogo (M6/M8); no hardcodear indicadores (RNF17).
+
+T6 · Módulo M4 · Inspección en galpón, Fase II (RF18–RF26)
+  Qué: 9 puntos de muestreo por galpón con avance; calificación 0/1/2 con descripción; validación de tamaños de muestra (piso 15–30 aves por punto; jaula 3–5 jaulas / 10–20 aves con conteo previo); hojas centinela (mínimo 3 en corral, 1 en traspatio); fotos y observaciones por indicador; avance por indicador y grupo (por ejemplo MBR 3/9); marcar «No aplica» con motivo y exclusión del cálculo; guardado parcial como borrador con fecha y hora.
+  Pantalla: Inspección · II Galpón (con cálculo en vivo).
+  Dependencias: T5; núcleo del motor de cálculo (M6) disponible de forma temprana: si M4 lo necesita antes de su turno, implementarlo como servicio reutilizable y registrarlo (sin cambiar el orden acordado).
+  Verificación: RF18–RF26; validaciones de muestra; «No aplica» excluye sin romper el cálculo; borrador recuperable.
+  Riesgos: cálculo en vivo en menos de 1 s (RNF04); complejidad de jaulas y conteos; uso sin conexión en medio de la inspección.
+
+T7 · Módulo M5 · Inspección documental, Fase III (RF27–RF33)
+  Qué: lista de documentos por indicador de gestión; lista de chequeo (legible y sin correcciones, firmado por el responsable y, cuando aplique, por MV/MVZ con matrícula vigente); puntaje 0 automático si el documento no se presenta; calificación de mortalidad por rangos; marcar documentos pendientes; permitir hacer esta fase antes de la de galpón si se acuerda; excluir la fase en traspatio.
+  Pantalla: Inspección · III Documental.
+  Dependencias: T6; lista de documentos (T1-3).
+  Verificación: RF27–RF33; reglas de mortalidad exactas; en traspatio no aparece la fase.
+  Riesgos: la lista de documentos está sin definir (T1-3); reglas de firmas y matrículas.
+
+T8 · Módulo M6 · Motor de cálculo (RF34–RF38) — completar y consolidar
+  Qué: cálculo del indicador, de los grupos (MBA/MBR/MBG × peso) y de la calificación final con clasificación; recálculo automático (menos de 1 s) y cálculo en vivo; escalas por rangos desde el catálogo.
+  Dependencias: T2–T7 (si el núcleo se adelantó en M3/M4, aquí se consolida y prueba a fondo).
+  Verificación: RF34–RF38; pruebas con ejemplos de la metodología (RNF03); recálculo en menos de 1 s (RNF04).
+  Riesgos: exactitud de fórmulas y pesos; versionado de la metodología (RF49).
+
+T9 · Módulo M7 · Cierre y reportes, Fase IV (RF39–RF45)
+  Qué: pantalla de resultados (calificación final, nivel, aporte por grupo y detalle por indicador); indicadores a mejorar con prioridad; acta oficial en PDF; firma del inspector y copia al responsable; contador de 1 día hábil para documentos pendientes con fecha y hora de vencimiento; recálculo y acta definitiva si llegan a tiempo; envío del acta por correo.
+  Pantalla: Inspección · IV Cierre.
+  Dependencias: T6–T8.
+  Verificación: RF39–RF45; acta inmutable una vez definitiva (RNF10); flujo de pendientes completo.
+  Riesgos: generación y firma del PDF; envío de correo (servicio de correo); plazos en días hábiles.
+
+T10 · Módulo M8 · Administración de la metodología (RF46–RF53)
+  Qué: catálogo de indicadores editable (nombre, grupo de medidas, método y grupos productivos); escalas de calificación por indicador; pesos por tipo de predio con validación de que sumen 100 %; versiones de la metodología sin alterar visitas cerradas; historial consultable; exportación a PDF/Excel/CSV; trazabilidad (quién, cuándo y qué); comparación entre visitas del mismo predio.
+  Pantallas: Administración · Catálogo de indicadores e Historial y reportes.
+  Dependencias: T2–T9 (datos reales); afecta a M3/M4/M5 en datos.
+  Verificación: RF46–RF53; validación de pesos; el versionado no rompe visitas cerradas; auditoría registrada.
+  Riesgos: el versionado de la metodología es transversal; exportaciones.
+
+T11 · Despliegue y cierre (después de los módulos)
+  Qué: despliegue en Google Cloud según ADR-005, separación de ambientes (RNFG07), monitoreo (RNFG05), respaldos (RNF23), pruebas de punta a punta y documentación final.
+  Dependencias: T2–T10; cuentas y proyecto de GCP (confirmar con el usuario).
+  Verificación: la aplicación funciona desplegada; requisitos RNFG cumplidos.
+  Riesgos: credenciales y costos de GCP; tiempo.
+
+Nota sobre Sprint 1 en adelante: SPRINT_0_PLAN.md menciona un BACKLOG_INICIAL.md con user stories (US-01…), pero no está en el proyecto; mientras tanto, los RF por módulo (M1–M8) actúan como backlog. Preguntar al usuario por ese archivo (T1-4).
+
+---------------------------------------------------------------------
+I. PUNTO EXACTO DE CONTINUACIÓN
+---------------------------------------------------------------------
+- Dónde estamos: documentación lista y entorno preparado y verificado (T0 completado). El proyecto está listo para crear el repositorio local y arrancar la implementación; no hay código todavía.
+- Última tarea realizada: T0 (instalación de herramientas por el usuario y verificación por la IA el 15 oct 2026) y actualización de este documento.
+- Resultado obtenido: Node 22.23.3, npm 12.2.0, Docker 29.9.1 y Docker Compose 5.6.0 instalados y probados (hello-world correcto); repositorio remoto de GitHub definido, vacío y accesible: https://github.com/santiagommunoz26-blip/ica-app.git.
+- Qué falta inmediatamente: definir la identidad de git (nombre y correo) y ejecutar S0-1 (inicializar monorepo: git init, git remote add origin, .gitignore, estructura backend/ frontend/ docs/, Makefile con install/dev/test/lint, README y primer commit/push).
+- Siguiente acción recomendada: configurar git y ejecutar S0-1; después continuar con S0-2 a S0-6 (incluidas las ADRs y el spike) hasta cerrar el Sprint 0 con su definición de terminado y detenerse a mostrar evidencias (make dev y CI) antes de M1. En paralelo, confirmar el punto 1 de T1 (alcance de IA).
+- Qué debe comprobar la nueva sesión antes de actuar: que los 5 documentos siguen en docs/ (si alguno cambió, releerlo); que no haya aparecido código ni cambios del usuario; estado real del repositorio local y remoto (git status / git ls-remote); que node/npm/docker siguen instalados y funcionales; preguntar al usuario si hay decisiones nuevas.
+
+---------------------------------------------------------------------
+J. INSTRUCCIONES PARA LA SIGUIENTE SESIÓN
+---------------------------------------------------------------------
+- Lee este documento completo antes de modificar nada; después consulta en docs/ lo que necesites (requerimientos, reglas y roles, wireframes, plan de sprint).
+- Comprueba que el proyecto y los archivos descritos existen y coinciden con el estado documentado (secciones D y E).
+- Inspecciona los archivos relevantes antes de asumir cómo funcionan; si algo no cuadra, prevalece la realidad, no este documento.
+- Identifica cualquier discrepancia entre este documento y el estado real y repórtala al usuario; corrige este documento si corresponde.
+- No repitas tareas ya completadas (sección C) sin una razón concreta.
+- Continúa desde la siguiente tarea pendiente (sección H, empezando por T0) y respeta el punto de continuación (sección I).
+- Respeta las decisiones, preferencias y restricciones registradas (secciones B y G). No cambies stack, orden ni alcance sin consultar.
+- Si falta información esencial, investígala primero dentro del proyecto; pregunta al usuario únicamente cuando una decisión importante no pueda resolverse con lo disponible (por ejemplo, los puntos abiertos de B).
+- Comunica brevemente qué vas a hacer, qué has comprobado y qué resultados obtuviste; al terminar un módulo, DETENTE y espera el OK del usuario.
+- Al terminar cada hito, actualiza este documento (cabecera y secciones C, F, H e I) manteniendo su estructura A–J.
+
+=====================================================================
+INSTRUCCIÓN DE ARRANQUE PARA LA SIGUIENTE SESIÓN
+(Copia y pega este bloque en una sesión nueva de OpenCode, dentro de la carpeta ica-app)
+=====================================================================
+Lee completo el archivo docs/CONTEXTO_PROYECTO.txt y consulta los documentos de docs/ según lo que indique (requerimientos EBA Aves, reglas y roles, wireframes y plan de Sprint 0). Antes de tocar nada, verifica el estado real del proyecto: qué archivos existen, si ya hay código o repositorio git, y qué herramientas están instaladas (node -v, npm -v, docker --version). Detecta y reporta cualquier diferencia con lo documentado; no empieces de cero ni repitas tareas ya completadas. Continúa desde la sección «I. Punto exacto de continuación» (por ahora: preparar el entorno e iniciar el Sprint 0, tarea S0-1). Respeta las decisiones registradas: stack Angular + Node.js/NestJS + Google Cloud, trabajo por módulos con parada al final de cada uno para revisión del usuario, y metodología ICA sin inventar reglas. Si falta información esencial, investígala en el proyecto y pregunta al usuario solo si no puede resolverse. Empieza diciéndome brevemente qué vas a hacer, qué comprobaste y qué resultados obtuviste. Al terminar cada hito, actualiza docs/CONTEXTO_PROYECTO.txt y detente a esperar mi confirmación.
+
+FIN DEL DOCUMENTO

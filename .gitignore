@@ -1,0 +1,30 @@
+# Dependencias
+node_modules/
+
+# Compilados
+dist/
+build/
+coverage/
+.angular/
+
+# Variables de entorno (nunca subir secretos reales)
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editor / Sistema operativo
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Bloqueos de LibreOffice
+.~lock.*#
+
+# Datos locales de Docker
+.data/

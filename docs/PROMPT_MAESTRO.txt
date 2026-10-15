@@ -1,0 +1,117 @@
+=====================================================================
+PROMPT MAESTRO — Construcción del Aplicativo EBA Aves
+Instrucciones para la IA que desarrollará el proyecto, módulo por módulo.
+Última actualización: 15 de octubre de 2026 (T0 completado: entorno verificado y repositorio remoto definido)
+=====================================================================
+
+CÓMO USAR ESTE ARCHIVO
+Este prompt está pensado para una IA con acceso al repositorio (lectura y escritura de archivos y terminal, por ejemplo OpenCode) que trabaje dentro de la carpeta del proyecto:
+/home/santiago/Proyectos/universidad/Aplicacion de la IA/ica-app
+Contiene las reglas de trabajo completas. El estado real del proyecto vive en docs/CONTEXTO_PROYECTO.txt, que debes leer antes de empezar.
+
+---------------------------------------------------------------------
+0) TU MISIÓN
+---------------------------------------------------------------------
+Construir, de forma organizada y por módulos, el «Aplicativo EBA Aves»: una aplicación web para evaluar el bienestar animal en aves de corral y de traspatio según la metodología del ICA (v2.0, 2024), cumpliendo los requisitos de docs/ y las reglas registradas en docs/CONTEXTO_PROYECTO.txt.
+
+---------------------------------------------------------------------
+1) PASO 0 — ANTES DE ESCRIBIR CÓDIGO (obligatorio)
+---------------------------------------------------------------------
+1. Lee completo docs/CONTEXTO_PROYECTO.txt (estado, decisiones, pendientes y punto de continuación).
+2. Consulta en docs/ según necesidad:
+   - Requerimientos funcionales y no funcionales – Aplicativo EBA Aves.docx (fuente de verdad: RF01–RF53 y RNF01–RNF28).
+   - Objetivos, reglas y roles por módulo – Aplicativo EBA Aves.pdf (reglas por módulo; distingue metodología «(PDF)» de propuesta de diseño).
+   - Aplicativo EBA Aves – Wireframes.pdf (guía visual de las 8 pantallas).
+   - SPRINT_0_PLAN.md (setup del repositorio, ADRs, spike; tareas S0-1…S0-6).
+   - Requerimientos Aplicación ICA.docx (documento marco del curso: stack, requisitos GCP e IA).
+3. Verifica el estado real antes de actuar: archivos existentes, si ya hay código o repositorio git, versiones de herramientas (node -v, npm -v, docker --version). Si algo difiere de lo documentado, repórtalo y actualiza el contexto.
+4. Confirma con el usuario los puntos abiertos (sección B del contexto): alcance de las recomendaciones con IA, timeout de sesión (RF02), lista de documentos MBG (RF27), BACKLOG_INICIAL.md / LEARNING_LOG.md y la metodología ICA fuente. No inventes las respuestas; no bloquees el Sprint 0 por los puntos que no le afectan.
+5. Si los .docx/.pdf no se pueden abrir directamente, extrae su texto (pandoc para docx; pdftotext -layout para pdf). Nota: el archivo «Requerimientos Aplicación ICA.docx» está guardado con la tilde en Unicode NFD; si una ruta escrita a mano falla, usa comodines.
+
+---------------------------------------------------------------------
+2) STACK TECNOLÓGICO FIJADO (no cambiar sin consultar)
+---------------------------------------------------------------------
+- Frontend: Angular; la referencia visual son los wireframes.
+- Backend: Node.js con NestJS (API REST).
+- Base de datos: PostgreSQL en desarrollo (Docker); en producción, BD administrada de Google Cloud (Cloud SQL; alternativa Firebase evaluada con ADR).
+- Almacenamiento de evidencias: Cloud Storage en producción; MinIO local en desarrollo.
+- Autenticación: Firebase Auth o JWT con NestJS (decidir en ADR-002).
+- Nube: Google Cloud. Despliegue administrado (ADR-005: Cloud Run / GKE / Functions), monitoreo y observabilidad GCP, credenciales fuera del código (RNFG06), ambientes separados de desarrollo, pruebas y producción (RNFG07).
+- IA (solo si el usuario confirma su alcance): API externa o servicio de IA en GCP; nunca sustituye el criterio del inspector (RNF25 del docx del docente) y su caída no debe bloquear la evaluación (RNF26).
+- Desarrollo local: Docker Compose con PostgreSQL, Redis y MinIO; CI con GitHub Actions; automatización con make (install/dev/test/lint) según SPRINT_0_PLAN.md.
+- Repositorio remoto: https://github.com/santiagommunoz26-blip/ica-app.git (rama main; enlazarlo en S0-1 y usarlo en S0-6 para el CI).
+- ADRs del Sprint 0 (escribirlas en docs/ o docs/adr/ antes de decidir en código): ADR-001 motor de formularios dinámicos; ADR-002 autenticación; ADR-003 almacenamiento de evidencias; ADR-004 comunicación frontend-backend; ADR-005 despliegue en GCP.
+
+---------------------------------------------------------------------
+3) ORDEN DE TRABAJO (por fases y módulos)
+---------------------------------------------------------------------
+Fase 0 — Sprint 0 «setup»: S0-1 monorepo; S0-2 lint/format/husky; S0-3 Docker Compose; S0-4 backend NestJS + TypeORM (health y migraciones); S0-5 frontend Angular + Tailwind + Material; S0-6 CI; ADRs 001–005; spike del motor de formularios (máximo 4 h; si no converge: «tablas normalizadas v1»). Definición de terminado: la del SPRINT_0_PLAN.md.
+Fase 1 — M1 · Autenticación y usuarios (RF01–RF07). Pantallas: Login; Administración · Usuarios.
+Fase 2 — M2 · Gestión de visitas (RF08–RF12). Pantallas: Panel; Visitas.
+Fase 3 — M3 · Apertura y ficha general, Fase I (RF13–RF17).
+Fase 4 — M4 · Inspección en galpón, Fase II (RF18–RF26), con cálculo en vivo y guardado parcial.
+Fase 5 — M5 · Inspección documental, Fase III (RF27–RF33).
+Fase 6 — M6 · Motor de cálculo (RF34–RF38). Nota: M3/M4/M5 necesitan el motor; si al llegar a M4 todavía no existe, impleméntalo como servicio reutilizable y regístralo (sin cambiar el orden acordado).
+Fase 7 — M7 · Cierre y reportes, Fase IV (RF39–RF45).
+Fase 8 — M8 · Administración de la metodología (RF46–RF53).
+Fase 9 — Despliegue en GCP y cierre (según ADR-005).
+Detalle de cada tarea (qué incluye y cómo verificarla): sección H de docs/CONTEXTO_PROYECTO.txt.
+
+---------------------------------------------------------------------
+4) PROTOCOLO OBLIGATORIO AL TERMINAR CADA MÓDULO/FASE (checkpoint)
+---------------------------------------------------------------------
+Al completar un módulo (o el Sprint 0), y antes de pasar al siguiente:
+1. Deja todo funcionando y verde: build, lint, pruebas (unitarias e integración) y CI si ya existe.
+2. Actualiza docs/CONTEXTO_PROYECTO.txt (ver sección 7 de este prompt).
+3. Haz commit(s) con mensajes claros si el repositorio ya existe.
+4. Escribe al usuario un resumen BREVE: qué se hizo, cómo probarlo paso a paso (comandos y URLs exactas), decisiones tomadas, riesgos y qué sigue.
+5. DETENTE y espera su confirmación. No inicies el siguiente módulo sin autorización.
+
+---------------------------------------------------------------------
+5) REGLAS DE ORO DEL PROYECTO
+---------------------------------------------------------------------
+- La metodología ICA manda: no inventes reglas, escalas, pesos, plazos ni listas de documentos; usa los documentos y pregunta si falta algo (RNF03, RNF27).
+- Nada de catálogos hardcodeados: indicadores, escalas, pesos y rangos se configuran (base de datos/catálogo), no viven en el código (RNF17).
+- Offline primero: la inspección funciona sin conexión (PIN, guardado local y sincronización con contador de pendientes) (RF03, RF12, RNF02).
+- Cálculos exactos y en vivo: indicador = (promedio × 100) / 2; grupo = promedio × peso; final = suma; clasificación: 90 o más Excelente / 75 o más Alto / 50 o más Medio / menos de 50 Bajo; recálculo en menos de 1 s (RF34–RF38, RNF04); valida con ejemplos de la metodología (RNF03).
+- Acta cerrada es inmutable, salvo el flujo de documentos pendientes (RNF10); trazabilidad de acciones críticas (RF52); versionado de la metodología (RF49, RNF18).
+- Seguridad: contraseñas cifradas y tokens con expiración (RNF07), control por rol (RNF08), cifrado en tránsito y reposo, incluido el almacenamiento local (RNF09), secretos fuera del repositorio (RNFG06).
+- UI en español, fiel a los wireframes, usable en campo con una mano (RNF12), responsiva y accesible (RNF13–RNF16), consistente (RNF14).
+- Respeta derechos de autor: cita al ICA como autor de la metodología y su restricción de uso no comercial (RNF28).
+- No modifiques los documentos fuente de docs/ (requerimientos, reglas, wireframes, plan) sin permiso explícito; tu trabajo se refleja en el código y en CONTEXTO_PROYECTO.txt.
+- No ejecutes acciones destructivas ni instalaciones de sistema sin confirmar con el usuario; para tareas con sudo (por ejemplo, instalar Node/Docker), pídele que las ejecute él.
+- Si algo es ambiguo: elige la interpretación más simple, avísala y continúa si es de bajo impacto; pregunta si es una decisión importante (alcance, stack o metodología).
+
+---------------------------------------------------------------------
+6) DEFINICIÓN DE TERMINADO (global, además de la del Sprint 0)
+---------------------------------------------------------------------
+- El módulo cumple sus RF de punta a punta y no rompe módulos anteriores.
+- Las pruebas pasan, el lint no tiene errores y el build es correcto; CI verde cuando exista.
+- Los cálculos están validados con ejemplos del documento metodológico (cuando aplique).
+- docs/CONTEXTO_PROYECTO.txt quedó actualizado.
+- El resumen de checkpoint fue entregado al usuario y hay aprobación para seguir.
+
+---------------------------------------------------------------------
+7) MANTENIMIENTO DE docs/CONTEXTO_PROYECTO.txt
+---------------------------------------------------------------------
+- Léelo al inicio de cada sesión.
+- Actualízalo al final de cada módulo/fase: cabecera (estado general, última tarea, siguiente acción), sección C (estado), F (errores nuevos), H (marca tareas hechas y ajusta pendientes) e I (punto exacto de continuación).
+- No borres el historial de decisiones: agrega lo nuevo con fecha. Mantén el formato de secciones A–J.
+
+---------------------------------------------------------------------
+8) FORMATO DE TUS MENSAJES AL USUARIO
+---------------------------------------------------------------------
+- En español y breves. Al empezar: qué vas a hacer y qué vas a comprobar. Al terminar: qué hiciste, cómo probarlo, qué decisiones tomaste, qué sigue y qué necesitas del usuario.
+- Nada de explicaciones largas no pedidas; muestra evidencias (comandos y resultados) cuando importe.
+
+---------------------------------------------------------------------
+9) QUÉ NO HACER
+---------------------------------------------------------------------
+- No rehacer tareas ya completadas ni reescribir trabajo existente sin consultar.
+- No cambiar el stack, el orden de módulos ni el alcance sin autorización.
+- No inventar contenido para BACKLOG_INICIAL.md / LEARNING_LOG.md: primero pregunta.
+- No asumir cuentas ni credenciales de Google Cloud: pide al usuario que las configure por su cuenta; nunca incluyas secretos en el repositorio ni en documentos.
+- No ampliar el alcance con funciones no pedidas (scope creep).
+- No usar los datos de ejemplo de los wireframes como datos reales del sistema.
+
+FIN DEL PROMPT
