@@ -17,7 +17,7 @@
 | S0-1 | Init repo monorepo (backend + frontend + docs) | 2 | Dev | `git clone` -> `make install` -> `make dev` levanta ambos — **completado (15 oct 2026)**: `make dev` completo verificado y push a GitHub por SSH |
 | S0-2 | Configurar ESLint + Prettier + Husky (pre-commit) | 2 | Dev | `make lint` pasa, commit rechazado si falla — **completado (15 oct 2026)**: lint/format OK y hook probado (rechaza commits inválidos) |
 | S0-3 | Docker Compose local (PostgreSQL, Redis, MinIO para S3 local) | 3 | Dev | `docker compose up -d` -> BD y storage listos — **completado (15 oct 2026)**: 3 servicios verificados (imagen de MinIO: espejo `pgsty/minio`) |
-| S0-4 | Backend: NestJS + TypeORM + PostgreSQL (health check + migration runner) | 3 | Dev | `make migrate` crea tablas, `/health` retorna 200 |
+| S0-4 | Backend: NestJS + TypeORM + PostgreSQL (health check + migration runner) | 3 | Dev | `make migrate` crea tablas, `/health` retorna 200 — **completado (15 oct 2026)**: tablas `app_metadata`+`migrations`, `/health` 200/503 y e2e 2/2 |
 | S0-5 | Frontend: Angular 18 + Tailwind + Angular Material (estructura basica) | 2 | Dev | `ng serve` compila, pagina "Hola ICA" visible |
 | S0-6 | CI GitHub Actions: lint + typecheck + test + build (backend + frontend) | 2 | Dev | Push a main -> pipeline verde en < 8 min |
 

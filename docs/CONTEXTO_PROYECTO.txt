@@ -5,12 +5,12 @@ Proyecto: Aplicativo EBA Aves — Bienestar animal en aves de corral y de traspa
 =====================================================================
 
 PROYECTO ..................... Aplicativo EBA Aves (metodología ICA v2.0, 2024)
-FECHA DE ELABORACIÓN ......... 15 de octubre de 2026, 16:19 (UTC-5); actualizado el 15 de octubre de 2026, 17:25 (UTC-5)
+FECHA DE ELABORACIÓN ......... 15 de octubre de 2026, 16:19 (UTC-5); actualizado el 15 de octubre de 2026, 17:35 (UTC-5)
 UBICACIÓN DEL PROYECTO ....... /home/santiago/Proyectos/universidad/Aplicacion de la IA/ica-app
 REPOSITORIO REMOTO ........... https://github.com/santiagommunoz26-blip/ica-app.git (origin por SSH; 5 commits en GitHub, últimos: 75f7557 y fc66609)
-ESTADO GENERAL ............... Documentación completa. Sprint 0 en curso: T0, S0-1, S0-2 y S0-3 hechos y verificados; faltan S0-4, S0-5, S0-6, las ADRs y el spike.
-ÚLTIMA TAREA COMPLETADA ...... S0-2 (ESLint/Prettier/Husky con hook pre-commit) y S0-3 (infraestructura local levantada y verificada). Además se cerró la DoD de S0-1 comprobando `make dev` completo.
-SIGUIENTE ACCIÓN RECOMENDADA . S0-4: backend NestJS + TypeORM + PostgreSQL (health check en /health y runner de migraciones) con target `make migrate`.
+ESTADO GENERAL ............... Documentación completa. Sprint 0 en curso: T0, S0-1, S0-2, S0-3 y S0-4 hechos y verificados; faltan S0-5, S0-6, las ADRs y el spike.
+ÚLTIMA TAREA COMPLETADA ...... S0-4 (backend NestJS + TypeORM + PostgreSQL): health check en /health, primera migración, runner de migraciones (`make migrate` / `make migrate-revert`) y pruebas e2e.
+SIGUIENTE ACCIÓN RECOMENDADA . S0-5: frontend Angular 18 + Tailwind + Angular Material con la página «Hola ICA».
 
 Nota: este documento lo redactó una sesión de IA (OpenCode) a partir de los archivos reales del proyecto. Si algún dato no coincide con la realidad, prevalecen los archivos reales: hay que corregir este documento y avisar al usuario.
 
@@ -86,15 +86,16 @@ Terminado:
 - S0-2 (lint/formato/hook): ESLint con flat config en el frontend (@angular-eslint 18.4.3), oxlint --deny-warnings en el backend, Prettier (configs en la raíz y por proyecto) y Husky con hook pre-commit (`npx lint-staged` + `make lint`). Verificado que un commit con errores de lint se rechaza.
 - S0-3 (infraestructura local): `docker compose up -d` levanta PostgreSQL 16.15, Redis 7 y MinIO con volúmenes persistentes; verificado con pg_isready + select version(), redis-cli ping (PONG) y health 200 de MinIO.
 - Autenticación de git por SSH (llave ed25519 en ~/.ssh/id_ed25519 agregada a GitHub); el push a origin/main funciona.
+- S0-4 (backend + base de datos): NestJS conectado a PostgreSQL con TypeORM (@nestjs/typeorm), configuración por entorno (@nestjs/config), primera migración (tabla app_metadata) y runner propio de migraciones; health check en GET /health con @nestjs/terminus (200 si la API y la BD responden, 503 si la BD cae); scripts npm migration:run/migration:revert y targets make migrate/make migrate-revert. Verificado de extremo a extremo, incluso revirtiendo y reaplicando.
 
 Parcialmente terminado:
-- Nada a medias: T0, S0-1, S0-2 y S0-3 quedaron terminados y verificados.
+- Nada a medias: T0, S0-1, S0-2, S0-3 y S0-4 quedaron terminados y verificados.
 
 Pendiente:
-- S0-4 (backend NestJS + TypeORM + PostgreSQL: health check en /health y runner de migraciones con `make migrate`), S0-5 (frontend Angular + Tailwind + Angular Material con la página «Hola ICA»), S0-6 (CI con GitHub Actions), las ADRs 001–005 y el spike del motor de formularios; después los módulos M1–M8 y el despliegue en GCP. Lista priorizada en H.
+- S0-5 (frontend Angular + Tailwind + Angular Material con la página «Hola ICA»), S0-6 (CI con GitHub Actions), las ADRs 001–005 y el spike del motor de formularios; después los módulos M1–M8 y el despliegue en GCP. Lista priorizada en H.
 
 Qué funciona correctamente:
-- El repositorio está en GitHub (origin por SSH). `make install`, `make build`, `make lint`, `make format`, `make format-check` y `make test-backend` funcionan. `make dev` levanta infraestructura + backend (:3000) + frontend (:4200).
+- El repositorio está en GitHub (origin por SSH). `make install`, `make build`, `make lint`, `make format`, `make format-check`, `make test-backend` y `make test-backend-e2e` funcionan. `make dev` levanta infraestructura + backend (:3000) + frontend (:4200). `make migrate` y `make migrate-revert` crean y revierten el esquema en PostgreSQL, y `GET /health` informa el estado de la base de datos.
 
 Qué presenta errores o problemas:
 - Resuelto (15 oct 2026): el entorno ya tiene Node.js, npm y Docker funcionando y probados (ver D). Nota menor: en terminales abiertas antes del cambio de grupo, docker puede pedir sudo; hay que abrir una terminal nueva, ejecutar «newgrp docker» o cerrar sesión.
@@ -110,9 +111,10 @@ Pruebas realizadas y resultados:
 - Verificación de S0-1 (15 oct 2026): make install OK; make build OK (nest build + ng build, bundle inicial 241 kB); backend en :3000 responde HTTP 200 con «Hello World!»; frontend en :4200 responde HTTP 200; make test-backend (Vitest) 1/1 pruebas OK; y `make dev` levanta infraestructura + backend + frontend a la vez (DoD de S0-1 cumplida). Pendiente: los tests de Angular (requieren Chrome, que no está instalado).
 - Verificación de S0-2 (15 oct 2026): `make lint` OK (oxlint --deny-warnings + ng lint --max-warnings=0 → «All files pass linting»); `make format` y `make format-check` OK; y el hook pre-commit RECHAZA un commit con errores de lint (exit 1, «pre-commit script failed»), comprobado con un archivo de prueba que luego se eliminó.
 - Verificación de S0-3 (15 oct 2026): `docker compose up -d` levanta los 3 contenedores; PostgreSQL 16.15 acepta conexiones (pg_isready) y responde select version(); Redis responde PONG; MinIO responde HTTP 200 en /minio/health/live.
+- Verificación de S0-4 (15 oct 2026): `make build` y `make lint` OK; `make migrate` aplica CreateAppMetadata1792022400000 y crea las tablas app_metadata y migrations (con la fila schema_version = 1); `make migrate-revert` la revierte y `make migrate` la vuelve a aplicar; `GET /health` responde 200 ({"status":"ok",...,"database":"up"}), con PostgreSQL detenido responde 503 y al recuperarlo vuelve a 200; `make test-backend` 1/1 y `make test-backend-e2e` 2/2 pruebas OK.
 
 Hechos comprobados / suposiciones / desconocidos:
-- Hechos: contenido y existencia de los 5 documentos; versiones instaladas (git, make, python3, pandoc, pdftotext y, desde T0, node/npm/docker; ver D); el repositorio local es un repo git (rama main, remote origin por SSH) con backend y frontend creados y ya sincronizado con GitHub (5 commits); el entorno local está completo (Node, Docker y la infraestructura levantada); el archivo SPRINT_0_PLAN.md ya tiene la fecha de inicio (15 de octubre de 2026).
+- Hechos: contenido y existencia de los 5 documentos; versiones instaladas (git, make, python3, pandoc, pdftotext y, desde T0, node/npm/docker; ver D); el repositorio local es un repo git (rama main, remote origin por SSH) con backend y frontend creados y ya sincronizado con GitHub; el entorno local está completo (Node, Docker y la infraestructura levantada); el backend ya se conecta a PostgreSQL y aplica migraciones; el archivo SPRINT_0_PLAN.md ya tiene la fecha de inicio (15 de octubre de 2026).
 - Suposiciones razonables (confirmar al avanzar): el documento EBA Aves rige el alcance y el genérico es solo marco del curso; el desarrollo se hará dentro de esta carpeta (ica-app/); el plan de sprint sigue vigente con adaptaciones menores (versiones de herramientas).
 - Desconocidos: los 5 puntos abiertos de B; disponibilidad de cuentas/proyecto de Google Cloud; valor del timeout de RF02; alcance final del módulo de IA. (Resuelto: el repositorio remoto ya existe.)
 
@@ -128,6 +130,8 @@ D. ENTORNO TÉCNICO (verificado el 15 oct 2026)
 - Tooling de calidad (S0-2): Husky 9.1.7, lint-staged 17.6.0 y Prettier 3.9.10 en la raíz (script `prepare` = husky; hook .husky/pre-commit = `npx lint-staged` + `make lint`); backend con oxlint (script `lint` = oxlint --type-aware --deny-warnings src/ test/); frontend con angular-eslint 18.4.3 + ESLint 9 (flat config en frontend/eslint.config.js) y `lint` = ng lint --max-warnings=0.
 - Infraestructura local (S0-3, verificada): PostgreSQL 16.15 (5432, usuario/clave/base `ica`), Redis 7 (6379) y MinIO (9000 API / 9001 consola) con volúmenes postgres_data, redis_data y minio_data.
 - Imagen de MinIO: se usa el espejo `pgsty/minio:RELEASE.2026-08-04T00-00-00Z` porque la oficial `minio/minio` ya no existe en Docker Hub y `quay.io/minio/minio` responde 401 (exige autenticación).
+- Dependencias del backend añadidas en S0-4: @nestjs/config 12, @nestjs/typeorm 12, @nestjs/terminus 12, typeorm 1.1.2, pg 8.23 y dotenv 18.
+- Esquema de la BD local (tras S0-4): tablas `migrations` (control de TypeORM) y `app_metadata` (clave/valor, fila schema_version = 1). El esquema se gestiona SOLO con migraciones (synchronize = false); las migraciones viven en backend/src/database/migrations/ y se ejecutan compiladas (backend/dist).
 - Shell del usuario: fish (importante al ejecutar comandos compuestos: `newgrp docker` abre fish, no bash).
 - No hay Chrome/Chromium instalado (los tests de Angular con Karma lo requieren; preverlo en S0-5/S0-6).
 - Comandos de instalación ejecutados por el usuario (T0): sudo pacman -S --needed nodejs-lts-jod npm docker docker-compose; sudo systemctl enable --now docker; sudo usermod -aG docker $USER.
@@ -150,6 +154,8 @@ D. ENTORNO TÉCNICO (verificado el 15 oct 2026)
     npx ng add @angular-eslint/schematics@18 --skip-confirmation -> ESLint del frontend (S0-2)
     npm install -D husky lint-staged prettier; npx husky init -> hooks de git en la raíz (S0-2)
     make lint; make format; make format-check -> verificación de S0-2
+    make migrate; make migrate-revert; make test-backend-e2e -> verificación de S0-4
+    docker exec ica-postgres psql -U ica -d ica -c '\dt' -> inspección del esquema
     docker compose up -d; docker compose ps -> infraestructura local (S0-3)
     Usar `echo 'bash <script>' | newgrp docker` para ejecutar docker desde una sesión sin el grupo activo (newgrp abre fish, no bash)
 - Extracción temporal de los documentos (consulta rápida): /tmp/opencode/ica-docs/ con req_ica.txt, reqf_ynf.txt, objetivos_modulos.txt y wireframes.txt. Es temporal: puede desaparecer; se regenera con pandoc/pdftotext.
@@ -244,7 +250,7 @@ T2 · Sprint 0 completo (fase de setup)
     S0-1 Inicializar monorepo (backend + frontend + docs) con make install/dev. [HECHO el 15 oct 2026: make install/build/test-backend, make dev completo y push a GitHub verificados]
     S0-2 ESLint + Prettier + Husky (pre-commit). [HECHO el 15 oct 2026: make lint/format OK y commit inválido rechazado por el hook]
     S0-3 Docker Compose local (PostgreSQL, Redis, MinIO). [HECHO el 15 oct 2026: los 3 servicios levantados y verificados; imagen de MinIO cambiada al espejo pgsty/minio]
-    S0-4 Backend NestJS + TypeORM + PostgreSQL (health check + migraciones).
+    S0-4 Backend NestJS + TypeORM + PostgreSQL (health check + migraciones). [HECHO el 15 oct 2026: /health 200/503, migraciones aplicadas/revertidas y e2e 2/2]
     S0-5 Frontend Angular 18 + Tailwind + Angular Material (página «Hola ICA»).
     S0-6 CI GitHub Actions (lint + typecheck + test + build), rama main protegida.
     ADRs 001–005 (motor de formularios, autenticación, evidencias, comunicación y despliegue GCP).
@@ -321,12 +327,12 @@ Nota sobre Sprint 1 en adelante: SPRINT_0_PLAN.md menciona un BACKLOG_INICIAL.md
 ---------------------------------------------------------------------
 I. PUNTO EXACTO DE CONTINUACIÓN
 ---------------------------------------------------------------------
-- Dónde estamos: Sprint 0 en curso. T0, S0-1, S0-2 y S0-3 terminados y verificados; faltan S0-4, S0-5, S0-6, las ADRs 001–005 y el spike. Todo está sincronizado con GitHub.
-- Última tarea realizada: S0-2 (ESLint/Prettier/Husky) y S0-3 (infraestructura local), más el cierre de la DoD de S0-1 comprobando `make dev` completo (15 oct 2026).
-- Resultado obtenido: 5 commits en origin/main (0e6195b, f85c6b6, 27cf6c5, 75f7557, fc66609); `make dev` levanta PostgreSQL (healthy) + Redis + MinIO + backend (:3000) + frontend (:4200); `make lint`, `make format` y `make build` pasan; el hook pre-commit rechaza commits con errores de lint.
-- Qué falta inmediatamente: S0-4 (NestJS + TypeORM + PostgreSQL con /health y migraciones), S0-5 (Angular + Tailwind + Material y la página «Hola ICA»), S0-6 (CI con GitHub Actions), las ADRs 001–005 y el spike.
-- Siguiente acción recomendada: ejecutar S0-4 (empezar por TypeORM + health check + `make migrate`), y seguir con S0-5, S0-6, las ADRs y el spike hasta cerrar el Sprint 0; después detenerse a mostrar evidencias antes de M1.
-- Qué debe comprobar la nueva sesión antes de actuar: git (log, status y ls-remote origin: ¿5 commits y todo subido?); que la infraestructura levante (`make infra`) y que `make dev` funcione; versiones reales en backend/package.json y frontend/package.json; si esa sesión necesita «newgrp docker»; que no haya cambios sin commitear.
+- Dónde estamos: Sprint 0 en curso. T0, S0-1, S0-2, S0-3 y S0-4 terminados y verificados; faltan S0-5, S0-6, las ADRs 001–005 y el spike. Todo está sincronizado con GitHub.
+- Última tarea realizada: S0-4 (backend NestJS + TypeORM + PostgreSQL: /health, migración inicial y runner `make migrate`), el 15 oct 2026.
+- Resultado obtenido: el backend compila, pasa el lint, se conecta a PostgreSQL y aplica/revierte migraciones (tablas `migrations` y `app_metadata`); `GET /health` responde 200 con la BD arriba y 503 si cae; pruebas unitarias 1/1 y e2e 2/2.
+- Qué falta inmediatamente: S0-5 (Angular + Tailwind + Material con la página «Hola ICA»), S0-6 (CI con GitHub Actions), las ADRs 001–005 y el spike.
+- Siguiente acción recomendada: ejecutar S0-5 (empezar por Tailwind + Angular Material y la página «Hola ICA»), y seguir con S0-6, las ADRs y el spike hasta cerrar el Sprint 0; después detenerse a mostrar evidencias antes de M1.
+- Qué debe comprobar la nueva sesión antes de actuar: git (log, status y ls-remote origin: ¿todo subido?); que la infraestructura levante (`make infra`) y que `make dev` funcione; que `make migrate` deje el esquema al día; versiones reales en backend/package.json y frontend/package.json; si esa sesión necesita «newgrp docker»; que no haya cambios sin commitear.
 
 ---------------------------------------------------------------------
 J. INSTRUCCIONES PARA LA SIGUIENTE SESIÓN
@@ -346,6 +352,6 @@ J. INSTRUCCIONES PARA LA SIGUIENTE SESIÓN
 INSTRUCCIÓN DE ARRANQUE PARA LA SIGUIENTE SESIÓN
 (Copia y pega este bloque en una sesión nueva de OpenCode, dentro de la carpeta ica-app)
 =====================================================================
-Lee completo el archivo docs/CONTEXTO_PROYECTO.txt y consulta los documentos de docs/ según lo que indique (requerimientos EBA Aves, reglas y roles, wireframes y plan de Sprint 0). Antes de tocar nada, verifica el estado real del proyecto: qué archivos existen, si ya hay código o repositorio git, y qué herramientas están instaladas (node -v, npm -v, docker --version). Detecta y reporta cualquier diferencia con lo documentado; no empieces de cero ni repitas tareas ya completadas. Continúa desde la sección «I. Punto exacto de continuación» (por ahora: continuar el Sprint 0 desde S0-4). Respeta las decisiones registradas: stack Angular + Node.js/NestJS + Google Cloud, trabajo por módulos con parada al final de cada uno para revisión del usuario, y metodología ICA sin inventar reglas. Si falta información esencial, investígala en el proyecto y pregunta al usuario solo si no puede resolverse. Empieza diciéndome brevemente qué vas a hacer, qué comprobaste y qué resultados obtuviste. Al terminar cada hito, actualiza docs/CONTEXTO_PROYECTO.txt y detente a esperar mi confirmación.
+Lee completo el archivo docs/CONTEXTO_PROYECTO.txt y consulta los documentos de docs/ según lo que indique (requerimientos EBA Aves, reglas y roles, wireframes y plan de Sprint 0). Antes de tocar nada, verifica el estado real del proyecto: qué archivos existen, si ya hay código o repositorio git, y qué herramientas están instaladas (node -v, npm -v, docker --version). Detecta y reporta cualquier diferencia con lo documentado; no empieces de cero ni repitas tareas ya completadas. Continúa desde la sección «I. Punto exacto de continuación» (por ahora: continuar el Sprint 0 desde S0-5). Respeta las decisiones registradas: stack Angular + Node.js/NestJS + Google Cloud, trabajo por módulos con parada al final de cada uno para revisión del usuario, y metodología ICA sin inventar reglas. Si falta información esencial, investígala en el proyecto y pregunta al usuario solo si no puede resolverse. Empieza diciéndome brevemente qué vas a hacer, qué comprobaste y qué resultados obtuviste. Al terminar cada hito, actualiza docs/CONTEXTO_PROYECTO.txt y detente a esperar mi confirmación.
 
 FIN DEL DOCUMENTO
