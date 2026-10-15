@@ -2,8 +2,9 @@ SHELL := /bin/bash
 .DEFAULT_GOAL := help
 
 .PHONY: help install infra dev dev-backend dev-frontend down logs \
-        test test-backend test-frontend lint lint-backend lint-frontend \
-        format format-check build build-backend build-frontend
+        test test-backend test-backend-e2e test-frontend lint lint-backend lint-frontend \
+        format format-check build build-backend build-frontend \
+        migrate migrate-revert
 
 help: ## Muestra la lista de comandos disponibles
 	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}'
@@ -37,6 +38,9 @@ test: test-backend test-frontend ## Corre las pruebas de backend y frontend
 test-backend: ## Pruebas del backend
 	cd backend && npm test
 
+test-backend-e2e: ## Pruebas de integración del backend (requieren la infraestructura arriba)
+	cd backend && npm run test:e2e
+
 test-frontend: ## Pruebas del frontend (requiere Chrome/Chromium instalado)
 	cd frontend && npm test -- --watch=false --browsers=ChromeHeadless
 
@@ -61,3 +65,9 @@ build-backend: ## Build del backend
 
 build-frontend: ## Build del frontend
 	cd frontend && npm run build
+
+migrate: ## Aplica las migraciones de base de datos (requiere la infraestructura arriba)
+	cd backend && npm run migration:run
+
+migrate-revert: ## Revierte la última migración aplicada (requiere la infraestructura arriba)
+	cd backend && npm run migration:revert
