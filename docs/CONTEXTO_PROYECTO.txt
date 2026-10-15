@@ -5,12 +5,12 @@ Proyecto: Aplicativo EBA Aves — Bienestar animal en aves de corral y de traspa
 =====================================================================
 
 PROYECTO ..................... Aplicativo EBA Aves (metodología ICA v2.0, 2024)
-FECHA DE ELABORACIÓN ......... 15 de octubre de 2026, 16:19 (UTC-5); actualizado el 15 de octubre de 2026, 17:35 (UTC-5)
+FECHA DE ELABORACIÓN ......... 15 de octubre de 2026, 16:19 (UTC-5); actualizado el 15 de octubre de 2026, 17:40 (UTC-5)
 UBICACIÓN DEL PROYECTO ....... /home/santiago/Proyectos/universidad/Aplicacion de la IA/ica-app
-REPOSITORIO REMOTO ........... https://github.com/santiagommunoz26-blip/ica-app.git (origin por SSH; 5 commits en GitHub, últimos: 75f7557 y fc66609)
-ESTADO GENERAL ............... Documentación completa. Sprint 0 en curso: T0, S0-1, S0-2, S0-3 y S0-4 hechos y verificados; faltan S0-5, S0-6, las ADRs y el spike.
-ÚLTIMA TAREA COMPLETADA ...... S0-4 (backend NestJS + TypeORM + PostgreSQL): health check en /health, primera migración, runner de migraciones (`make migrate` / `make migrate-revert`) y pruebas e2e.
-SIGUIENTE ACCIÓN RECOMENDADA . S0-5: frontend Angular 18 + Tailwind + Angular Material con la página «Hola ICA».
+REPOSITORIO REMOTO ........... https://github.com/santiagommunoz26-blip/ica-app.git (origin por SSH; todo subido)
+ESTADO GENERAL ............... Documentación completa. Sprint 0 en curso: T0 y S0-1 a S0-5 hechos y verificados; faltan S0-6, las ADRs y el spike.
+ÚLTIMA TAREA COMPLETADA ...... S0-5 (frontend Angular 18 + Angular Material 18 + Tailwind 3): página «Hola ICA», rutas y pruebas unitarias (4/4 con Firefox headless).
+SIGUIENTE ACCIÓN RECOMENDADA . S0-6: CI con GitHub Actions (lint + typecheck + test + build, backend y frontend).
 
 Nota: este documento lo redactó una sesión de IA (OpenCode) a partir de los archivos reales del proyecto. Si algún dato no coincide con la realidad, prevalecen los archivos reales: hay que corregir este documento y avisar al usuario.
 
@@ -87,21 +87,22 @@ Terminado:
 - S0-3 (infraestructura local): `docker compose up -d` levanta PostgreSQL 16.15, Redis 7 y MinIO con volúmenes persistentes; verificado con pg_isready + select version(), redis-cli ping (PONG) y health 200 de MinIO.
 - Autenticación de git por SSH (llave ed25519 en ~/.ssh/id_ed25519 agregada a GitHub); el push a origin/main funciona.
 - S0-4 (backend + base de datos): NestJS conectado a PostgreSQL con TypeORM (@nestjs/typeorm), configuración por entorno (@nestjs/config), primera migración (tabla app_metadata) y runner propio de migraciones; health check en GET /health con @nestjs/terminus (200 si la API y la BD responden, 503 si la BD cae); scripts npm migration:run/migration:revert y targets make migrate/make migrate-revert. Verificado de extremo a extremo, incluso revirtiendo y reaplicando.
+- S0-5 (frontend): Angular Material 18 (tema azure-blue, animaciones asíncronas y tipografías Roboto/Material Icons), Tailwind CSS 3 (tailwind.config.js + directivas en src/styles.scss) y página inicial «Hola ICA» en la ruta '' (HomeComponent, src/app/pages/home/). El componente raíz quedó reducido al router-outlet; index.html con título y descripción en español. Pruebas unitarias reconfiguradas (AppComponent + HomeComponent) y ejecutables en local con Firefox headless.
 
 Parcialmente terminado:
-- Nada a medias: T0, S0-1, S0-2, S0-3 y S0-4 quedaron terminados y verificados.
+- Nada a medias: T0 y S0-1 a S0-5 quedaron terminados y verificados.
 
 Pendiente:
-- S0-5 (frontend Angular + Tailwind + Angular Material con la página «Hola ICA»), S0-6 (CI con GitHub Actions), las ADRs 001–005 y el spike del motor de formularios; después los módulos M1–M8 y el despliegue en GCP. Lista priorizada en H.
+- S0-6 (CI con GitHub Actions), las ADRs 001–005 y el spike del motor de formularios; después los módulos M1–M8 y el despliegue en GCP. Lista priorizada en H.
 
 Qué funciona correctamente:
-- El repositorio está en GitHub (origin por SSH). `make install`, `make build`, `make lint`, `make format`, `make format-check`, `make test-backend` y `make test-backend-e2e` funcionan. `make dev` levanta infraestructura + backend (:3000) + frontend (:4200). `make migrate` y `make migrate-revert` crean y revierten el esquema en PostgreSQL, y `GET /health` informa el estado de la base de datos.
+- El repositorio está en GitHub (origin por SSH). `make install`, `make build`, `make lint`, `make format`, `make format-check`, `make test-backend`, `make test-backend-e2e` y `make test-frontend` funcionan. `make dev` levanta infraestructura + backend (:3000) + frontend (:4200). `make migrate` y `make migrate-revert` crean y revierten el esquema en PostgreSQL, y `GET /health` informa el estado de la base de datos. El frontend sirve la página «Hola ICA» con Angular Material y Tailwind.
 
 Qué presenta errores o problemas:
 - Resuelto (15 oct 2026): el entorno ya tiene Node.js, npm y Docker funcionando y probados (ver D). Nota menor: en terminales abiertas antes del cambio de grupo, docker puede pedir sudo; hay que abrir una terminal nueva, ejecutar «newgrp docker» o cerrar sesión.
 - Resuelto (15 oct 2026): la autenticación de git ya funciona por SSH (llave ed25519 en ~/.ssh/id_ed25519, agregada a GitHub por el usuario) y el nombre «Santiago Muñoz» quedó confirmado.
 - Cambio de infraestructura (S0-3): MinIO dejó de publicar imágenes de acceso anónimo (Docker Hub ya no tiene el repositorio y Quay responde 401 UNAUTHORIZED). Se usa el espejo pgsty/minio fijado en RELEASE.2026-08-04T00-00-00Z. Alternativas comprobadas si se quiere cambiar: bitnamilegacy/minio, chainguard/minio, adobe/s3mock y localstack/localstack.
-- Pendiente: no hay Chrome/Chromium instalado, así que los tests de Angular con Karma no corren localmente (preverlo en S0-5/S0-6).
+- Resuelto (15 oct 2026): los tests del frontend ya corren en local con Firefox headless (`make test-frontend KARMA_BROWSER=FirefoxHeadless`). No hay Chrome/Chromium instalado; en CI se usará ChromeHeadless (viene en el runner de GitHub Actions).
 - Recursos ausentes citados por los documentos: BACKLOG_INICIAL.md, LEARNING_LOG.md y la metodología ICA fuente (ver E).
 
 Pruebas realizadas y resultados:
@@ -112,9 +113,10 @@ Pruebas realizadas y resultados:
 - Verificación de S0-2 (15 oct 2026): `make lint` OK (oxlint --deny-warnings + ng lint --max-warnings=0 → «All files pass linting»); `make format` y `make format-check` OK; y el hook pre-commit RECHAZA un commit con errores de lint (exit 1, «pre-commit script failed»), comprobado con un archivo de prueba que luego se eliminó.
 - Verificación de S0-3 (15 oct 2026): `docker compose up -d` levanta los 3 contenedores; PostgreSQL 16.15 acepta conexiones (pg_isready) y responde select version(); Redis responde PONG; MinIO responde HTTP 200 en /minio/health/live.
 - Verificación de S0-4 (15 oct 2026): `make build` y `make lint` OK; `make migrate` aplica CreateAppMetadata1792022400000 y crea las tablas app_metadata y migrations (con la fila schema_version = 1); `make migrate-revert` la revierte y `make migrate` la vuelve a aplicar; `GET /health` responde 200 ({"status":"ok",...,"database":"up"}), con PostgreSQL detenido responde 503 y al recuperarlo vuelve a 200; `make test-backend` 1/1 y `make test-backend-e2e` 2/2 pruebas OK.
+- Verificación de S0-5 (15 oct 2026): `make build` OK (bundle inicial 403,63 kB; CSS 76,55 kB con las utilidades de Tailwind); `make lint` y `make format-check` OK; `make test-frontend KARMA_BROWSER=FirefoxHeadless` → 4/4 pruebas OK (Firefox 157); `make dev-frontend` sirve la app en :4200 (HTTP 200, título «Aplicativo EBA Aves · ICA») y styles.css contiene las utilidades de Tailwind (mx-auto, max-w-3xl, text-slate-700, grow); el bundle incluye el texto «Hola ICA».
 
 Hechos comprobados / suposiciones / desconocidos:
-- Hechos: contenido y existencia de los 5 documentos; versiones instaladas (git, make, python3, pandoc, pdftotext y, desde T0, node/npm/docker; ver D); el repositorio local es un repo git (rama main, remote origin por SSH) con backend y frontend creados y ya sincronizado con GitHub; el entorno local está completo (Node, Docker y la infraestructura levantada); el backend ya se conecta a PostgreSQL y aplica migraciones; el archivo SPRINT_0_PLAN.md ya tiene la fecha de inicio (15 de octubre de 2026).
+- Hechos: contenido y existencia de los 5 documentos; versiones instaladas (git, make, python3, pandoc, pdftotext y, desde T0, node/npm/docker; ver D); el repositorio local es un repo git (rama main, remote origin por SSH) con backend y frontend creados y ya sincronizado con GitHub; el entorno local está completo (Node, Docker y la infraestructura levantada); el backend ya se conecta a PostgreSQL y aplica migraciones; el frontend compila, pasa el lint y muestra la página «Hola ICA» con Material y Tailwind; el archivo SPRINT_0_PLAN.md ya tiene la fecha de inicio (15 de octubre de 2026).
 - Suposiciones razonables (confirmar al avanzar): el documento EBA Aves rige el alcance y el genérico es solo marco del curso; el desarrollo se hará dentro de esta carpeta (ica-app/); el plan de sprint sigue vigente con adaptaciones menores (versiones de herramientas).
 - Desconocidos: los 5 puntos abiertos de B; disponibilidad de cuentas/proyecto de Google Cloud; valor del timeout de RF02; alcance final del módulo de IA. (Resuelto: el repositorio remoto ya existe.)
 
@@ -132,6 +134,9 @@ D. ENTORNO TÉCNICO (verificado el 15 oct 2026)
 - Imagen de MinIO: se usa el espejo `pgsty/minio:RELEASE.2026-08-04T00-00-00Z` porque la oficial `minio/minio` ya no existe en Docker Hub y `quay.io/minio/minio` responde 401 (exige autenticación).
 - Dependencias del backend añadidas en S0-4: @nestjs/config 12, @nestjs/typeorm 12, @nestjs/terminus 12, typeorm 1.1.2, pg 8.23 y dotenv 18.
 - Esquema de la BD local (tras S0-4): tablas `migrations` (control de TypeORM) y `app_metadata` (clave/valor, fila schema_version = 1). El esquema se gestiona SOLO con migraciones (synchronize = false); las migraciones viven en backend/src/database/migrations/ y se ejecutan compiladas (backend/dist).
+- Frontend tras S0-5: Angular Material 18.2.14 (tema prebuilt azure-blue cargado desde angular.json; animaciones asíncronas con provideAnimationsAsync) y Tailwind CSS 3.4.19 (tailwind.config.js + directivas @tailwind en src/styles.scss). Nota: Angular 18.2 declara compatibilidad con Tailwind ^2 || ^3 (no v4), por eso se usa la v3.
+- Pruebas del frontend: karma.conf.js declara los launchers de Chrome y Firefox, y está referenciado en angular.json («karmaConfig»). El Makefile acepta KARMA_BROWSER (por defecto ChromeHeadless; en local se usa KARMA_BROWSER=FirefoxHeadless porque no hay Chrome/Chromium).
+- Página inicial: ruta '' -> HomeComponent (frontend/src/app/pages/home/); el componente raíz solo contiene el router-outlet.
 - Shell del usuario: fish (importante al ejecutar comandos compuestos: `newgrp docker` abre fish, no bash).
 - No hay Chrome/Chromium instalado (los tests de Angular con Karma lo requieren; preverlo en S0-5/S0-6).
 - Comandos de instalación ejecutados por el usuario (T0): sudo pacman -S --needed nodejs-lts-jod npm docker docker-compose; sudo systemctl enable --now docker; sudo usermod -aG docker $USER.
@@ -155,6 +160,8 @@ D. ENTORNO TÉCNICO (verificado el 15 oct 2026)
     npm install -D husky lint-staged prettier; npx husky init -> hooks de git en la raíz (S0-2)
     make lint; make format; make format-check -> verificación de S0-2
     make migrate; make migrate-revert; make test-backend-e2e -> verificación de S0-4
+    npx ng add @angular/material@18 --skip-confirmation; npm i -D tailwindcss@^3 karma-firefox-launcher -> frontend de S0-5
+    make test-frontend KARMA_BROWSER=FirefoxHeadless -> pruebas del frontend en local (S0-5)
     docker exec ica-postgres psql -U ica -d ica -c '\dt' -> inspección del esquema
     docker compose up -d; docker compose ps -> infraestructura local (S0-3)
     Usar `echo 'bash <script>' | newgrp docker` para ejecutar docker desde una sesión sin el grupo activo (newgrp abre fish, no bash)
@@ -251,7 +258,7 @@ T2 · Sprint 0 completo (fase de setup)
     S0-2 ESLint + Prettier + Husky (pre-commit). [HECHO el 15 oct 2026: make lint/format OK y commit inválido rechazado por el hook]
     S0-3 Docker Compose local (PostgreSQL, Redis, MinIO). [HECHO el 15 oct 2026: los 3 servicios levantados y verificados; imagen de MinIO cambiada al espejo pgsty/minio]
     S0-4 Backend NestJS + TypeORM + PostgreSQL (health check + migraciones). [HECHO el 15 oct 2026: /health 200/503, migraciones aplicadas/revertidas y e2e 2/2]
-    S0-5 Frontend Angular 18 + Tailwind + Angular Material (página «Hola ICA»).
+    S0-5 Frontend Angular 18 + Tailwind + Angular Material (página «Hola ICA»). [HECHO el 15 oct 2026: página «Hola ICA» en la ruta '', build/lint OK y 4/4 pruebas con Firefox headless]
     S0-6 CI GitHub Actions (lint + typecheck + test + build), rama main protegida.
     ADRs 001–005 (motor de formularios, autenticación, evidencias, comunicación y despliegue GCP).
     Spike del motor de formularios (máximo 4 horas; si no converge: «tablas normalizadas v1» y seguir).
@@ -327,11 +334,11 @@ Nota sobre Sprint 1 en adelante: SPRINT_0_PLAN.md menciona un BACKLOG_INICIAL.md
 ---------------------------------------------------------------------
 I. PUNTO EXACTO DE CONTINUACIÓN
 ---------------------------------------------------------------------
-- Dónde estamos: Sprint 0 en curso. T0, S0-1, S0-2, S0-3 y S0-4 terminados y verificados; faltan S0-5, S0-6, las ADRs 001–005 y el spike. Todo está sincronizado con GitHub.
-- Última tarea realizada: S0-4 (backend NestJS + TypeORM + PostgreSQL: /health, migración inicial y runner `make migrate`), el 15 oct 2026.
-- Resultado obtenido: el backend compila, pasa el lint, se conecta a PostgreSQL y aplica/revierte migraciones (tablas `migrations` y `app_metadata`); `GET /health` responde 200 con la BD arriba y 503 si cae; pruebas unitarias 1/1 y e2e 2/2.
-- Qué falta inmediatamente: S0-5 (Angular + Tailwind + Material con la página «Hola ICA»), S0-6 (CI con GitHub Actions), las ADRs 001–005 y el spike.
-- Siguiente acción recomendada: ejecutar S0-5 (empezar por Tailwind + Angular Material y la página «Hola ICA»), y seguir con S0-6, las ADRs y el spike hasta cerrar el Sprint 0; después detenerse a mostrar evidencias antes de M1.
+- Dónde estamos: Sprint 0 en curso. T0 y S0-1 a S0-5 terminados y verificados; faltan S0-6, las ADRs 001–005 y el spike. Todo está sincronizado con GitHub.
+- Última tarea realizada: S0-5 (frontend Angular 18 + Angular Material + Tailwind con la página «Hola ICA»), el 15 oct 2026.
+- Resultado obtenido: el frontend compila (bundle inicial 403,63 kB), pasa el lint y las 4 pruebas unitarias (con Firefox headless); el dev server sirve la app en :4200 con las utilidades de Tailwind en el CSS.
+- Qué falta inmediatamente: S0-6 (CI con GitHub Actions), las ADRs 001–005 y el spike del motor de formularios.
+- Siguiente acción recomendada: ejecutar S0-6 (workflow de GitHub Actions con lint + typecheck + test + build de backend y frontend, con PostgreSQL como servicio para las pruebas e2e), y seguir con las ADRs y el spike hasta cerrar el Sprint 0; después detenerse a mostrar evidencias antes de M1.
 - Qué debe comprobar la nueva sesión antes de actuar: git (log, status y ls-remote origin: ¿todo subido?); que la infraestructura levante (`make infra`) y que `make dev` funcione; que `make migrate` deje el esquema al día; versiones reales en backend/package.json y frontend/package.json; si esa sesión necesita «newgrp docker»; que no haya cambios sin commitear.
 
 ---------------------------------------------------------------------
@@ -352,6 +359,6 @@ J. INSTRUCCIONES PARA LA SIGUIENTE SESIÓN
 INSTRUCCIÓN DE ARRANQUE PARA LA SIGUIENTE SESIÓN
 (Copia y pega este bloque en una sesión nueva de OpenCode, dentro de la carpeta ica-app)
 =====================================================================
-Lee completo el archivo docs/CONTEXTO_PROYECTO.txt y consulta los documentos de docs/ según lo que indique (requerimientos EBA Aves, reglas y roles, wireframes y plan de Sprint 0). Antes de tocar nada, verifica el estado real del proyecto: qué archivos existen, si ya hay código o repositorio git, y qué herramientas están instaladas (node -v, npm -v, docker --version). Detecta y reporta cualquier diferencia con lo documentado; no empieces de cero ni repitas tareas ya completadas. Continúa desde la sección «I. Punto exacto de continuación» (por ahora: continuar el Sprint 0 desde S0-5). Respeta las decisiones registradas: stack Angular + Node.js/NestJS + Google Cloud, trabajo por módulos con parada al final de cada uno para revisión del usuario, y metodología ICA sin inventar reglas. Si falta información esencial, investígala en el proyecto y pregunta al usuario solo si no puede resolverse. Empieza diciéndome brevemente qué vas a hacer, qué comprobaste y qué resultados obtuviste. Al terminar cada hito, actualiza docs/CONTEXTO_PROYECTO.txt y detente a esperar mi confirmación.
+Lee completo el archivo docs/CONTEXTO_PROYECTO.txt y consulta los documentos de docs/ según lo que indique (requerimientos EBA Aves, reglas y roles, wireframes y plan de Sprint 0). Antes de tocar nada, verifica el estado real del proyecto: qué archivos existen, si ya hay código o repositorio git, y qué herramientas están instaladas (node -v, npm -v, docker --version). Detecta y reporta cualquier diferencia con lo documentado; no empieces de cero ni repitas tareas ya completadas. Continúa desde la sección «I. Punto exacto de continuación» (por ahora: continuar el Sprint 0 desde S0-6). Respeta las decisiones registradas: stack Angular + Node.js/NestJS + Google Cloud, trabajo por módulos con parada al final de cada uno para revisión del usuario, y metodología ICA sin inventar reglas. Si falta información esencial, investígala en el proyecto y pregunta al usuario solo si no puede resolverse. Empieza diciéndome brevemente qué vas a hacer, qué comprobaste y qué resultados obtuviste. Al terminar cada hito, actualiza docs/CONTEXTO_PROYECTO.txt y detente a esperar mi confirmación.
 
 FIN DEL DOCUMENTO
