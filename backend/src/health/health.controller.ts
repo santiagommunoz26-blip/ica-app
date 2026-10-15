@@ -4,7 +4,14 @@ import {
   HealthCheckService,
   TypeOrmHealthIndicator,
 } from '@nestjs/terminus';
+import { Publico } from '../common/decorators/acceso.decorators.js';
 
+/**
+ * Comprobación de vida de la API. Es pública (no exige sesión) porque la usan
+ * los monitoreos y los despliegues (Cloud Run / Docker) para saber si el
+ * servicio está sano.
+ */
+@Publico()
 @Controller('health')
 export class HealthController {
   constructor(

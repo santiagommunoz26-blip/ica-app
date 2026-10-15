@@ -15,8 +15,11 @@ describe('AppController', () => {
   });
 
   describe('root', () => {
-    it('should return "Hello World!"', () => {
-      expect(appController.getHello()).toBe('Hello World!');
+    it('devuelve la información de la API', () => {
+      expect(appController.getInfo()).toMatchObject({
+        aplicacion: 'Aplicativo EBA Aves',
+        documentacion: '/api/docs',
+      });
     });
   });
 });

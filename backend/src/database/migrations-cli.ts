@@ -1,4 +1,5 @@
 import { dataSource } from './data-source.js';
+import { describirError } from '../common/describir-error.js';
 
 /**
  * Runner de migraciones del proyecto.
@@ -41,11 +42,7 @@ async function main(): Promise<void> {
 try {
   await main();
 } catch (error) {
-  console.error(
-    `Error al ejecutar las migraciones: ${
-      error instanceof Error ? error.message : String(error)
-    }`,
-  );
+  console.error(`Error al ejecutar las migraciones: ${describirError(error)}`);
   process.exitCode = 1;
 } finally {
   if (dataSource.isInitialized) {
