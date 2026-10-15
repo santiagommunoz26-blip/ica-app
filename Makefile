@@ -44,8 +44,8 @@ lint: lint-backend lint-frontend ## Corre el linter en backend y frontend
 lint-backend: ## Linter del backend
 	cd backend && npm run lint
 
-lint-frontend: ## Linter del frontend
-	cd frontend && npm run lint
+lint-frontend: ## Linter del frontend (ESLint se configura en S0-2)
+	cd frontend && npm run lint --if-present
 
 build: build-backend build-frontend ## Compila backend y frontend
 

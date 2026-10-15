@@ -6,6 +6,7 @@ dist/
 build/
 coverage/
 .angular/
+*.tsbuildinfo
 
 # Variables de entorno (nunca subir secretos reales)
 .env
