@@ -1,7 +1,7 @@
 # Sprint 0 Plan - Setup y Arquitectura Base
 **Duracion**: 2 semanas (10 dias habiles)  
 **Objetivo**: Repo listo, CI verde, arquitectura decidida, spike formularios dinamicos  
-**Fecha inicio**: [PON FECHA AQUI]
+**Fecha inicio**: 15 de octubre de 2026
 
 ---
 
@@ -14,7 +14,7 @@
 
 | ID | Tarea | SP | Responsable | Done Criteria |
 |----|-------|----|-------------|---------------|
-| S0-1 | Init repo monorepo (backend + frontend + docs) | 2 | Dev | `git clone` -> `make install` -> `make dev` levanta ambos |
+| S0-1 | Init repo monorepo (backend + frontend + docs) | 2 | Dev | `git clone` -> `make install` -> `make dev` levanta ambos — **en curso (15 oct 2026)**: hecho salvo el push a GitHub y la verificación de `make dev` con Docker |
 | S0-2 | Configurar ESLint + Prettier + Husky (pre-commit) | 2 | Dev | `make lint` pasa, commit rechazado si falla |
 | S0-3 | Docker Compose local (PostgreSQL, Redis, MinIO para S3 local) | 3 | Dev | `docker compose up -d` -> BD y storage listos |
 | S0-4 | Backend: NestJS + TypeORM + PostgreSQL (health check + migration runner) | 3 | Dev | `make migrate` crea tablas, `/health` retorna 200 |

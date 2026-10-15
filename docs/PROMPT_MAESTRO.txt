@@ -1,7 +1,7 @@
 =====================================================================
 PROMPT MAESTRO — Construcción del Aplicativo EBA Aves
 Instrucciones para la IA que desarrollará el proyecto, módulo por módulo.
-Última actualización: 15 de octubre de 2026 (T0 completado: entorno verificado y repositorio remoto definido)
+Última actualización: 15 de octubre de 2026 (T0 completado y S0-1 en curso: monorepo creado con backend NestJS 12 y frontend Angular 18; push pendiente de autenticación)
 =====================================================================
 
 CÓMO USAR ESTE ARCHIVO
@@ -31,15 +31,15 @@ Construir, de forma organizada y por módulos, el «Aplicativo EBA Aves»: una a
 ---------------------------------------------------------------------
 2) STACK TECNOLÓGICO FIJADO (no cambiar sin consultar)
 ---------------------------------------------------------------------
-- Frontend: Angular; la referencia visual son los wireframes.
-- Backend: Node.js con NestJS (API REST).
+- Frontend: Angular (18.2.21 en el scaffold de S0-1); la referencia visual son los wireframes.
+- Backend: Node.js con NestJS (12.0.x en el scaffold de S0-1; ESM, Vitest y oxlint).
 - Base de datos: PostgreSQL en desarrollo (Docker); en producción, BD administrada de Google Cloud (Cloud SQL; alternativa Firebase evaluada con ADR).
 - Almacenamiento de evidencias: Cloud Storage en producción; MinIO local en desarrollo.
 - Autenticación: Firebase Auth o JWT con NestJS (decidir en ADR-002).
 - Nube: Google Cloud. Despliegue administrado (ADR-005: Cloud Run / GKE / Functions), monitoreo y observabilidad GCP, credenciales fuera del código (RNFG06), ambientes separados de desarrollo, pruebas y producción (RNFG07).
 - IA (solo si el usuario confirma su alcance): API externa o servicio de IA en GCP; nunca sustituye el criterio del inspector (RNF25 del docx del docente) y su caída no debe bloquear la evaluación (RNF26).
 - Desarrollo local: Docker Compose con PostgreSQL, Redis y MinIO; CI con GitHub Actions; automatización con make (install/dev/test/lint) según SPRINT_0_PLAN.md.
-- Repositorio remoto: https://github.com/santiagommunoz26-blip/ica-app.git (rama main; enlazarlo en S0-1 y usarlo en S0-6 para el CI).
+- Repositorio remoto: https://github.com/santiagommunoz26-blip/ica-app.git (rama main; ya conectado como origin en S0-1, pero el push requiere configurar autenticación — SSH o PAT; usarlo en S0-6 para el CI).
 - ADRs del Sprint 0 (escribirlas en docs/ o docs/adr/ antes de decidir en código): ADR-001 motor de formularios dinámicos; ADR-002 autenticación; ADR-003 almacenamiento de evidencias; ADR-004 comunicación frontend-backend; ADR-005 despliegue en GCP.
 
 ---------------------------------------------------------------------
