@@ -3,12 +3,13 @@ SHELL := /bin/bash
 
 .PHONY: help install infra dev dev-backend dev-frontend down logs \
         test test-backend test-frontend lint lint-backend lint-frontend \
-        build build-backend build-frontend
+        format format-check build build-backend build-frontend
 
 help: ## Muestra la lista de comandos disponibles
 	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}'
 
-install: ## Instala las dependencias de backend y frontend
+install: ## Instala las dependencias de la raíz, el backend y el frontend
+	npm install
 	cd backend && npm install
 	cd frontend && npm install
 
@@ -44,8 +45,14 @@ lint: lint-backend lint-frontend ## Corre el linter en backend y frontend
 lint-backend: ## Linter del backend
 	cd backend && npm run lint
 
-lint-frontend: ## Linter del frontend (ESLint se configura en S0-2)
-	cd frontend && npm run lint --if-present
+lint-frontend: ## Linter del frontend
+	cd frontend && npm run lint
+
+format: ## Formatea el código con Prettier (backend, frontend y raíz)
+	npm run format
+
+format-check: ## Verifica el formato sin modificar archivos
+	npm run format:check
 
 build: build-backend build-frontend ## Compila backend y frontend
 

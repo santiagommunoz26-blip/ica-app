@@ -50,15 +50,15 @@ make dev       # levanta infraestructura + backend (:3000) + frontend (:4200)
 
 Otros comandos útiles:
 
-| Comando | Descripción |
-| --- | --- |
-| `make help` | Lista todos los comandos disponibles |
+| Comando      | Descripción                            |
+| ------------ | -------------------------------------- |
+| `make help`  | Lista todos los comandos disponibles   |
 | `make infra` | Solo levanta PostgreSQL, Redis y MinIO |
-| `make down` | Apaga la infraestructura |
-| `make logs` | Sigue los logs de la infraestructura |
-| `make test` | Pruebas de backend y frontend |
-| `make lint` | Linter de backend y frontend |
-| `make build` | Compila backend y frontend |
+| `make down`  | Apaga la infraestructura               |
+| `make logs`  | Sigue los logs de la infraestructura   |
+| `make test`  | Pruebas de backend y frontend          |
+| `make lint`  | Linter de backend y frontend           |
+| `make build` | Compila backend y frontend             |
 
 ## Documentación
 

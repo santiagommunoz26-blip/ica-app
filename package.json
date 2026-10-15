@@ -1,0 +1,21 @@
+{
+  "name": "ica-app",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Aplicativo EBA Aves (metodología ICA v2.0, 2024) — monorepo: backend NestJS + frontend Angular",
+  "scripts": {
+    "prepare": "husky",
+    "lint": "npm --prefix backend run lint && npm --prefix frontend run lint",
+    "format": "prettier --write \"backend/**/*.{ts,js,mjs,cjs,json}\" \"frontend/**/*.{ts,html,scss,css,json}\" \"./*.{md,json,yml,yaml}\"",
+    "format:check": "prettier --check \"backend/**/*.{ts,js,mjs,cjs,json}\" \"frontend/**/*.{ts,html,scss,css,json}\""
+  },
+  "lint-staged": {
+    "backend/**/*.{ts,js,mjs,cjs,json}": "prettier --write",
+    "frontend/**/*.{ts,html,scss,css,json,md}": "prettier --write"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^17.6.0",
+    "prettier": "^3.9.10"
+  }
+}
