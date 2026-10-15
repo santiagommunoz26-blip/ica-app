@@ -1,0 +1,110 @@
+# Pipeline de integración continua (S0-6).
+# Ejecuta lint, typecheck, pruebas unitarias, pruebas de integración (con
+# PostgreSQL) y build, en backend y frontend, ante cada push a main y cada pull
+# request.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (lint · typecheck · test · e2e · build)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: ica
+          POSTGRES_PASSWORD: ica
+          POSTGRES_DB: ica
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ica -d ica"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: '5432'
+      POSTGRES_USER: ica
+      POSTGRES_PASSWORD: ica
+      POSTGRES_DB: ica
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - name: Instalar dependencias
+        run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Pruebas unitarias
+        run: npm test
+      - name: Migraciones sobre PostgreSQL
+        run: npm run migration:run
+      - name: Pruebas de integración (e2e)
+        run: npm run test:e2e
+      - name: Build
+        run: npm run build
+
+  frontend:
+    name: Frontend (lint · typecheck · test · build)
+    runs-on: ubuntu-latest
+    env:
+      NG_CLI_ANALYTICS: 'false'
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Instalar dependencias
+        run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Pruebas unitarias (Chrome headless)
+        run: npm test -- --watch=false --browsers=ChromeHeadlessCI
+      - name: Build
+        run: npm run build
+
+  format:
+    name: Formato (Prettier)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Instalar dependencias de la raíz
+        run: npm ci
+      - name: Comprobar formato
+        run: npm run format:check

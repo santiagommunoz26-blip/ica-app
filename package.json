@@ -6,12 +6,13 @@
   "scripts": {
     "prepare": "husky",
     "lint": "npm --prefix backend run lint && npm --prefix frontend run lint",
-    "format": "prettier --write \"backend/**/*.{ts,js,mjs,cjs,json}\" \"frontend/**/*.{ts,html,scss,css,json}\" \"./*.{md,json,yml,yaml}\"",
-    "format:check": "prettier --check \"backend/**/*.{ts,js,mjs,cjs,json}\" \"frontend/**/*.{ts,html,scss,css,json}\""
+    "format": "prettier --write \"backend/**/*.{ts,js,mjs,cjs,json}\" \"frontend/**/*.{ts,html,scss,css,json}\" \"./*.{md,json,yml,yaml}\" \".github/**/*.{yml,yaml}\"",
+    "format:check": "prettier --check \"backend/**/*.{ts,js,mjs,cjs,json}\" \"frontend/**/*.{ts,html,scss,css,json}\" \"./*.{md,json,yml,yaml}\" \".github/**/*.{yml,yaml}\""
   },
   "lint-staged": {
     "backend/**/*.{ts,js,mjs,cjs,json}": "prettier --write",
-    "frontend/**/*.{ts,html,scss,css,json,md}": "prettier --write"
+    "frontend/**/*.{ts,html,scss,css,json,md}": "prettier --write",
+    ".github/**/*.{yml,yaml}": "prettier --write"
   },
   "devDependencies": {
     "husky": "^9.1.7",

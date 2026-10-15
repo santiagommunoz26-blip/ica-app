@@ -1,5 +1,7 @@
 # EBA Aves — Aplicativo de bienestar animal en aves
 
+[![CI](https://github.com/santiagommunoz26-blip/ica-app/actions/workflows/ci.yml/badge.svg)](https://github.com/santiagommunoz26-blip/ica-app/actions/workflows/ci.yml)
+
 Aplicación web para evaluar el bienestar animal en aves de corral y de traspatio siguiendo la **metodología del ICA (v2.0, 2024)**: registro de granjas y lotes, captura de evidencias, evaluación por indicadores y generación de reportes.
 
 > Proyecto académico. La metodología es autoría del ICA y se usa con fines no comerciales.
@@ -14,8 +16,8 @@ Aplicación web para evaluar el bienestar animal en aves de corral y de traspati
 
 ## Stack
 
-- **Frontend:** Angular
-- **Backend:** Node.js + NestJS (API REST)
+- **Frontend:** Angular 18 + Angular Material 18 + Tailwind CSS 3
+- **Backend:** Node.js 22 + NestJS 12 + TypeORM (API REST)
 - **Base de datos:** PostgreSQL (Docker en local → Cloud SQL en producción)
 - **Almacenamiento de evidencias:** MinIO en local → Cloud Storage en producción
 - **Infraestructura:** Docker Compose; CI con GitHub Actions (`make install/dev/test/lint`)
@@ -50,15 +52,19 @@ make dev       # levanta infraestructura + backend (:3000) + frontend (:4200)
 
 Otros comandos útiles:
 
-| Comando      | Descripción                            |
-| ------------ | -------------------------------------- |
-| `make help`  | Lista todos los comandos disponibles   |
-| `make infra` | Solo levanta PostgreSQL, Redis y MinIO |
-| `make down`  | Apaga la infraestructura               |
-| `make logs`  | Sigue los logs de la infraestructura   |
-| `make test`  | Pruebas de backend y frontend          |
-| `make lint`  | Linter de backend y frontend           |
-| `make build` | Compila backend y frontend             |
+| Comando                                            | Descripción                                           |
+| -------------------------------------------------- | ----------------------------------------------------- |
+| `make help`                                        | Lista todos los comandos disponibles                  |
+| `make infra`                                       | Solo levanta PostgreSQL, Redis y MinIO                |
+| `make migrate`                                     | Aplica las migraciones de base de datos               |
+| `make down`                                        | Apaga la infraestructura                              |
+| `make logs`                                        | Sigue los logs de la infraestructura                  |
+| `make test`                                        | Pruebas de backend y frontend                         |
+| `make test-backend-e2e`                            | Pruebas de integración (requieren la infraestructura) |
+| `make test-frontend KARMA_BROWSER=FirefoxHeadless` | Pruebas del frontend en un equipo sin Chrome/Chromium |
+| `make lint`                                        | Linter de backend y frontend                          |
+| `make format`                                      | Formatea el código con Prettier                       |
+| `make build`                                       | Compila backend y frontend                            |
 
 ## Documentación
 
