@@ -9,6 +9,14 @@
 // tonos `*-suave` y `*-tenue` de cada color.
 module.exports = {
   content: ['./src/**/*.{html,ts}'],
+  // Las utilidades se emiten con `!important` de forma deliberada: Angular
+  // Material inyecta los estilos de sus componentes en tiempo de ejecución,
+  // DESPUÉS de la hoja global, así que una utilidad puesta sobre un elemento de
+  // Material (mat-card-content, mat-card, …) perdería la cascada y el espaciado
+  // o el color no se aplicarían. Con esto, las utilidades y los tokens mandan
+  // sobre el relleno, el apilado y el fondo que trae Material de fábrica.
+  // Documentado en docs/DISENO.md (decisiones).
+  important: true,
   theme: {
     extend: {
       colors: {

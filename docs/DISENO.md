@@ -45,6 +45,24 @@ html {
 El tema de Material va **antes** de Tailwind para conservar el orden de cascada
 que ya existía; Tailwind sigue pudiendo ajustar un componente desde la plantilla.
 
+### Utilidades de Tailwind frente a Material
+
+Angular Material **inyecta los estilos de sus componentes en tiempo de
+ejecución**, es decir, después de la hoja global. Por eso una utilidad de
+Tailwind puesta sobre un elemento de Material (`mat-card-content`, `mat-card`,
+…), con la misma especificidad y en una hoja anterior, **perdía** la cascada: el
+relleno de 24 px de las tarjetas no se aplicaba y el bloque de contenido no era
+un `flex`, con lo que los hijos se pegaban sin separación.
+
+La solución es `important: true` en `frontend/tailwind.config.js`: las
+utilidades se emiten con `!important` y **mandan sobre el relleno, el apilado y
+el fondo que Material trae de fábrica**. Es la jerarquía que se quiere en este
+producto (los tokens y las utilidades por encima del aspecto por defecto de la
+biblioteca). Consecuencia a tener en cuenta: una utilidad también gana a un
+estado propio de Material (por ejemplo el color de un botón deshabilitado), así
+que no se debe poner una utilidad de color sobre un control cuyo estado se
+quiera conservar.
+
 ### Cómo cambiar la marca
 
 Se cambia **solo** `frontend/src/theme/_tokens.scss` (la escala de color y, si
@@ -151,6 +169,10 @@ Tailwind (`bg-marca/40`) no funcionan**: para eso están los tonos `-suave`,
 - **Área táctil:** `--altura-control` 44 px (`min-h-control`). Los botones de
   Material se ajustan a esa altura para poder usarlos en campo con una mano
   (RNF12).
+- **Reserva de la etiqueta:** `--campo-reserva-etiqueta` 12 px. La etiqueta de un
+  campo con contorno se apoya en el borde superior y sobresale la mitad de su
+  alto; ese espacio se reserva por encima de cada campo (`.mat-mdc-form-field`)
+  para que la etiqueta nunca pise el párrafo o el título que va antes.
 - **Ancho de contenido:** `--ancho-contenido` 72 rem (`max-w-contenido`).
 
 ---
@@ -335,16 +357,22 @@ dentro de la pantalla) para no dejar mensajes pegados al formulario.
    `_material.scss#ajustar-componentes` (tarjetas de 20 px, menús, diálogos,
    panel lateral y barra en la superficie clara, contenido sobre el fondo crema)
    y la altura de los botones a 44 px.
+9. **Las utilidades de Tailwind se emiten con `!important`** (`important: true`)
+   porque Material inyecta los estilos de sus componentes en tiempo de
+   ejecución, después de la hoja global, y una utilidad sobre un elemento de
+   Material perdía la cascada (el caso visible: el contenido de las tarjetas se
+   apilaba sin separación y con 16 px de relleno en vez de los 24 px de los
+   tokens). Ver «Utilidades de Tailwind frente a Material».
+10. **Cada campo reserva el alto de su etiqueta** (12 px por encima, token
+    `--campo-reserva-etiqueta`): la etiqueta del contorno se apoya en el borde y
+    sobresale, así que sin esa reserva pisaba el texto anterior (se veía en el
+    bloque «Acceso sin conexión (PIN)» del panel).
 
 ## 8. Observaciones para la pasada de pulido final
 
 Detectadas al revisar las capturas; **no** se corrigen aquí porque el pulido
 fino se hará en una sola pasada:
 
-- En las pantallas de M1, el espacio entre un párrafo y el primer campo de un
-  formulario es corto: la etiqueta flotante (que sobresale del campo) queda muy
-  cerca del texto anterior.
-- En el buscador de usuarios (campo con icono de prefijo) la etiqueta se separa
-  un poco del contorno.
 - Los elementos de «Próximos módulos» del panel lateral muestran la etiqueta del
-  módulo (M5, M6…) desalineada de la columna de texto.
+  módulo (M5, M6…) desalineada de la columna de texto (es un detalle de la
+  plantilla del armazón, no de los tokens).

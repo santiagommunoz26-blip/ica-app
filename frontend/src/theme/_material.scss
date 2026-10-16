@@ -122,4 +122,12 @@ $tema: mat.define-theme(
     --mdc-protected-button-container-height: var(--altura-control);
     --mdc-text-button-container-height: var(--altura-control);
   }
+
+  // La etiqueta de un campo con contorno se apoya en el borde superior del
+  // campo y sobresale la mitad de su alto por encima de él; se reserva ese
+  // espacio para que la etiqueta no pise el texto que va justo antes (un
+  // párrafo, el título de una sección o una tabla).
+  .mat-mdc-form-field {
+    margin-top: var(--campo-reserva-etiqueta);
+  }
 }
