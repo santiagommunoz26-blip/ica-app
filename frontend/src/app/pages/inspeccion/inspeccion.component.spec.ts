@@ -20,7 +20,9 @@ import type {
   InspeccionRespuesta,
 } from '../../core/inspeccion/inspeccion.modelos';
 import type { ListaVisitas } from '../../core/visitas/visitas.modelos';
+import { reglasFase3 } from '../../core/inspeccion/fase3.modelos';
 import { Fase2GalponComponent } from './fase2-galpon.component';
+import { Fase3DocumentalComponent } from './fase3-documental.component';
 import { InspeccionComponent } from './inspeccion.component';
 
 const USUARIO: Usuario = {
@@ -85,6 +87,8 @@ const CATALOGO: Catalogo = {
       escalaDescripciones: null,
       tipoMuestreo: 'PUNTOS_9',
       pregunta: null,
+      tipoEvaluacion: 'PUNTAJE',
+      exigeFirmaProfesional: false,
       gruposProductivos: ['POLLO_ENGORDE', 'PONEDORA_PISO', 'PONEDORA_JAULA'],
     },
     {
@@ -99,6 +103,8 @@ const CATALOGO: Catalogo = {
       escalaDescripciones: null,
       tipoMuestreo: 'PUNTOS_9',
       pregunta: null,
+      tipoEvaluacion: 'PUNTAJE',
+      exigeFirmaProfesional: false,
       gruposProductivos: ['POLLO_ENGORDE', 'PONEDORA_PISO', 'PONEDORA_JAULA'],
     },
     {
@@ -113,6 +119,8 @@ const CATALOGO: Catalogo = {
       escalaDescripciones: null,
       tipoMuestreo: 'PUNTOS_9',
       pregunta: null,
+      tipoEvaluacion: 'PUNTAJE',
+      exigeFirmaProfesional: false,
       gruposProductivos: ['POLLO_ENGORDE', 'PONEDORA_PISO', 'PONEDORA_JAULA'],
     },
   ],
@@ -186,6 +194,11 @@ const INSPECCION: InspeccionRespuesta = {
         ],
       },
     ],
+  },
+  fase3: {
+    reglas: reglasFase3('CORRAL', null),
+    documentos: [],
+    avance: { verificados: 0, total: 0 },
   },
 };
 
@@ -514,6 +527,115 @@ describe('InspeccionComponent', () => {
       fixture.detectChanges();
 
       expect(texto()).toContain('Borrador guardado');
+    });
+  });
+
+  describe('Fase III · inspección documental (RF27–RF33)', () => {
+    /** La inspección con la Fase I ya guardada (grupo productivo elegido). */
+    const CON_FICHA: InspeccionRespuesta = {
+      ...INSPECCION,
+      ficha: {
+        ...INSPECCION.ficha,
+        grupoProductivo: 'POLLO_ENGORDE',
+        etiquetaGrupoProductivo: 'Pollo de engorde',
+        guardada: true,
+      },
+    };
+
+    const hijo = () =>
+      fixture.debugElement.query(By.directive(Fase3DocumentalComponent))
+        .componentInstance as Fase3DocumentalComponent;
+
+    const fase3 = () =>
+      componente.fases.find((fase) => fase.numero === 3) ?? componente.fases[0];
+
+    beforeEach(async () => {
+      await configurar(VISITA_ID);
+      http
+        .expectOne(esPeticion(`/inspeccion/${VISITA_ID}`, 'GET'))
+        .flush(CON_FICHA);
+      await tick();
+      fixture.detectChanges();
+
+      componente.faseActiva.set(3);
+      fixture.detectChanges();
+      // El efecto de la Fase III siembra el estado en el primer chequeo; este
+      // segundo vuelve a pintar con lo sembrado.
+      fixture.detectChanges();
+    });
+
+    it('muestra los documentos con su avance y la regla del 0 (RF24, RF27–RF29)', () => {
+      expect(texto()).toContain('Documentos (MBG)');
+      expect(texto()).toContain('0 de 1 verificados');
+      expect(texto()).toContain('¿Se presentó el documento?');
+      expect(texto()).toContain(
+        'Si no se presenta, el indicador se califica con 0 puntos.',
+      );
+      expect(hijo().documentoActivo()).toBe('MBG-01');
+    });
+
+    it('guarda los documentos por la misma cola (RF12, RF26)', async () => {
+      hijo().marcarPresentado(true);
+      hijo().calificar(2);
+      hijo().guardarBorrador();
+      await tick();
+
+      const sincronizar = http.expectOne(
+        esPeticion('/visitas/sincronizar', 'POST'),
+      );
+      const operacion = sincronizar.request.body.operaciones[0];
+      expect(operacion.tipo).toBe('GUARDAR_INSPECCION');
+      expect(operacion.inspeccion.documentos.length).toBe(1);
+      expect(operacion.inspeccion.documentos[0].indicadorCodigo).toBe('MBG-01');
+      expect(operacion.inspeccion.documentos[0].puntaje).toBe(2);
+      sincronizar.flush({
+        resultados: [{ id: operacion.id, estado: 'APLICADA' }],
+        visitas: [],
+      });
+
+      // Tras sincronizar, el servicio refresca la lista de visitas (RF12).
+      await tick();
+      http.expectOne(esPeticion('/visitas', 'GET')).flush(LISTA);
+
+      // Y la pantalla vuelve a leer la inspección del servidor.
+      await tick();
+      http
+        .expectOne(esPeticion(`/inspeccion/${VISITA_ID}`, 'GET'))
+        .flush(CON_FICHA);
+      await tick();
+      fixture.detectChanges();
+
+      expect(texto()).toContain('Borrador guardado');
+    });
+
+    it('en traspatio la pestaña queda sin aplicar (RF33)', async () => {
+      // La visita se reclasifica como traspatio desde la Fase I.
+      const traspatio: InspeccionRespuesta = {
+        ...CON_FICHA,
+        predio: { ...CON_FICHA.predio, tipoPredio: 'TRASPATIO' },
+        ficha: {
+          ...CON_FICHA.ficha,
+          tipoPredio: 'TRASPATIO',
+          etiquetaTipoPredio: 'Traspatio',
+        },
+        fase3: {
+          ...CON_FICHA.fase3,
+          reglas: reglasFase3('TRASPATIO', 'POLLO_ENGORDE'),
+        },
+      };
+      componente.respuesta.set(traspatio);
+      fixture.detectChanges();
+
+      expect(componente.faseNoAplica(fase3())).toBe(true);
+      expect(componente.claseFase(fase3())).toContain(
+        'text-contenido-deshabilitado',
+      );
+
+      // Al pulsarla no cambia de fase: avisa que no aplica (RF33).
+      componente.faseActiva.set(1);
+      componente.abrirFase(fase3());
+      expect(componente.aviso()).toContain('traspatio');
+      expect(componente.faseActiva()).toBe(1);
     });
   });
 });

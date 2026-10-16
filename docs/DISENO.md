@@ -540,6 +540,57 @@ dentro de la pantalla) para no dejar mensajes pegados al formulario.
     píldoras, filas de galpón redondeadas con el círculo que marca si se
     inspecciona, y panel oscuro de clasificación con los pesos y los galpones a
     inspeccionar.
+30. **La Fase III es un componente aparte** (`fase3-documental`), con la
+    disposición del wireframe en dos columnas: a la izquierda la lista de
+    documentos de gestión (MBG) con su avance («4 de 10 verificados» y barra); al
+    centro el documento activo con «¿Se presentó el documento?», «Condiciones del
+    documento», las tarjetas de puntaje y la banda «Si no se presenta, el
+    indicador se califica con 0 puntos.». No lleva panel derecho: el wireframe
+    no lo trae.
+31. **Un documento por indicador MBG, sin tablas nuevas** (ADR-001): la
+    verificación se guarda en `respuestas.fase3.documentos` (JSONB) y la lista
+    sale del catálogo. La Fase III no tiene observaciones ni fotos porque el
+    wireframe no las muestra. Las insignias de la lista son las del wireframe:
+    «Revisando» (activo, lima), «Pendiente» (coral), «N pts» (lima el 2, verde
+    el 1, rojo el 0) y «Sin ver» (gris).
+32. **El puntaje de la Fase III sale de la regla, no del criterio del inspector
+    en los dos casos automáticos:** si el documento no se presentó, es 0 (RF29);
+    si es el documento de mortalidad, el inspector digita la tasa acumulada y el
+    puntaje sale de los rangos del grupo productivo (RF30: ponedoras ≤12 % → 2,
+    ≤14 % → 1, más → 0; engorde ≤6 % → 2, ≤9 % → 1, más → 0). Cuando sí se
+    presentó y no es mortalidad, el inspector elige 0/1/2 con las descripciones
+    del catálogo (RF19).
+33. **El catálogo de M5 agrega `tipo_evaluacion` (puntaje o mortalidad) y
+    `exige_firma_profesional`** a los indicadores (migración de esquema v6), y
+    siembra las descripciones 0/1/2 de los diez MBG con las palabras del
+    wireframe («No cumple o no presentó», «Cumple parcial», «Cumple completo»).
+    Solo el POE exige firma de MV/MVZ; es provisional, como el resto del
+    catálogo.
+34. **El servidor normaliza la Fase III como la Fase II** (el servidor manda):
+    sin documento fuerza puntaje 0 y descarta el chequeo; un indicador que no
+    exige firma profesional no la guarda; la mortalidad recalcula su puntaje por
+    rangos; y lo imposible se rechaza con un mensaje claro (puntaje que no es 0
+    sin documento, mortalidad fuera de 0–100 %, más de 2 decimales o puntaje que
+    no sale de los rangos). El frontend espeja las mismas reglas para validar al
+    escribir y poder diligenciar sin conexión (RF12).
+35. **El chequeo del documento es informativo** (RF28): legible y sin
+    correcciones, firmado por el responsable y firma de MV/MVZ con matrícula
+    vigente se registran, pero no bloquean la calificación. La firma profesional
+    solo aparece en los documentos que la exigen (el POE).
+36. **«Marcar pendiente» alterna y viaja con el borrador** (RF31): el pendiente
+    cuenta como verificado en el avance —el «4 de 10» del wireframe incluye uno
+    pendiente— y deja el documento para el plazo de cierre; el recálculo y el
+    acta son de M7 (RF43/RF44). En traspatio la fase no existe (RF33): la
+    pestaña queda gris como las que aún no se construyen y avisa al pulsarla, el
+    componente avisa si el predio se reclasifica con la fase abierta, y el
+    servidor rechaza guardar documentos.
+37. **Desviaciones mínimas de la Fase III respecto al wireframe** (para no
+    perder requisitos), a informar al entregar: «Guardar borrador» va como botón
+    de texto discreto antes de «Siguiente documento →»; la pantalla de la
+    mortalidad (que el wireframe no muestra) lleva el campo de tasa, el puntaje
+    calculado en vivo y los rangos a la vista; y las acciones se acompañan de
+    textos de apoyo con la referencia del requisito. No hay botón «Anterior»,
+    como en el wireframe.
 
 ## 8. Observaciones para la pasada de pulido final
 

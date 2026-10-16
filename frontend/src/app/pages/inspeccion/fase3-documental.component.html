@@ -1,0 +1,325 @@
+<div class="flex flex-col gap-4">
+  @if (!reglas().aplica) {
+    <app-aviso tipo="advertencia" titulo="La fase documental no aplica">
+      En traspatio no hay indicadores de gestión ni inspección documental
+      (RF33).
+    </app-aviso>
+  } @else if (respuesta().ficha.grupoProductivo === null) {
+    <app-aviso tipo="advertencia" titulo="Falta el grupo productivo">
+      Elija en la Fase I el grupo productivo del predio: de ahí salen los
+      documentos que se verifican (RF17).
+    </app-aviso>
+  } @else {
+    @if (error(); as mensaje) {
+      <app-aviso tipo="peligro">{{ mensaje }}</app-aviso>
+    }
+
+    <div class="grid gap-4 lg:grid-cols-[300px_minmax(0,1fr)]">
+      <!-- Documentos por verificar, con su avance (RF27, RF24) -->
+      <app-tarjeta relleno="ninguno">
+        <div class="flex flex-col gap-2 px-4 pb-3 pt-4">
+          <p class="text-lg font-semibold text-contenido">Documentos (MBG)</p>
+          <p class="text-xs text-contenido-suave">
+            {{ avance().verificados }} de {{ avance().total }} verificados
+          </p>
+          <div
+            class="h-1.5 w-full overflow-hidden rounded-full bg-superficie-alterna"
+          >
+            <div
+              class="h-full rounded-full bg-marca-media transition-all"
+              [style.width.%]="porcentaje()"
+            ></div>
+          </div>
+        </div>
+        <ul class="flex flex-col gap-1 px-2 pb-3">
+          @for (fila of filas(); track fila.indicador.codigo) {
+            <li>
+              <button
+                type="button"
+                class="flex w-full items-center gap-2.5 rounded-full px-3 py-2 text-left text-sm transition-colors"
+                [class]="
+                  documentoActivo() === fila.indicador.codigo
+                    ? 'bg-marca font-medium text-marca-contraste'
+                    : 'text-contenido-suave hover:bg-superficie-alterna'
+                "
+                (click)="abrirDocumento(fila.indicador.codigo)"
+              >
+                <span class="truncate">{{ fila.indicador.nombre }}</span>
+                <span
+                  class="ml-auto shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold"
+                  [class]="fila.insignia.clase"
+                >
+                  {{ fila.insignia.texto }}
+                </span>
+              </button>
+            </li>
+          }
+        </ul>
+      </app-tarjeta>
+
+      <!-- Documento activo: presentación, chequeo, puntaje y pendiente (RF27–RF31) -->
+      <app-tarjeta relleno="ninguno">
+        @if (documentoActivoObj(); as indicador) {
+          <div class="flex flex-col gap-2 px-6 pb-1 pt-5">
+            <h2 class="text-3xl font-medium leading-tight text-contenido">
+              {{ indicador.nombre }}
+            </h2>
+            <span
+              class="self-start rounded-full bg-superficie-alterna px-3 py-1 text-xs font-semibold text-contenido"
+            >
+              {{ indicador.grupo }} · inspección documental
+            </span>
+            @if (guardadoActivo(); as guardado) {
+              <p class="text-xs text-contenido-suave">
+                Guardado el {{ guardado | date: 'd MMM, h:mm a' }} (RF26)
+              </p>
+            }
+          </div>
+
+          <div class="flex flex-col gap-5 p-6">
+            <!-- ¿Se presentó el documento? (RF27) -->
+            <div class="flex flex-col gap-2">
+              <p class="text-sm font-semibold text-contenido">
+                ¿Se presentó el documento?
+              </p>
+              <div class="grid gap-2 sm:grid-cols-2">
+                <button
+                  type="button"
+                  class="rounded-full border px-5 py-3 text-sm font-medium transition-colors"
+                  [class]="
+                    documentoActivoEvaluado()?.presentado === true
+                      ? 'border-transparent bg-marca text-marca-contraste'
+                      : 'border-borde text-contenido hover:bg-superficie-alterna'
+                  "
+                  (click)="marcarPresentado(true)"
+                >
+                  Sí
+                </button>
+                <button
+                  type="button"
+                  class="rounded-full border px-5 py-3 text-sm font-medium transition-colors"
+                  [class]="
+                    documentoActivoEvaluado()?.presentado === false
+                      ? 'border-transparent bg-marca text-marca-contraste'
+                      : 'border-borde text-contenido hover:bg-superficie-alterna'
+                  "
+                  (click)="marcarPresentado(false)"
+                >
+                  No
+                </button>
+              </div>
+            </div>
+
+            @if (documentoActivoEvaluado()?.presentado === true) {
+              <!-- Condiciones del documento (RF28) -->
+              <div class="flex flex-col gap-2">
+                <p class="text-sm font-semibold text-contenido">
+                  Condiciones del documento
+                </p>
+                <button
+                  type="button"
+                  class="flex w-full items-center gap-3 rounded-full bg-superficie-alterna px-4 py-3 text-left text-sm text-contenido transition-colors hover:bg-marca-tenue"
+                  (click)="alternarLegible()"
+                >
+                  <span
+                    class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full"
+                    [class]="
+                      documentoActivoEvaluado()?.legible
+                        ? 'bg-exito text-exito-contraste'
+                        : 'border border-borde-fuerte bg-superficie'
+                    "
+                  >
+                    @if (documentoActivoEvaluado()?.legible) {
+                      <mat-icon class="h-4 w-4 text-base">check</mat-icon>
+                    }
+                  </span>
+                  Legible y sin correcciones ni agregados
+                </button>
+                <button
+                  type="button"
+                  class="flex w-full items-center gap-3 rounded-full bg-superficie-alterna px-4 py-3 text-left text-sm text-contenido transition-colors hover:bg-marca-tenue"
+                  (click)="alternarFirmadoResponsable()"
+                >
+                  <span
+                    class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full"
+                    [class]="
+                      documentoActivoEvaluado()?.firmadoResponsable
+                        ? 'bg-exito text-exito-contraste'
+                        : 'border border-borde-fuerte bg-superficie'
+                    "
+                  >
+                    @if (documentoActivoEvaluado()?.firmadoResponsable) {
+                      <mat-icon class="h-4 w-4 text-base">check</mat-icon>
+                    }
+                  </span>
+                  Firmado por el responsable de la granja
+                </button>
+                @if (indicador.exigeFirmaProfesional) {
+                  <button
+                    type="button"
+                    class="flex w-full items-center gap-3 rounded-full bg-superficie-alterna px-4 py-3 text-left text-sm text-contenido transition-colors hover:bg-marca-tenue"
+                    (click)="alternarFirmadoProfesional()"
+                  >
+                    <span
+                      class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full"
+                      [class]="
+                        documentoActivoEvaluado()?.firmadoProfesional
+                          ? 'bg-exito text-exito-contraste'
+                          : 'border border-borde-fuerte bg-superficie'
+                      "
+                    >
+                      @if (documentoActivoEvaluado()?.firmadoProfesional) {
+                        <mat-icon class="h-4 w-4 text-base">check</mat-icon>
+                      }
+                    </span>
+                    Firma de MV/MVZ con matrícula vigente
+                  </button>
+                }
+              </div>
+
+              <!-- Puntaje: por escala (RF19) o por rangos de mortalidad (RF30) -->
+              @if (esMortalidad(indicador)) {
+                <div class="flex flex-col gap-2">
+                  <p class="text-sm font-semibold text-contenido">
+                    Tasa de mortalidad acumulada
+                  </p>
+                  <div class="flex flex-wrap items-center gap-4">
+                    <mat-form-field
+                      appearance="outline"
+                      class="w-44"
+                      subscriptSizing="dynamic"
+                    >
+                      <mat-label>Tasa (%)</mat-label>
+                      <input
+                        matInput
+                        type="text"
+                        inputmode="decimal"
+                        [value]="textoMortalidad()"
+                        (input)="cambiarMortalidad($event)"
+                      />
+                    </mat-form-field>
+                    <div
+                      class="flex items-baseline gap-2 rounded-xl bg-superficie-alterna px-5 py-3"
+                    >
+                      <span
+                        class="text-4xl font-semibold leading-none text-marca"
+                      >
+                        {{ documentoActivoEvaluado()?.puntaje ?? '–' }}
+                        <span class="text-base font-medium">pts</span>
+                      </span>
+                      @if (resultadoMortalidad(); as resultado) {
+                        <span class="text-sm text-contenido-suave">
+                          {{ resultado.descripcion }}
+                        </span>
+                      }
+                    </div>
+                  </div>
+                  @if (mensajeTasa(); as mensaje) {
+                    <p class="text-sm text-peligro">{{ mensaje }}</p>
+                  }
+                  <p class="text-xs text-contenido-suave">
+                    {{ textoRangos() }}
+                  </p>
+                </div>
+              } @else {
+                <div class="flex flex-col gap-2">
+                  <p class="text-sm font-semibold text-contenido">Puntaje</p>
+                  <div class="grid gap-3 sm:grid-cols-3">
+                    @for (valor of puntajes; track valor) {
+                      <button
+                        type="button"
+                        class="flex flex-col items-start gap-1 rounded-xl px-5 py-4 text-left transition-colors"
+                        [class]="clasePuntaje(valor)"
+                        (click)="calificar(valor)"
+                      >
+                        <span
+                          class="text-4xl font-semibold leading-none"
+                          [class]="
+                            esPuntajeSeleccionado(valor)
+                              ? 'text-acento'
+                              : 'text-contenido'
+                          "
+                        >
+                          {{ valor }}
+                          <span class="text-base font-medium">pts</span>
+                        </span>
+                        <span
+                          class="text-sm"
+                          [class]="
+                            esPuntajeSeleccionado(valor)
+                              ? 'text-marca-contraste'
+                              : 'text-contenido-suave'
+                          "
+                        >
+                          {{ descripcionPuntaje(indicador, valor) }}
+                        </span>
+                      </button>
+                    }
+                  </div>
+                </div>
+              }
+            }
+
+            <!-- Regla del 0 (RF29) -->
+            <p
+              class="flex items-center gap-2 rounded-2xl bg-advertencia-suave px-4 py-3 text-sm font-medium text-advertencia-texto"
+            >
+              <mat-icon class="h-5 w-5 shrink-0 text-lg">warning</mat-icon>
+              Si no se presenta, el indicador se califica con 0 puntos.
+            </p>
+
+            <!-- Pendiente y guardado del borrador (RF26, RF31) -->
+            <div class="flex flex-col gap-2 border-t border-borde pt-4">
+              <div class="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  class="rounded-full border px-5 py-2.5 text-sm font-medium transition-colors"
+                  [class]="
+                    documentoActivoEvaluado()?.pendiente
+                      ? 'border-transparent bg-acento text-acento-contraste'
+                      : 'border-borde text-contenido hover:bg-superficie-alterna'
+                  "
+                  (click)="alternarPendiente()"
+                >
+                  {{
+                    documentoActivoEvaluado()?.pendiente
+                      ? 'Quitar pendiente'
+                      : 'Marcar pendiente'
+                  }}
+                </button>
+                <span class="grow"></span>
+                <button
+                  type="button"
+                  class="rounded-full px-4 py-2.5 text-sm text-contenido-suave transition-colors hover:bg-superficie-alterna disabled:opacity-40"
+                  [disabled]="guardando()"
+                  (click)="guardarBorrador()"
+                >
+                  Guardar borrador
+                </button>
+                <button
+                  type="button"
+                  class="inline-flex items-center gap-1 rounded-full bg-marca px-5 py-2.5 text-sm font-medium text-marca-contraste transition-colors hover:bg-marca-fuerte disabled:opacity-40"
+                  [disabled]="guardando()"
+                  (click)="siguiente()"
+                >
+                  Siguiente documento
+                  <mat-icon class="h-4 w-4 text-base">arrow_forward</mat-icon>
+                </button>
+              </div>
+              <p class="text-xs text-contenido-suave">
+                Marcar pendiente deja el documento para entregarlo dentro del
+                plazo de cierre (RF31).
+              </p>
+            </div>
+          </div>
+        } @else {
+          <app-estado-vacio
+            icono="description"
+            titulo="Sin documentos por verificar"
+            descripcion="Elija el grupo productivo en la Fase I para cargar los documentos de gestión."
+          />
+        }
+      </app-tarjeta>
+    </div>
+  }
+</div>

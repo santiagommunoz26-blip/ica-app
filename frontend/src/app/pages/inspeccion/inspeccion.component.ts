@@ -49,7 +49,9 @@ import { EsqueletoComponent } from '../../shared/ui/esqueleto/esqueleto.componen
 import { InsigniaComponent } from '../../shared/ui/insignia/insignia.component';
 import { TarjetaComponent } from '../../shared/ui/tarjeta/tarjeta.component';
 import type { EvaluacionFase2 } from '../../core/inspeccion/fase2.modelos';
+import type { DocumentoEvaluado } from '../../core/inspeccion/fase3.modelos';
 import { Fase2GalponComponent } from './fase2-galpon.component';
+import { Fase3DocumentalComponent } from './fase3-documental.component';
 
 /** Campos de un galpón en el formulario (RF16). */
 interface GalponForm {
@@ -90,6 +92,7 @@ interface GalponForm {
     EstadoVacioComponent,
     EsqueletoComponent,
     Fase2GalponComponent,
+    Fase3DocumentalComponent,
     InsigniaComponent,
     TarjetaComponent,
   ],
@@ -366,6 +369,7 @@ export class InspeccionComponent {
   /**
    * ¿La fase ya quedó lista? Fase I: ficha guardada. Fase II: todos los
    * indicadores de los galpones marcados, completos o con «No aplica» (RF24).
+   * Fase III: todos los documentos calificados o marcados pendientes (RF31).
    * Es lo que pinta la pestaña con el visto bueno del wireframe.
    */
   faseCompleta(numero: number): boolean {
@@ -383,21 +387,51 @@ export class InspeccionComponent {
         )
       );
     }
+    if (numero === 3) {
+      const avance = respuesta.fase3.avance;
+      return avance.total > 0 && avance.verificados === avance.total;
+    }
     return false;
+  }
+
+  /**
+   * ¿La fase no aplica a este predio? La documental no existe en traspatio
+   * (RF33), así que su pestaña queda como las que aún no se construyen.
+   */
+  faseNoAplica(fase: (typeof FASES_INSPECCION)[number]): boolean {
+    return (
+      fase.numero === 3 && this.respuesta()?.ficha.tipoPredio === 'TRASPATIO'
+    );
   }
 
   /** Clases de una pestaña de fase, como en el wireframe. */
   claseFase(fase: (typeof FASES_INSPECCION)[number]): string {
-    if (fase.disponible && this.faseActiva() === fase.numero) {
+    const usable = fase.disponible && !this.faseNoAplica(fase);
+    if (usable && this.faseActiva() === fase.numero) {
       return 'bg-marca text-marca-contraste';
     }
-    if (fase.disponible && this.faseCompleta(fase.numero)) {
+    if (usable && this.faseCompleta(fase.numero)) {
       return 'bg-acento text-acento-contraste hover:bg-acento-fuerte';
     }
-    if (fase.disponible) {
+    if (usable) {
       return 'border border-borde bg-superficie text-contenido-suave hover:bg-superficie-alterna';
     }
     return 'border border-borde bg-superficie text-contenido-deshabilitado';
+  }
+
+  /** Abre una pestaña de fase, o explica por qué no se puede abrir. */
+  abrirFase(fase: (typeof FASES_INSPECCION)[number]): void {
+    if (!fase.disponible) {
+      this.faseNoDisponible(fase);
+      return;
+    }
+    if (this.faseNoAplica(fase)) {
+      this.aviso.set(
+        'En traspatio no hay fase documental ni indicadores de gestión (RF33).',
+      );
+      return;
+    }
+    this.faseActiva.set(fase.numero);
   }
 
   /** Guarda el borrador; con `iniciar`, además pone la visita en curso (RF09). */
@@ -498,6 +532,41 @@ export class InspeccionComponent {
   async recargar(): Promise<void> {
     const visitaId = this.visitaId();
     if (visitaId) await this.cargar(visitaId);
+  }
+
+  /**
+   * Guarda las verificaciones de la Fase III (M5 · RF27–RF33). Va por la misma
+   * cola que la ficha (RF12), así que también funciona sin conexión; queda la
+   * fecha y la hora de cada guardado (RF26).
+   */
+  async guardarFase3(documentos: DocumentoEvaluado[]): Promise<void> {
+    const visitaId = this.visitaId();
+    if (!visitaId) return;
+
+    this.guardando.set(true);
+    this.error.set(null);
+    this.aviso.set(null);
+    try {
+      const resultado = await this.sincronizacion.guardarInspeccion(visitaId, {
+        documentos,
+      });
+
+      if (resultado.pendiente) {
+        this.aviso.set(
+          'Guardado en este equipo. Se enviará solo cuando vuelva la conexión.',
+        );
+      } else if (resultado.rechazos.length > 0) {
+        this.error.set(resultado.rechazos.join(' '));
+      } else {
+        this.aviso.set('Borrador guardado con su fecha y hora.');
+      }
+
+      await this.cargar(visitaId);
+    } catch (fallo) {
+      this.error.set(mensajeDeError(fallo));
+    } finally {
+      this.guardando.set(false);
+    }
   }
 
   // ------------------------------------------------------------- internos

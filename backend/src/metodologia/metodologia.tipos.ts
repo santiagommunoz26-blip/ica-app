@@ -118,6 +118,19 @@ export const ETIQUETA_TIPO_MUESTREO: Record<TipoMuestreo, string> = {
   [TipoMuestreo.HOJAS_CENTINELA]: 'Hojas centinela',
 };
 
+/**
+ * Forma en que se califica un indicador (M5 · RF30).
+ *
+ * Casi todos los indicadores se califican con la escala 0/1/2; la mortalidad
+ * tiene rangos propios según el grupo productivo (RF30): en ponedoras hasta
+ * 12 % son 2 puntos y hasta 14 % es 1; en engorde hasta 6 % son 2 y hasta 9 %
+ * es 1. Cuál usa cada indicador lo decide el catálogo (lo administra M8).
+ */
+export enum TipoEvaluacion {
+  PUNTAJE = 'PUNTAJE',
+  MORTALIDAD = 'MORTALIDAD',
+}
+
 /** Opción de una lista (código + etiqueta), para enviarla a la interfaz. */
 export interface OpcionCatalogo<T extends string> {
   codigo: T;

@@ -7,6 +7,7 @@ import {
   IsEnum,
   IsInt,
   IsISO8601,
+  IsNumber,
   IsOptional,
   IsString,
   Length,
@@ -156,6 +157,89 @@ export class EvaluacionFase2Dto {
 }
 
 /**
+ * Verificación de un documento de la Fase III (M5 · RF27–RF31).
+ *
+ * Los campos van sueltos porque el borrador se guarda por partes (RF26): lo
+ * que llegue se aplica. Las reglas finas (el 0 automático del documento no
+ * presentado, los rangos de mortalidad) las valida el servicio contra la
+ * metodología, porque dependen del grupo productivo y del catálogo.
+ */
+export class DocumentoFase3Dto {
+  @ApiProperty({
+    example: 'MBG-04',
+    description: 'Código del indicador (RF27).',
+  })
+  @IsString()
+  @Length(1, 20)
+  indicadorCodigo: string;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    description: '¿Se presentó el documento? Nulo mientras no se revise.',
+  })
+  @IsOptional()
+  @IsBoolean()
+  presentado?: boolean | null;
+
+  @ApiPropertyOptional({ description: 'Legible y sin correcciones (RF28).' })
+  @IsOptional()
+  @IsBoolean()
+  legible?: boolean;
+
+  @ApiPropertyOptional({ description: 'Firmado por el responsable (RF28).' })
+  @IsOptional()
+  @IsBoolean()
+  firmadoResponsable?: boolean;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    description: 'Firma de MV/MVZ con matrícula vigente, si se exige (RF28).',
+  })
+  @IsOptional()
+  @IsBoolean()
+  firmadoProfesional?: boolean | null;
+
+  @ApiPropertyOptional({
+    example: 7.5,
+    minimum: 0,
+    maximum: 100,
+    nullable: true,
+    description: 'Tasa de mortalidad acumulada en % (RF30).',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber(
+    { maxDecimalPlaces: 2, allowNaN: false, allowInfinity: false },
+    {
+      message:
+        'La tasa de mortalidad debe ser un número con máximo dos decimales.',
+    },
+  )
+  @Min(0, { message: 'La tasa de mortalidad debe estar entre 0 % y 100 %.' })
+  @Max(100, { message: 'La tasa de mortalidad debe estar entre 0 % y 100 %.' })
+  mortalidad?: number | null;
+
+  @ApiPropertyOptional({
+    example: 2,
+    minimum: 0,
+    maximum: 2,
+    nullable: true,
+    description: 'Puntaje del documento: 0, 1 o 2 (RF19).',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt({ message: 'El puntaje debe ser 0, 1 o 2.' })
+  @Min(0, { message: 'El puntaje debe ser 0, 1 o 2.' })
+  @Max(2, { message: 'El puntaje debe ser 0, 1 o 2.' })
+  puntaje?: number | null;
+
+  @ApiPropertyOptional({ description: 'Pendiente de entrega (RF31).' })
+  @IsOptional()
+  @IsBoolean()
+  pendiente?: boolean;
+}
+
+/**
  * Guardado de la ficha general del predio y de la Fase I (RF13–RF17).
  *
  * Todos los campos son opcionales porque el borrador se puede guardar por
@@ -246,4 +330,16 @@ export class GuardarInspeccionDto {
   @ValidateNested({ each: true })
   @Type(() => EvaluacionFase2Dto)
   evaluaciones?: EvaluacionFase2Dto[];
+
+  @ApiPropertyOptional({
+    type: [DocumentoFase3Dto],
+    maxItems: 50,
+    description: 'Documentos verificados de la Fase III (M5 · RF27–RF31).',
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(50)
+  @ValidateNested({ each: true })
+  @Type(() => DocumentoFase3Dto)
+  documentos?: DocumentoFase3Dto[];
 }

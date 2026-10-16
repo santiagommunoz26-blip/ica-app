@@ -10,6 +10,7 @@ import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { environment } from '../../../environments/environment';
 import type { EvaluacionRespuesta } from '../../core/inspeccion/fase2.modelos';
 import { reglasFase2 } from '../../core/inspeccion/fase2.modelos';
+import { reglasFase3 } from '../../core/inspeccion/fase3.modelos';
 import type {
   Catalogo,
   GrupoProductivo,
@@ -40,6 +41,8 @@ function indicador(
     escalaDescripciones: null,
     tipoMuestreo: 'PUNTOS_9',
     pregunta: null,
+    tipoEvaluacion: 'PUNTAJE',
+    exigeFirmaProfesional: false,
     gruposProductivos: ['POLLO_ENGORDE', 'PONEDORA_PISO', 'PONEDORA_JAULA'],
     ...extra,
   };
@@ -159,6 +162,11 @@ function crearInspeccion(
       evaluaciones,
       evidencias: [],
       avance: [],
+    },
+    fase3: {
+      reglas: reglasFase3('CORRAL', grupo),
+      documentos: [],
+      avance: { verificados: 0, total: 0 },
     },
   };
 }

@@ -11,6 +11,7 @@ import {
 import {
   GrupoMedidas,
   GrupoProductivo,
+  TipoEvaluacion,
   TipoMuestreo,
 } from '../metodologia.tipos.js';
 import { Metodologia } from './metodologia.entity.js';
@@ -89,6 +90,23 @@ export class Indicador {
    */
   @Column({ type: 'varchar', length: 300, nullable: true })
   pregunta: string | null;
+
+  /**
+   * El documento exige, además de la firma del responsable, la firma de un
+   * médico veterinario, MVZ o zootecnista con matrícula vigente (RF28). Es
+   * del catálogo: M8 lo edita; el wireframe solo lo muestra en el POE.
+   */
+  @Column({ type: 'boolean', name: 'exige_firma_profesional', default: false })
+  exigeFirmaProfesional: boolean;
+
+  /** Forma de calificación del indicador (RF30); la mortalidad va por rangos. */
+  @Column({
+    type: 'varchar',
+    length: 20,
+    name: 'tipo_evaluacion',
+    default: TipoEvaluacion.PUNTAJE,
+  })
+  tipoEvaluacion: TipoEvaluacion;
 
   /**
    * Grupos productivos a los que aplica (RF46, RF17). Se guarda como lista de

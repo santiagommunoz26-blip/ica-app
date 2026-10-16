@@ -12,6 +12,7 @@ import {
   ORDEN_GRUPOS_MEDIDAS,
   ORDEN_GRUPOS_PRODUCTIVOS,
   ORDEN_SISTEMAS_PRODUCCION,
+  TipoEvaluacion,
   TipoMuestreo,
 } from '../metodologia.tipos.js';
 
@@ -50,6 +51,17 @@ export class IndicadorRespuestaDto {
   @ApiProperty({ enum: TipoMuestreo, enumName: 'TipoMuestreo' })
   tipoMuestreo: TipoMuestreo;
   @ApiProperty({ nullable: true }) pregunta: string | null;
+  @ApiProperty({
+    enum: TipoEvaluacion,
+    enumName: 'TipoEvaluacion',
+    description: 'Forma de calificación del indicador (RF30).',
+  })
+  tipoEvaluacion: TipoEvaluacion;
+  @ApiProperty({
+    description:
+      'El documento exige firma de MV/MVZ con matrícula vigente (RF28).',
+  })
+  exigeFirmaProfesional: boolean;
   @ApiProperty({
     enum: GrupoProductivo,
     enumName: 'GrupoProductivo',
@@ -154,6 +166,8 @@ export function mapearCatalogo(catalogo: CatalogoActivo): CatalogoRespuestaDto {
       escalaDescripciones: indicador.escalaDescripciones,
       tipoMuestreo: indicador.tipoMuestreo,
       pregunta: indicador.pregunta,
+      tipoEvaluacion: indicador.tipoEvaluacion,
+      exigeFirmaProfesional: indicador.exigeFirmaProfesional,
       gruposProductivos: indicador.gruposProductivos,
     })),
     aplicables: aplicablesPorGrupo(indicadores),

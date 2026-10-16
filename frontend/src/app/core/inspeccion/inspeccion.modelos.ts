@@ -12,6 +12,12 @@ import {
   type EvaluacionFase2,
   type Fase2,
 } from './fase2.modelos';
+import {
+  proyectarFase3,
+  reglasFase3,
+  type DocumentoEvaluado,
+  type Fase3,
+} from './fase3.modelos';
 
 /** Grupos de medidas de la metodología (RF34–RF36). */
 export type GrupoMedidas = 'MBA' | 'MBR' | 'MBG';
@@ -51,6 +57,10 @@ export interface IndicadorCatalogo {
   tipoMuestreo: 'PUNTOS_9' | 'HOJAS_CENTINELA';
   /** Pregunta que resume el indicador (RF47), como en el wireframe. */
   pregunta: string | null;
+  /** Forma de calificación del indicador (RF30). */
+  tipoEvaluacion: 'PUNTAJE' | 'MORTALIDAD';
+  /** El documento exige firma de MV/MVZ con matrícula vigente (RF28). */
+  exigeFirmaProfesional: boolean;
   gruposProductivos: GrupoProductivo[];
 }
 
@@ -123,7 +133,10 @@ export interface FichaInspeccion {
   guardada: boolean;
 }
 
-/** Respuesta completa de la Fase I (RF13–RF17) y la Fase II (RF18–RF26). */
+/**
+ * Respuesta completa de la Fase I (RF13–RF17), la Fase II (RF18–RF26) y la
+ * Fase III (RF27–RF33).
+ */
 export interface InspeccionRespuesta {
   visita: VisitaFicha;
   predio: PredioFicha;
@@ -132,6 +145,8 @@ export interface InspeccionRespuesta {
   catalogo: Catalogo;
   /** Inspección en galpón: reglas, evaluaciones, evidencias y avance (M4). */
   fase2: Fase2;
+  /** Inspección documental: reglas, documentos y avance (M5). */
+  fase3: Fase3;
   /** Marca solo local: hay cambios guardados en el equipo sin sincronizar. */
   pendiente?: boolean;
 }
@@ -158,6 +173,8 @@ export interface PeticionGuardarInspeccion {
   galpones?: DatosGalpon[];
   /** Evaluaciones de la Fase II por galpón e indicador (M4 · RF18–RF26). */
   evaluaciones?: EvaluacionFase2[];
+  /** Documentos verificados de la Fase III (M5 · RF27–RF31). */
+  documentos?: DocumentoEvaluado[];
 }
 
 /** Las cuatro fases de la visita, como en el wireframe. */
@@ -186,7 +203,7 @@ export const FASES_INSPECCION: readonly {
     numero: 3,
     romano: 'III',
     etiqueta: 'Documental',
-    disponible: false,
+    disponible: true,
     modulo: 'M5',
   },
   {
@@ -308,6 +325,11 @@ export function aplicarBorrador(
     respuesta.catalogo,
     grupoProductivo,
   ).filter((indicador) => indicador.grupo !== 'MBG');
+  // La Fase III solo evalúa los indicadores de gestión (M5).
+  const indicadoresFase3 = indicadoresAplicables(
+    respuesta.catalogo,
+    grupoProductivo,
+  ).filter((indicador) => indicador.grupo === 'MBG');
 
   return {
     ...respuesta,
@@ -324,6 +346,12 @@ export function aplicarBorrador(
         .filter((galpon) => galpon.seleccionado)
         .map((galpon) => galpon.numero),
       reglasFase2(tipoPredio, grupoProductivo),
+    ),
+    fase3: proyectarFase3(
+      respuesta.fase3,
+      borrador.documentos ?? [],
+      indicadoresFase3,
+      reglasFase3(tipoPredio, grupoProductivo),
     ),
     ficha: {
       ...respuesta.ficha,
@@ -351,9 +379,10 @@ export function aplicarBorrador(
 
 /**
  * Funde dos borradores de la misma inspección (RF12, RF26): el nuevo gana
- * campo a campo y las evaluaciones de la Fase II se mezclan por galpón e
- * indicador. Sirve para que la cola no acumule una copia completa de la ficha
- * por cada guardado sin conexión.
+ * campo a campo, las evaluaciones de la Fase II se mezclan por galpón e
+ * indicador y los documentos de la Fase III por indicador. Sirve para que la
+ * cola no acumule una copia completa de la ficha por cada guardado sin
+ * conexión.
  */
 export function fusionarPeticiones(
   anterior: PeticionGuardarInspeccion,
@@ -363,11 +392,29 @@ export function fusionarPeticiones(
     anterior.evaluaciones,
     nuevo.evaluaciones,
   );
+  const documentos = fusionarDocumentos(anterior.documentos, nuevo.documentos);
   return {
     ...anterior,
     ...nuevo,
     ...(evaluaciones ? { evaluaciones } : {}),
+    ...(documentos ? { documentos } : {}),
   };
+}
+
+/** Mezcla dos listas de documentos: la última versión de cada uno gana. */
+function fusionarDocumentos(
+  anteriores?: DocumentoEvaluado[],
+  nuevos?: DocumentoEvaluado[],
+): DocumentoEvaluado[] | undefined {
+  if (!anteriores && !nuevos) return undefined;
+  const porCodigo = new Map<string, DocumentoEvaluado>();
+  for (const documento of anteriores ?? []) {
+    porCodigo.set(documento.indicadorCodigo, documento);
+  }
+  for (const documento of nuevos ?? []) {
+    porCodigo.set(documento.indicadorCodigo, documento);
+  }
+  return [...porCodigo.values()];
 }
 
 /** Mezcla dos listas de evaluaciones: la última versión de cada una gana. */

@@ -19,7 +19,10 @@ import {
   mapearCatalogo,
   type CatalogoActivo,
 } from '../metodologia/dto/catalogo-respuesta.dto.js';
-import { GrupoMedidas } from '../metodologia/metodologia.tipos.js';
+import {
+  GrupoMedidas,
+  TipoEvaluacion,
+} from '../metodologia/metodologia.tipos.js';
 import type { Indicador } from '../metodologia/entities/indicador.entity.js';
 import { RegistroAccesoService } from '../usuarios/registro-acceso.service.js';
 import { EventoBitacora } from '../usuarios/entities/registro-acceso.entity.js';
@@ -43,10 +46,22 @@ import {
   type EvaluacionFase2,
 } from './fase2.tipos.js';
 import {
+  erroresDeDocumento,
+  puntajeMortalidad,
+  reglasFase3,
+  type ReglasFase3,
+} from './fase3.reglas.js';
+import {
+  escribirDocumentos,
+  leerDocumentos,
+  type DocumentoEvaluado,
+} from './fase3.tipos.js';
+import {
   mapearInspeccion,
   type InspeccionRespuestaDto,
 } from './dto/inspeccion-respuesta.dto.js';
 import { mapearFase2 } from './dto/fase2-respuesta.dto.js';
+import { mapearFase3 } from './dto/fase3-respuesta.dto.js';
 import type { GuardarInspeccionDto } from './dto/guardar-inspeccion.dto.js';
 
 /** Contexto de la petición para la bitácora (RNF11). */
@@ -147,6 +162,15 @@ export class InspeccionService {
       );
     }
 
+    if (dto.documentos) {
+      await this.guardarDocumentos(
+        inspeccion,
+        dto.documentos,
+        visita.predio,
+        catalogo,
+      );
+    }
+
     await this.bitacora.registrar(EventoBitacora.INSPECCION_GUARDADA, {
       ...contexto,
       usuarioId: usuario.id,
@@ -200,12 +224,26 @@ export class InspeccionService {
       evidencias,
     );
 
+    const documentos = leerDocumentos(inspeccion?.respuestas);
+    const indicadoresGestion = catalogoActivo
+      ? indicadoresDeFase3(
+          catalogoActivo.indicadores,
+          inspeccion?.grupoProductivo ?? null,
+        )
+      : [];
+    const fase3 = mapearFase3(
+      this.reglasDe3(visita.predio, inspeccion),
+      indicadoresGestion,
+      documentos,
+    );
+
     return mapearInspeccion(
       visita,
       inspeccion ?? null,
       galpones,
       catalogo,
       fase2,
+      fase3,
     );
   }
 
@@ -225,6 +263,18 @@ export class InspeccionService {
         ? predio.tipoPredio
         : clasificarPorAves(predio.numeroAves);
     return reglasFase2(tipoPredio, inspeccion?.grupoProductivo ?? null);
+  }
+
+  /** Reglas de la fase documental para esta visita (RF30, RF33). */
+  private reglasDe3(
+    predio: Predio,
+    inspeccion: Inspeccion | null,
+  ): ReglasFase3 {
+    const tipoPredio =
+      predio.numeroAves === null
+        ? predio.tipoPredio
+        : clasificarPorAves(predio.numeroAves);
+    return reglasFase3(tipoPredio, inspeccion?.grupoProductivo ?? null);
   }
 
   /**
@@ -338,6 +388,130 @@ export class InspeccionService {
 
     inspeccion.respuestas = escribirEvaluaciones(inspeccion.respuestas, [
       ...porClave.values(),
+    ]);
+    await this.inspecciones.save(inspeccion);
+  }
+
+  /**
+   * Guarda los documentos de la Fase III (M5 · RF27–RF31).
+   *
+   * Como las evaluaciones de la Fase II, viven en `inspeccion.respuestas`
+   * (JSONB, ADR-001), por indicador de gestión. El servidor comprueba que el
+   * indicador exista y sea de gestión, valida el chequeo del documento
+   * (RF28–RF30) y aplica las reglas automáticas: sin documento el puntaje es
+   * 0 (RF29) y la mortalidad se califica por rangos (RF30). Guardar no exige
+   * que el documento esté verificado: el borrador se guarda por partes (RF26).
+   */
+  private async guardarDocumentos(
+    inspeccion: Inspeccion,
+    documentos: GuardarInspeccionDto['documentos'],
+    predio: Predio,
+    catalogo: CatalogoActivo | null,
+  ): Promise<void> {
+    const enviados = documentos ?? [];
+    if (enviados.length === 0) return;
+
+    if (!inspeccion.grupoProductivo) {
+      throw new BadRequestException(
+        'Elija el grupo productivo en la Fase I antes de verificar los documentos.',
+      );
+    }
+    if (!catalogo) {
+      throw new BadRequestException(
+        'No hay una versión del catálogo de la metodología cargada.',
+      );
+    }
+    if (!this.reglasDe3(predio, inspeccion).aplica) {
+      throw new BadRequestException(
+        'En traspatio no hay fase documental ni indicadores de gestión (RF33).',
+      );
+    }
+
+    const grupoProductivo = inspeccion.grupoProductivo;
+    const indicadores = new Map(
+      catalogo.indicadores.map((indicador) => [indicador.codigo, indicador]),
+    );
+
+    const errores: string[] = [];
+    const nuevos = new Map<string, DocumentoEvaluado>();
+    const ahora = new Date().toISOString();
+
+    for (const documento of enviados) {
+      const indicador = indicadores.get(documento.indicadorCodigo);
+      if (!indicador) {
+        errores.push(
+          `El indicador ${documento.indicadorCodigo} no existe en el catálogo.`,
+        );
+        continue;
+      }
+      if (indicador.grupo !== GrupoMedidas.MBG) {
+        errores.push(
+          `«${indicador.nombre}» no es de gestión: se evalúa en la Fase II.`,
+        );
+        continue;
+      }
+      if (!indicador.gruposProductivos.includes(grupoProductivo)) {
+        errores.push(
+          `«${indicador.nombre}» no aplica al grupo productivo elegido.`,
+        );
+        continue;
+      }
+
+      const presentado = documento.presentado ?? null;
+      const normalizada: DocumentoEvaluado = {
+        indicadorCodigo: documento.indicadorCodigo,
+        presentado,
+        // El chequeo del documento (RF28) solo cuenta si se presentó.
+        legible: presentado === true ? (documento.legible ?? false) : false,
+        firmadoResponsable:
+          presentado === true ? (documento.firmadoResponsable ?? false) : false,
+        firmadoProfesional:
+          presentado === true && indicador.exigeFirmaProfesional
+            ? (documento.firmadoProfesional ?? false)
+            : null,
+        mortalidad: documento.mortalidad ?? null,
+        puntaje: documento.puntaje ?? null,
+        pendiente: documento.pendiente ?? false,
+        guardadoEn: ahora,
+      };
+
+      errores.push(
+        ...erroresDeDocumento(normalizada, indicador, grupoProductivo),
+      );
+
+      // Reglas automáticas de la metodología: sin documento, 0 (RF29);
+      // mortalidad por rangos (RF30). Sin documento tampoco hay tasa.
+      if (normalizada.presentado === false) normalizada.puntaje = 0;
+      if (
+        indicador.tipoEvaluacion === TipoEvaluacion.MORTALIDAD &&
+        normalizada.presentado === true &&
+        normalizada.mortalidad !== null
+      ) {
+        normalizada.puntaje = puntajeMortalidad(
+          normalizada.mortalidad,
+          grupoProductivo,
+        );
+      }
+      if (normalizada.presentado !== true) normalizada.mortalidad = null;
+
+      nuevos.set(normalizada.indicadorCodigo, normalizada);
+    }
+
+    if (errores.length > 0) {
+      throw new BadRequestException(errores.slice(0, 5).join(' '));
+    }
+
+    // Se conservan los documentos de los demás indicadores.
+    const porCodigo = new Map(
+      leerDocumentos(inspeccion.respuestas).map((documento) => [
+        documento.indicadorCodigo,
+        documento,
+      ]),
+    );
+    for (const [codigo, documento] of nuevos) porCodigo.set(codigo, documento);
+
+    inspeccion.respuestas = escribirDocumentos(inspeccion.respuestas, [
+      ...porCodigo.values(),
     ]);
     await this.inspecciones.save(inspeccion);
   }
@@ -479,6 +653,23 @@ function indicadoresDeFase2(
   return indicadores.filter(
     (indicador) =>
       indicador.grupo !== GrupoMedidas.MBG &&
+      indicador.gruposProductivos.includes(grupoProductivo),
+  );
+}
+
+/**
+ * Indicadores que evalúa la Fase III (M5): los de gestión (MBG) que aplican al
+ * grupo productivo elegido (RF17). En traspatio la fase no existe (RF33): de
+ * eso se encarga `mapearFase3`, que deja la respuesta vacía.
+ */
+function indicadoresDeFase3(
+  indicadores: readonly Indicador[],
+  grupoProductivo: Inspeccion['grupoProductivo'],
+): Indicador[] {
+  if (!grupoProductivo) return [];
+  return indicadores.filter(
+    (indicador) =>
+      indicador.grupo === GrupoMedidas.MBG &&
       indicador.gruposProductivos.includes(grupoProductivo),
   );
 }

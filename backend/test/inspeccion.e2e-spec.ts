@@ -869,4 +869,284 @@ describe('Apertura e inspección (e2e)', () => {
     );
     expect(evaluacion.valor).toBe(100);
   });
+
+  // ------------------------------------------------- Fase III (M5 · RF27–RF33)
+
+  /** Programa una visita con la ficha mínima para la Fase III. */
+  async function prepararFase3(
+    grupo: GrupoProductivo = GrupoProductivo.POLLO_ENGORDE,
+    numeroAves = 62000,
+  ): Promise<string> {
+    const visitaId = await programarVisita(tokenInspector);
+    await guardar(tokenInspector, visitaId, {
+      numeroAves,
+      grupoProductivo: grupo,
+      galpones: [{ numero: 1, edadSemanas: 62, seleccionado: true }],
+    }).expect(200);
+    return visitaId;
+  }
+
+  /** Lo que la interfaz lee de la Fase III en la respuesta. */
+  interface Fase3Respuesta {
+    reglas: {
+      aplica: boolean;
+      grupoProductivo: string | null;
+      rangosMortalidad: { max2: number; max1: number } | null;
+    };
+    documentos: {
+      indicadorCodigo: string;
+      presentado: boolean | null;
+      legible: boolean;
+      firmadoResponsable: boolean;
+      firmadoProfesional: boolean | null;
+      mortalidad: number | null;
+      puntaje: number | null;
+      pendiente: boolean;
+      verificado: boolean;
+    }[];
+    avance: { verificados: number; total: number };
+  }
+
+  /** El documento de un indicador en la respuesta, o indefinido. */
+  const documentoDe = (cuerpo: { fase3: Fase3Respuesta }, codigo: string) =>
+    cuerpo.fase3.documentos.find(
+      (documento) => documento.indicadorCodigo === codigo,
+    );
+
+  it('RF27–RF28: el catálogo trae los documentos, la firma y la escala (M5)', async () => {
+    const visitaId = await prepararFase3();
+    const respuesta = await obtener(tokenInspector, visitaId).expect(200);
+
+    const indicadores = respuesta.body.catalogo.indicadores as {
+      codigo: string;
+      grupo: string;
+      tipoEvaluacion: string;
+      exigeFirmaProfesional: boolean;
+      escalaDescripciones: string[] | null;
+    }[];
+    const gestion = indicadores.filter((fila) => fila.grupo === 'MBG');
+    expect(gestion.length).toBe(10);
+    expect(gestion.map((fila) => fila.codigo)).toEqual([
+      'MBG-01',
+      'MBG-02',
+      'MBG-03',
+      'MBG-04',
+      'MBG-05',
+      'MBG-06',
+      'MBG-07',
+      'MBG-08',
+      'MBG-09',
+      'MBG-10',
+    ]);
+
+    // La escala de los documentos, como la muestra el wireframe (RF19).
+    const agua = gestion.find((fila) => fila.codigo === 'MBG-01');
+    expect(agua?.escalaDescripciones).toEqual([
+      'No cumple o no presentó',
+      'Cumple parcial',
+      'Cumple completo',
+    ]);
+    // El POE exige firma de MV/MVZ y la mortalidad va por rangos (RF28, RF30).
+    expect(
+      gestion.find((fila) => fila.codigo === 'MBG-04')?.exigeFirmaProfesional,
+    ).toBe(true);
+    expect(
+      gestion.find((fila) => fila.codigo === 'MBG-09')?.tipoEvaluacion,
+    ).toBe('MORTALIDAD');
+  });
+
+  it('RF27–RF28: guarda la verificación de un documento y muestra el avance', async () => {
+    const visitaId = await prepararFase3();
+    const respuesta = await guardar(tokenInspector, visitaId, {
+      documentos: [
+        {
+          indicadorCodigo: 'MBG-04',
+          presentado: true,
+          legible: true,
+          firmadoResponsable: true,
+          firmadoProfesional: true,
+          puntaje: 1,
+        },
+        {
+          // El POE exige firma profesional; el agua no: se descarta si llega.
+          indicadorCodigo: 'MBG-01',
+          presentado: true,
+          legible: true,
+          firmadoResponsable: true,
+          firmadoProfesional: true,
+          puntaje: 2,
+        },
+      ],
+    }).expect(200);
+
+    const fase3 = respuesta.body.fase3 as Fase3Respuesta;
+    expect(fase3.reglas.aplica).toBe(true);
+    expect(fase3.reglas.rangosMortalidad).toEqual({ max2: 6, max1: 9 });
+
+    const poe = documentoDe(respuesta.body, 'MBG-04');
+    expect(poe?.verificado).toBe(true);
+    expect(poe?.firmadoProfesional).toBe(true);
+    expect(poe?.puntaje).toBe(1);
+
+    const agua = documentoDe(respuesta.body, 'MBG-01');
+    expect(agua?.puntaje).toBe(2);
+    expect(agua?.firmadoProfesional).toBeNull();
+
+    expect(fase3.avance).toEqual({ verificados: 2, total: 10 });
+  });
+
+  it('RF29: sin documento, el puntaje queda en 0 automáticamente', async () => {
+    const visitaId = await prepararFase3();
+    const respuesta = await guardar(tokenInspector, visitaId, {
+      documentos: [{ indicadorCodigo: 'MBG-01', presentado: false }],
+    }).expect(200);
+
+    const agua = documentoDe(respuesta.body, 'MBG-01');
+    expect(agua?.puntaje).toBe(0);
+    expect(agua?.verificado).toBe(true);
+
+    // Un puntaje distinto de 0 contradice la regla (RF29).
+    const incoherente = await guardar(tokenInspector, visitaId, {
+      documentos: [
+        { indicadorCodigo: 'MBG-01', presentado: false, puntaje: 2 },
+      ],
+    }).expect(400);
+    expect(String(incoherente.body.message)).toContain('el puntaje es 0');
+  });
+
+  it('RF30: la mortalidad se califica por rangos según el grupo', async () => {
+    const visitaId = await prepararFase3(GrupoProductivo.POLLO_ENGORDE);
+
+    // Engorde: hasta 6 % son 2 puntos.
+    const dos = await guardar(tokenInspector, visitaId, {
+      documentos: [
+        { indicadorCodigo: 'MBG-09', presentado: true, mortalidad: 5.5 },
+      ],
+    }).expect(200);
+    expect(documentoDe(dos.body, 'MBG-09')?.puntaje).toBe(2);
+
+    // Hasta 9 % es 1 punto.
+    const uno = await guardar(tokenInspector, visitaId, {
+      documentos: [
+        { indicadorCodigo: 'MBG-09', presentado: true, mortalidad: 7.5 },
+      ],
+    }).expect(200);
+    expect(documentoDe(uno.body, 'MBG-09')?.puntaje).toBe(1);
+
+    // Más de 9 % es 0.
+    const cero = await guardar(tokenInspector, visitaId, {
+      documentos: [
+        { indicadorCodigo: 'MBG-09', presentado: true, mortalidad: 10 },
+      ],
+    }).expect(200);
+    expect(documentoDe(cero.body, 'MBG-09')?.puntaje).toBe(0);
+
+    // Un puntaje digitado que no sale de los rangos se rechaza.
+    const incoherente = await guardar(tokenInspector, visitaId, {
+      documentos: [
+        {
+          indicadorCodigo: 'MBG-09',
+          presentado: true,
+          mortalidad: 7.5,
+          puntaje: 2,
+        },
+      ],
+    }).expect(400);
+    expect(String(incoherente.body.message)).toContain('sale de los rangos');
+
+    // En ponedoras el rango es más amplio: 13 % todavía es 1 punto.
+    const ponedoras = await prepararFase3(GrupoProductivo.PONEDORA_PISO);
+    const respuesta = await guardar(tokenInspector, ponedoras, {
+      documentos: [
+        { indicadorCodigo: 'MBG-09', presentado: true, mortalidad: 13 },
+      ],
+    }).expect(200);
+    expect(documentoDe(respuesta.body, 'MBG-09')?.puntaje).toBe(1);
+    expect(
+      (respuesta.body.fase3 as Fase3Respuesta).reglas.rangosMortalidad,
+    ).toEqual({ max2: 12, max1: 14 });
+  });
+
+  it('RF31: un documento pendiente cuenta como verificado', async () => {
+    const visitaId = await prepararFase3();
+    const respuesta = await guardar(tokenInspector, visitaId, {
+      documentos: [{ indicadorCodigo: 'MBG-09', pendiente: true }],
+    }).expect(200);
+
+    const mortalidad = documentoDe(respuesta.body, 'MBG-09');
+    expect(mortalidad?.pendiente).toBe(true);
+    expect(mortalidad?.puntaje).toBeNull();
+    expect(mortalidad?.verificado).toBe(true);
+    expect((respuesta.body.fase3 as Fase3Respuesta).avance.verificados).toBe(1);
+  });
+
+  it('RF33: en traspatio no hay fase documental', async () => {
+    const visitaId = await prepararFase3(GrupoProductivo.POLLO_ENGORDE, 150);
+
+    const rechazo = await guardar(tokenInspector, visitaId, {
+      documentos: [{ indicadorCodigo: 'MBG-01', presentado: true, puntaje: 2 }],
+    }).expect(400);
+    expect(String(rechazo.body.message)).toContain('traspatio');
+
+    const respuesta = await obtener(tokenInspector, visitaId).expect(200);
+    const fase3 = respuesta.body.fase3 as Fase3Respuesta;
+    expect(fase3.reglas.aplica).toBe(false);
+    expect(fase3.documentos).toEqual([]);
+    expect(fase3.avance).toEqual({ verificados: 0, total: 0 });
+  });
+
+  it('RF27: rechaza documentos desconocidos o que no son de gestión', async () => {
+    const visitaId = await prepararFase3();
+
+    const deFase2 = await guardar(tokenInspector, visitaId, {
+      documentos: [{ indicadorCodigo: 'MBR-02', presentado: true, puntaje: 2 }],
+    }).expect(400);
+    expect(String(deFase2.body.message)).toContain('se evalúa en la Fase II');
+
+    const desconocido = await guardar(tokenInspector, visitaId, {
+      documentos: [{ indicadorCodigo: 'MBG-99', presentado: true }],
+    }).expect(400);
+    expect(String(desconocido.body.message)).toContain(
+      'no existe en el catálogo',
+    );
+  });
+
+  it('RF12: los documentos también llegan por la cola de sincronización', async () => {
+    const visitaId = await prepararFase3();
+    const operacionId = randomUUID();
+
+    const respuesta = await servidor()
+      .post('/api/v1/visitas/sincronizar')
+      .set('Authorization', `Bearer ${tokenInspector}`)
+      .send({
+        operaciones: [
+          {
+            id: operacionId,
+            tipo: 'GUARDAR_INSPECCION',
+            visitaId,
+            inspeccion: {
+              documentos: [
+                {
+                  indicadorCodigo: 'MBG-01',
+                  presentado: true,
+                  legible: true,
+                  firmadoResponsable: true,
+                  puntaje: 2,
+                },
+              ],
+            },
+            registradoEn: new Date().toISOString(),
+          },
+        ],
+      })
+      .expect(200);
+
+    expect(respuesta.body.resultados[0]).toEqual({
+      id: operacionId,
+      estado: 'APLICADA',
+    });
+
+    const ficha = await obtener(tokenInspector, visitaId).expect(200);
+    expect(documentoDe(ficha.body, 'MBG-01')?.puntaje).toBe(2);
+  });
 });
