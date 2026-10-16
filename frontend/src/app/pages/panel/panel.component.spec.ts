@@ -200,4 +200,22 @@ describe('PanelComponent', () => {
       '0',
     ]);
   });
+
+  it('permite configurar el PIN desde el panel (RF03)', async () => {
+    await conResumen(RESUMEN);
+
+    // El botón del bloque «Acceso sin conexión (PIN)» tiene que verse: es la
+    // única entrada para crear el PIN con el que se entra sin conexión.
+    const boton = Array.from(
+      (fixture.nativeElement as HTMLElement).querySelectorAll('button'),
+    ).find((candidato) => candidato.textContent?.includes('Configurar'));
+    expect(boton).withContext('botón Configurar del PIN').toBeTruthy();
+
+    boton?.click();
+    fixture.detectChanges();
+
+    expect(componente.mostrarPin()).toBe(true);
+    expect(texto()).toContain('Guardar PIN');
+    expect(texto()).toContain('PIN (6 dígitos)');
+  });
 });

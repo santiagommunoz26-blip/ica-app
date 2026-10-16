@@ -634,6 +634,31 @@ dentro de la pantalla) para no dejar mensajes pegados al formulario.
     curso»; se actualiza con cada guardado, tanto en línea como sin conexión
     (con el espejo del motor). El wireframe solo muestra los avances por
     indicador y galpón.
+44. **El botón de una tarjeta sin encabezado va en el cuerpo, no en
+    `[acciones]`** (hallazgo al corregir el PIN, 16 oct 2026): `app-tarjeta` solo
+    proyecta el bloque de acciones cuando la tarjeta tiene `titulo`, así que el
+    botón «Configurar» del bloque «Acceso sin conexión (PIN)» del panel —la
+    única entrada para crear el PIN— nunca llegó a verse. El botón pasó al
+    cuerpo de la tarjeta; el componente compartido no cambió.
+45. **Entrar con PIN es abrir la sesión guardada** (RF03, RF12): el PIN es la
+    llave del equipo, no una identidad. Descifra el token de refresco guardado
+    (`ica.refresco`) y con él se trabaja, con o sin conexión; sin sesión
+    guardada el ingreso se rechaza con un mensaje claro («No hay una sesión
+    guardada en este equipo para entrar sin conexión. Ingrese con su
+    contraseña.») en vez de dejar el armazón a medias. La identidad sale del
+    perfil cacheado del equipo, nunca del correo del PIN.
+46. **Cerrar sesión olvida el PIN del equipo** (RF03): al cerrar sesión de
+    verdad se revoca la sesión ante el servidor, así que el PIN ya no tendría
+    nada que abrir y solo confundiría en la pantalla de ingreso; «Cerrar sesión»
+    y «Olvidar PIN» lo borran. El PIN solo se ofrece mientras haya una sesión
+    recuperable en el equipo.
+47. **La renovación de la sesión distingue el fallo de red del rechazo del
+    servidor** (RF12): un fallo de red (sin conexión, `status 0`) no cierra la
+    sesión —se sigue trabajando con lo guardado—; si es el servidor el que
+    rechaza la sesión, se limpia, se avisa «Su sesión expiró. Ingrese de
+    nuevo.» y se vuelve al ingreso. Antes, cualquier fallo al renovar —incluso
+    sin token, al abrir con el PIN— cerraba la sesión sin navegar y dejaba el
+    armazón solo con «Panel» y sin usuario.
 
 ## 8. Observaciones para la pasada de pulido final
 

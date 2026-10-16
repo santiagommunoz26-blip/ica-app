@@ -133,7 +133,11 @@ export class AuthService {
     }
   }
 
-  /** Cierra la sesión (RF02). */
+  /**
+   * Cierra la sesión (RF02). Al cerrarla de verdad se olvida también el PIN
+   * del equipo (RF03): la sesión guardada se revocó, así que el PIN ya no
+   * tendría nada que abrir y solo confundiría en la pantalla de ingreso.
+   */
   async cerrarSesion(): Promise<void> {
     const refresco = this.almacen.leer();
     try {
@@ -148,6 +152,7 @@ export class AuthService {
       // Aunque la API falle, la sesión local se cierra igual.
     }
     this.limpiarSesion();
+    this.pinOffline.olvidar();
     await this.router.navigate(['/login']);
   }
 
@@ -161,7 +166,16 @@ export class AuthService {
         tap((sesion) => this.aplicarSesion(sesion)),
         map((sesion) => sesion.accessToken),
         catchError((error: unknown) => {
-          this.limpiarSesion();
+          // Un fallo de red no cierra la sesión: se sigue trabajando sin
+          // conexión (RF12). Si el servidor sí respondió y rechazó la sesión,
+          // no hay nada que renovar: se cierra y se pide ingresar de nuevo.
+          const sinRed =
+            error instanceof HttpErrorResponse && error.status === 0;
+          if (!sinRed) {
+            this.limpiarSesion();
+            this.aviso.set('Su sesión expiró. Ingrese de nuevo.');
+            void this.router.navigate(['/login']);
+          }
           return throwError(() => error);
         }),
         finalize(() => {
@@ -264,9 +278,11 @@ export class AuthService {
   /**
    * Entra con el PIN del equipo (RF03). La comprobación es local.
    *
-   * Si el token está cifrado con ese PIN, se descifra (RNF09) y, cuando hay
-   * conexión, la sesión se renueva en el momento; si no hay red, la aplicación
-   * queda marcada como «sin conexión» y se trabaja con los datos guardados.
+   * El PIN abre la **sesión guardada** en el equipo (RNF09): descifra el token
+   * y, cuando hay conexión, la revalida contra el servidor; si no hay red, la
+   * aplicación queda marcada como «sin conexión» y se trabaja con los datos
+   * guardados (RF12). Sin una sesión guardada no hay nada que abrir: se pide
+   * ingresar con la contraseña.
    */
   async entrarConPin(pin: string): Promise<void> {
     const perfil = this.leerPerfilCacheado();
@@ -287,14 +303,27 @@ export class AuthService {
     }
 
     await this.almacen.desbloquear(pin);
+    if (!this.almacen.leer()) {
+      throw new Error(
+        'No hay una sesión guardada en este equipo para entrar sin conexión. Ingrese con su contraseña.',
+      );
+    }
+
     this.estado.set({ usuario: perfil, sesionInactividadMinutos: 0 });
     this.sinConexion.set(true);
 
-    if (navigator.onLine && this.almacen.leer()) {
+    if (navigator.onLine) {
       try {
         await firstValueFrom(this.renovarToken());
         this.sinConexion.set(false);
       } catch {
+        // Si el servidor rechazó la sesión, `renovarToken` ya la cerró y dejó
+        // su aviso: aquí solo se explica en la pantalla de ingreso.
+        if (!this.autenticado()) {
+          throw new Error(
+            'La sesión guardada ya no está activa. Ingrese con su contraseña.',
+          );
+        }
         // Sin red el PIN vale igual: se sigue trabajando sin conexión (RF12).
       }
     }
