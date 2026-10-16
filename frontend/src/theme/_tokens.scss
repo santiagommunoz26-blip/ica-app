@@ -113,6 +113,9 @@ $ancho-contenido: 72rem; // ancho máximo del contenido de una pantalla
   // Color — marca
   --color-marca: #{$marca-40};
   --color-marca-fuerte: #{$marca-30};
+  // Tono intermedio: cajas y pastillas sobre los paneles oscuros del
+  // wireframe (puntos pendientes, «faltan N puntos», pista de las barras).
+  --color-marca-intermedia: #{$marca-50};
   --color-marca-media: #{$marca-60};
   --color-marca-suave: #{$marca-90};
   --color-marca-tenue: #{$marca-95};

@@ -310,7 +310,7 @@ describe('InspeccionComponent', () => {
     it('muestra la ficha, la clasificación y los pesos (RF13, RF14)', () => {
       expect(texto()).toContain('Ficha general del predio');
       expect(texto()).toContain('Granja El Rosal');
-      expect(texto()).toContain('Granja (corral)');
+      expect(texto()).toContain('Granja · Corral');
       // Pesos de corral: 35 / 35 / 30.
       expect(texto()).toContain('35 %');
       expect(texto()).toContain('30 %');
@@ -460,10 +460,15 @@ describe('InspeccionComponent', () => {
 
     it('califica puntos y calcula promedio y valor del indicador (RF19, RF34)', () => {
       hijo().abrirIndicador('MBA-01');
-      hijo().calificar(1, 2);
-      hijo().calificar(2, 2);
-      hijo().calificar(3, 1);
-      hijo().calificar(4, 1);
+      for (const [numero, valor] of [
+        [1, 2],
+        [2, 2],
+        [3, 1],
+        [4, 1],
+      ] as const) {
+        hijo().seleccionarPunto(numero);
+        hijo().calificar(valor);
+      }
       fixture.detectChanges();
 
       // (2 + 2 + 1 + 1) / 4 = 1.50 → (1.50 × 100) / 2 = 75 %.
@@ -476,7 +481,8 @@ describe('InspeccionComponent', () => {
 
     it('guarda las evaluaciones por la misma cola (RF12, RF26)', async () => {
       hijo().abrirIndicador('MBA-01');
-      hijo().calificar(1, 2);
+      hijo().seleccionarPunto(1);
+      hijo().calificar(2);
       hijo().guardarBorrador();
       await tick();
 

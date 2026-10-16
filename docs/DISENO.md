@@ -500,6 +500,46 @@ dentro de la pantalla) para no dejar mensajes pegados al formulario.
     pantalla se admiten fotos JPG/PNG/WebP hasta 8 MB; sin conexión el botón se
     bloquea y avisa que se suben al volver la red (los videos y documentos
     quedan pendientes de definir su tamaño).
+24. **Fidelidad al wireframe en las pestañas de fase (RNF14):** son cuatro
+    píldoras iguales («I · Apertura», «II · Inspección galpón», «III ·
+    Documental», «IV · Cierre»), sin la palabra «Fase» delante. La activa va en
+    verde oscuro; la completada, en lima con visto bueno; las disponibles, en
+    blanco con borde; las que todavía no se construyen, en gris con su módulo.
+    Se considera completa la Fase I cuando la ficha ya se guardó y la Fase II
+    cuando todos los indicadores de los galpones marcados quedaron completos o
+    con «No aplica» (RF24).
+25. **La Fase II sigue el wireframe de la inspección en galpón:** la tarjeta
+    izquierda muestra **solo el grupo del indicador activo** («Indicadores
+    MBR») con su avance («3 de 9 completos» y barra); el centro lleva el título,
+    la píldora «MBR · visual con muestreo», la pregunta, los puntos como
+    círculos (lima = calificado, verde oscuro = seleccionado, blanco = pendiente),
+    las tres tarjetas de puntaje (2, 1 y 0, con la descripción de la escala) y la
+    píldora «Adjuntar foto · Observación…»; el panel derecho va oscuro, con
+    «Cálculo en vivo», los puntos registrados, el promedio, la operación a la
+    vista, el valor del indicador, la barra y la píldora «Faltan 5 de 9 puntos».
+26. **Los añadidos de la Fase II que el wireframe no muestra se conservan** (para
+    no perder requisitos) con la desviación mínima: los campos de aves y jaulas
+    del punto seleccionado van bajo los círculos; «No aplica» con su motivo,
+    discreto sobre los puntos; «Guardar borrador» como botón de texto entre
+    «Anterior» y «Guardar y siguiente»; y el selector de galpón, arriba,
+    restilizado como píldoras. Se le avisó al usuario al entregar.
+27. **Orden de la fase: MBR y luego MBA** (como el wireframe, que lista MBR
+    primero y muestra «MBR 3/9 · MBA 0/10»). «Anterior/Siguiente» recorren los
+    indicadores en ese orden y el avance del panel derecho pone primero el grupo
+    activo. Los puntos de muestreo recuerdan el que se está calificando y los
+    puntajes se aplican al punto seleccionado.
+28. **Tono intermedio de la marca** (`--color-marca-intermedia`, tono 50) para
+    las cajas sobre los paneles oscuros del wireframe: chips de puntos
+    pendientes, píldora «Faltan…», pista de las barras y separadores del panel
+    derecho. Los tonos que ya existían no servían (el 30 no se distingue del
+    fondo y el 60 contrasta demasiado).
+29. **La pantalla de inspección no lleva encabezado grande** (el wireframe pasa
+    de las pestañas al contenido): en su lugar va una línea de contexto con el
+    predio y la fase, más el enlace «Otras visitas». La Fase I también se alineó
+    al wireframe: tarjeta blanca de ficha, botones de grupo productivo en
+    píldoras, filas de galpón redondeadas con el círculo que marca si se
+    inspecciona, y panel oscuro de clasificación con los pesos y los galpones a
+    inspeccionar.
 
 ## 8. Observaciones para la pasada de pulido final
 

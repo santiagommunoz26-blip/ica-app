@@ -9,7 +9,6 @@ import {
   Validators,
 } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
-import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
@@ -81,7 +80,6 @@ interface GalponForm {
     ReactiveFormsModule,
     RouterLink,
     MatButtonModule,
-    MatCheckboxModule,
     MatFormFieldModule,
     MatIconModule,
     MatInputModule,
@@ -226,6 +224,23 @@ export class InspeccionComponent {
     () => this.respuesta()?.visita.estado !== 'CERRADA',
   );
 
+  /** Fase activa, para la línea de contexto y las pestañas. */
+  readonly faseActivaObj = computed(
+    () =>
+      this.fases.find((fase) => fase.numero === this.faseActiva()) ??
+      this.fases[0],
+  );
+
+  /** Galpones marcados para inspeccionar, para el resumen (RF16). */
+  readonly galponesMarcados = computed(
+    () => this.valor().galpones.filter((galpon) => galpon.seleccionado).length,
+  );
+
+  /** Número de aves registrado, para el resumen (RF14). */
+  readonly avesRegistradas = computed(() =>
+    valorEntero(this.valor().numeroAves),
+  );
+
   constructor() {
     this.ruta.paramMap.pipe(takeUntilDestroyed()).subscribe((parametros) => {
       const id = parametros.get('visitaId');
@@ -340,6 +355,49 @@ export class InspeccionComponent {
   esSugerido(numero: number | string | null): boolean {
     const valor = valorEntero(numero);
     return valor !== null && this.sugeridos().includes(valor);
+  }
+
+  /** Marca o desmarca un galpón para inspeccionar (RF16). */
+  alternarGalpon(indice: number): void {
+    const control = this.galpones.at(indice).controls.seleccionado;
+    control.setValue(!control.value);
+  }
+
+  /**
+   * ¿La fase ya quedó lista? Fase I: ficha guardada. Fase II: todos los
+   * indicadores de los galpones marcados, completos o con «No aplica» (RF24).
+   * Es lo que pinta la pestaña con el visto bueno del wireframe.
+   */
+  faseCompleta(numero: number): boolean {
+    const respuesta = this.respuesta();
+    if (!respuesta) return false;
+    if (numero === 1) return respuesta.ficha.guardada;
+    if (numero === 2) {
+      const avance = respuesta.fase2.avance;
+      return (
+        avance.length > 0 &&
+        avance.every((galpon) =>
+          galpon.grupos.every(
+            (grupo) => grupo.total > 0 && grupo.completos === grupo.total,
+          ),
+        )
+      );
+    }
+    return false;
+  }
+
+  /** Clases de una pestaña de fase, como en el wireframe. */
+  claseFase(fase: (typeof FASES_INSPECCION)[number]): string {
+    if (fase.disponible && this.faseActiva() === fase.numero) {
+      return 'bg-marca text-marca-contraste';
+    }
+    if (fase.disponible && this.faseCompleta(fase.numero)) {
+      return 'bg-acento text-acento-contraste hover:bg-acento-fuerte';
+    }
+    if (fase.disponible) {
+      return 'border border-borde bg-superficie text-contenido-suave hover:bg-superficie-alterna';
+    }
+    return 'border border-borde bg-superficie text-contenido-deshabilitado';
   }
 
   /** Guarda el borrador; con `iniciar`, además pone la visita en curso (RF09). */

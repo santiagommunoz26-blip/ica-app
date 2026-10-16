@@ -55,6 +55,9 @@ const TAMANO_MAXIMO_FOTO = 8 * 1024 * 1024;
 /** Tipos de foto admitidos; igual que en el backend (RF23). */
 const TIPOS_FOTO = ['image/jpeg', 'image/png', 'image/webp'];
 
+/** Orden de los grupos en la fase, como en el wireframe: MBR y luego MBA. */
+const ORDEN_GRUPOS: readonly GrupoMedidas[] = ['MBR', 'MBA'];
+
 /** Una fila de la lista de puntos de muestreo (RF18–RF21). */
 interface FilaPunto {
   numero: number;
@@ -111,12 +114,14 @@ export class Fase2GalponComponent {
   /** Pide recargar la inspección (después de subir o borrar una foto). */
   readonly refrescar = output<void>();
 
-  /** Valores de la escala, para los botones de cada punto (RF19). */
-  readonly puntajes = [PUNTAJE_MIN, PUNTAJE_MIN + 1, PUNTAJE_MAX];
+  /** Valores de la escala, en el orden del wireframe: 2, 1 y 0 (RF19). */
+  readonly puntajes = [PUNTAJE_MAX, PUNTAJE_MAX - 1, PUNTAJE_MIN];
   readonly maximoPuntos = MAXIMO_PUNTOS;
 
   readonly galponActivo = signal<number | null>(null);
   readonly indicadorActivo = signal<string | null>(null);
+  /** Punto de muestreo seleccionado en el indicador activo (RF18). */
+  readonly puntoActivo = signal<number | null>(null);
   readonly error = signal<string | null>(null);
   readonly aviso = signal<string | null>(null);
   readonly subiendo = signal(false);
@@ -153,26 +158,36 @@ export class Fase2GalponComponent {
     indicadoresAplicables(
       this.respuesta().catalogo,
       this.respuesta().ficha.grupoProductivo,
-    ).filter((indicador) => indicador.grupo !== 'MBG'),
+    )
+      .filter((indicador) => indicador.grupo !== 'MBG')
+      .sort(
+        (uno, otro) => prioridadGrupo(uno.grupo) - prioridadGrupo(otro.grupo),
+      ),
   );
 
-  /** Indicadores agrupados como en el wireframe: MBR primero, luego MBA. */
-  readonly grupos = computed(() => {
-    const indicadores = this.indicadores();
-    return (['MBR', 'MBA'] as GrupoMedidas[]).map((grupo) => {
-      const delGrupo = indicadores.filter(
-        (indicador) => indicador.grupo === grupo,
-      );
-      return {
-        grupo,
-        etiqueta: grupo === 'MBR' ? 'Indicadores MBR' : 'Indicadores MBA',
-        indicadores: delGrupo,
-        completos: delGrupo.filter((indicador) =>
-          this.estaCompleto(indicador.codigo),
-        ).length,
-        total: delGrupo.length,
-      };
-    });
+  /** Grupo del indicador activo: la lista de la izquierda lo sigue (wireframe). */
+  readonly grupoActivo = computed<GrupoMedidas>(
+    () => this.indicadorActivoObj()?.grupo ?? 'MBR',
+  );
+
+  /** Grupo activo con su avance, para la tarjeta de la izquierda (RF24). */
+  readonly grupoDelActivo = computed(() => {
+    const grupo = this.grupoActivo();
+    const indicadores = this.indicadores().filter(
+      (indicador) => indicador.grupo === grupo,
+    );
+    const completos = indicadores.filter((indicador) =>
+      this.estaCompleto(indicador.codigo),
+    ).length;
+    const total = indicadores.length;
+    return {
+      grupo,
+      etiqueta: `Indicadores ${grupo}`,
+      indicadores,
+      completos,
+      total,
+      porcentaje: total === 0 ? 0 : (completos * 100) / total,
+    };
   });
 
   /** Indicador activo del panel central. */
@@ -226,6 +241,16 @@ export class Fase2GalponComponent {
     });
   });
 
+  /** Punto seleccionado: el que se está calificando (el primero si no hay). */
+  readonly puntoSeleccionado = computed<FilaPunto | null>(() => {
+    const filas = this.puntos();
+    return (
+      filas.find((fila) => fila.numero === this.puntoActivo()) ??
+      filas[0] ??
+      null
+    );
+  });
+
   /** Cálculo en vivo del indicador activo (RF34). */
   readonly calculo = computed(() => {
     const evaluacion = this.evaluacionActiva();
@@ -274,15 +299,19 @@ export class Fase2GalponComponent {
     );
   });
 
-  /** Texto del avance del galpón, como en el wireframe. */
-  readonly textoAvance = computed(
-    () =>
-      this.avance()
-        ?.grupos.map(
-          (grupo) => `${grupo.grupo} ${grupo.completos}/${grupo.total}`,
-        )
-        .join(' · ') ?? '',
-  );
+  /** Texto del avance del galpón, con el grupo activo primero (wireframe). */
+  readonly textoAvance = computed(() => {
+    const avance = this.avance();
+    if (!avance) return '';
+    const activo = this.grupoActivo();
+    const grupos = [
+      ...avance.grupos.filter((grupo) => grupo.grupo === activo),
+      ...avance.grupos.filter((grupo) => grupo.grupo !== activo),
+    ];
+    return grupos
+      .map((grupo) => `${grupo.grupo} ${grupo.completos}/${grupo.total}`)
+      .join(' · ');
+  });
 
   /** Fotos del indicador activo (RF23). */
   readonly evidencias = computed(() => {
@@ -340,6 +369,39 @@ export class Fase2GalponComponent {
     return indicador.escalaDescripciones?.[puntaje] ?? `Puntaje ${puntaje}`;
   }
 
+  /**
+   * Método del indicador para la píldora del encabezado (wireframe). Mientras
+   * el catálogo no traiga el método (provisional), se deduce del muestreo.
+   */
+  etiquetaMetodo(indicador: IndicadorCatalogo): string {
+    if (indicador.metodo) return indicador.metodo;
+    return indicador.tipoMuestreo === 'HOJAS_CENTINELA'
+      ? 'muestreo con hojas centinela'
+      : 'visual con muestreo';
+  }
+
+  /** Clases del círculo de un punto, según su estado (wireframe). */
+  clasePunto(fila: FilaPunto): string {
+    if (this.puntoSeleccionado()?.numero === fila.numero) {
+      return 'bg-marca text-marca-contraste';
+    }
+    return fila.punto.puntaje === null
+      ? 'border border-borde bg-superficie text-contenido hover:bg-superficie-alterna'
+      : 'bg-acento text-acento-contraste hover:bg-acento-fuerte';
+  }
+
+  /** ¿El valor es el puntaje del punto seleccionado? (RF19) */
+  esPuntajeSeleccionado(valor: number): boolean {
+    return this.puntoSeleccionado()?.punto.puntaje === valor;
+  }
+
+  /** Clases de una tarjeta de puntaje, según lo calificado (wireframe). */
+  clasePuntaje(valor: number): string {
+    return this.esPuntajeSeleccionado(valor)
+      ? 'bg-marca text-marca-contraste'
+      : 'bg-superficie-alterna text-contenido hover:bg-marca-tenue';
+  }
+
   /** ¿Se puede calificar el punto? En jaula, primero el conteo (RF21). */
   private puedeCalificar(punto: PuntoEvaluado): boolean {
     const reglas = this.reglas();
@@ -371,6 +433,7 @@ export class Fase2GalponComponent {
     this.error.set(null);
     this.aviso.set(null);
     this.galponActivo.set(numero);
+    this.reiniciarPuntoActivo();
   }
 
   /** Abre un indicador en el panel central (RF17). */
@@ -378,31 +441,42 @@ export class Fase2GalponComponent {
     this.error.set(null);
     this.aviso.set(null);
     this.indicadorActivo.set(codigo);
+    this.reiniciarPuntoActivo();
   }
 
-  /** Califica un punto; volver a pulsar el mismo valor lo borra (RF19). */
-  calificar(numero: number, puntaje: number): void {
-    const fila = this.puntos().find((fila) => fila.numero === numero);
+  /** Selecciona el punto de muestreo que se está calificando (RF18). */
+  seleccionarPunto(numero: number): void {
+    this.error.set(null);
+    this.puntoActivo.set(numero);
+  }
+
+  /** Califica el punto seleccionado; repetir el mismo valor lo borra (RF19). */
+  calificar(valor: number): void {
+    const fila = this.puntoSeleccionado();
     if (!fila?.calificable) return;
-    this.editarPunto(numero, (punto) => ({
+    this.editarPunto(fila.numero, (punto) => ({
       ...punto,
-      puntaje: punto.puntaje === puntaje ? null : puntaje,
+      puntaje: punto.puntaje === valor ? null : valor,
     }));
   }
 
-  /** Registra las aves evaluadas en un punto (RF20). */
-  cambiarAves(numero: number, evento: Event): void {
+  /** Registra las aves evaluadas en el punto seleccionado (RF20). */
+  cambiarAves(evento: Event): void {
+    const fila = this.puntoSeleccionado();
+    if (!fila) return;
     const valor = leerEntero(evento);
-    this.editarPunto(numero, (punto) => ({ ...punto, aves: valor }));
+    this.editarPunto(fila.numero, (punto) => ({ ...punto, aves: valor }));
   }
 
-  /** Registra las jaulas muestreadas en un punto (RF20, RF21). */
-  cambiarJaulas(numero: number, evento: Event): void {
+  /** Registra las jaulas muestreadas en el punto seleccionado (RF20, RF21). */
+  cambiarJaulas(evento: Event): void {
+    const fila = this.puntoSeleccionado();
+    if (!fila) return;
     const valor = leerEntero(evento);
-    this.editarPunto(numero, (punto) => ({ ...punto, jaulas: valor }));
+    this.editarPunto(fila.numero, (punto) => ({ ...punto, jaulas: valor }));
   }
 
-  /** Agrega una hoja centinela más (RF22). */
+  /** Agrega una hoja centinela más y la deja seleccionada (RF22). */
   agregarHoja(): void {
     const evaluacion = this.evaluacionActiva();
     const indicador = this.indicadorActivoObj();
@@ -414,6 +488,7 @@ export class Fase2GalponComponent {
     );
     if (visibles >= MAXIMO_PUNTOS) return;
     this.editarPunto(visibles + 1, (punto) => punto);
+    this.puntoActivo.set(visibles + 1);
   }
 
   /** Marca «No aplica» con su motivo; excluye el indicador (RF25). */
@@ -584,6 +659,18 @@ export class Fase2GalponComponent {
     ) {
       this.indicadorActivo.set(indicadores[0]?.codigo ?? null);
     }
+
+    this.reiniciarPuntoActivo();
+  }
+
+  /**
+   * Deja seleccionado el primer punto sin calificar del indicador activo; si
+   * ya están todos, el primero (RF18).
+   */
+  private reiniciarPuntoActivo(): void {
+    const filas = this.puntos();
+    const pendiente = filas.find((fila) => fila.punto.puntaje === null);
+    this.puntoActivo.set((pendiente ?? filas[0])?.numero ?? null);
   }
 
   /** Edita un punto de la evaluación activa. */
@@ -655,12 +742,20 @@ export class Fase2GalponComponent {
         this.galponActivo.set(evaluacion.galponNumero);
         this.indicadorActivo.set(evaluacion.indicadorCodigo);
         this.error.set(errores[0]);
+        this.seleccionarPuntoDelError(errores[0]);
         return;
       }
     }
 
     this.guardar.emit(this.evaluacionesConDatos());
     if (siguiente && this.haySiguiente()) this.siguiente();
+  }
+
+  /** Selecciona el punto al que se refiere un error de validación, si lo dice. */
+  private seleccionarPuntoDelError(mensaje: string): void {
+    const coincidencia = /, punto (\d+):/.exec(mensaje);
+    if (coincidencia) this.puntoActivo.set(Number(coincidencia[1]));
+    else this.reiniciarPuntoActivo();
   }
 
   /** Evaluaciones locales con algo que guardar (puntos, «No aplica» u observaciones). */
@@ -672,6 +767,12 @@ export class Fase2GalponComponent {
         (evaluacion.observaciones ?? '').trim().length > 0,
     );
   }
+}
+
+/** Posición del grupo en la fase: MBR primero, luego MBA (wireframe). */
+function prioridadGrupo(grupo: GrupoMedidas): number {
+  const indice = ORDEN_GRUPOS.indexOf(grupo);
+  return indice === -1 ? ORDEN_GRUPOS.length : indice;
 }
 
 /** Número más alto entre los puntos registrados (0 si no hay ninguno). */

@@ -227,21 +227,28 @@ describe('Fase2GalponComponent', () => {
         crearInspeccion('POLLO_ENGORDE', [evaluacionCompleta('MBA-01')]),
       );
 
-      expect(componente.indicadorActivo()).toBe('MBA-01');
-      expect(componente.evaluacionActiva()?.puntos.length).toBe(9);
+      // La fase arranca por MBR y por el primer indicador sin completar.
+      expect(componente.indicadorActivo()).toBe('MBR-01');
+      expect(componente.puntos().length).toBe(3);
       expect(componente.estaCompleto('MBA-01')).toBe(true);
-      expect(componente.textoAvance()).toBe('MBA 1/1 · MBR 0/2');
-      expect(texto()).toContain('1 de 1 completos');
+      expect(componente.textoAvance()).toBe('MBR 0/2 · MBA 1/1');
+      expect(texto()).toContain('Indicadores MBR');
+      expect(texto()).toContain('0 de 2 completos');
     });
 
     it('califica puntos y calcula promedio y valor del indicador (RF19, RF34)', async () => {
       await configurar(crearInspeccion('POLLO_ENGORDE'));
 
       componente.abrirIndicador('MBA-01');
-      componente.calificar(1, 2);
-      componente.calificar(2, 2);
-      componente.calificar(3, 1);
-      componente.calificar(4, 1);
+      for (const [numero, valor] of [
+        [1, 2],
+        [2, 2],
+        [3, 1],
+        [4, 1],
+      ] as const) {
+        componente.seleccionarPunto(numero);
+        componente.calificar(valor);
+      }
       fixture.detectChanges();
 
       // (2 + 2 + 1 + 1) / 4 = 1.50 → (1.50 × 100) / 2 = 75 %.
@@ -252,7 +259,8 @@ describe('Fase2GalponComponent', () => {
       expect(texto()).toContain('Faltan 5 de 9 puntos');
 
       // Volver a pulsar el mismo puntaje lo borra.
-      componente.calificar(1, 2);
+      componente.seleccionarPunto(1);
+      componente.calificar(2);
       expect(puntaje(1)).toBeNull();
     });
 
@@ -264,6 +272,8 @@ describe('Fase2GalponComponent', () => {
 
       expect(texto()).toContain('¿La calidad de la cama es adecuada?');
       expect(texto()).toContain('Suelta, se desmorona');
+      // La píldora del grupo y el método, como en el wireframe.
+      expect(texto()).toContain('MBR · visual con muestreo');
       expect(componente.descripcionPuntaje(CATALOGO.indicadores[2], 2)).toBe(
         'Suelta, se desmorona',
       );
@@ -278,8 +288,9 @@ describe('Fase2GalponComponent', () => {
       expect(componente.puntos().length).toBe(3);
 
       for (const numero of [1, 2, 3]) {
-        componente.cambiarAves(numero, evento('20'));
-        componente.calificar(numero, 2);
+        componente.seleccionarPunto(numero);
+        componente.cambiarAves(evento('20'));
+        componente.calificar(2);
       }
       expect(componente.estaCompleto('MBR-01')).toBe(true);
 
@@ -289,8 +300,9 @@ describe('Fase2GalponComponent', () => {
       expect(componente.puntos().length).toBe(4);
       expect(componente.estaCompleto('MBR-01')).toBe(false);
 
-      componente.cambiarAves(4, evento('20'));
-      componente.calificar(4, 2);
+      componente.seleccionarPunto(4);
+      componente.cambiarAves(evento('20'));
+      componente.calificar(2);
       expect(componente.estaCompleto('MBR-01')).toBe(true);
     });
 
@@ -302,8 +314,9 @@ describe('Fase2GalponComponent', () => {
         emitidas.push(evaluaciones),
       );
 
-      componente.cambiarAves(1, evento('5'));
-      componente.calificar(1, 2);
+      componente.seleccionarPunto(1);
+      componente.cambiarAves(evento('5'));
+      componente.calificar(2);
       componente.guardarBorrador();
 
       expect(emitidas.length).toBe(0);
@@ -318,7 +331,8 @@ describe('Fase2GalponComponent', () => {
         emitidas.push(evaluaciones),
       );
 
-      componente.calificar(1, 2);
+      componente.seleccionarPunto(1);
+      componente.calificar(2);
       componente.guardarBorrador();
 
       expect(emitidas.length).toBe(1);
@@ -327,7 +341,7 @@ describe('Fase2GalponComponent', () => {
         puntos: { puntaje: number | null }[];
       }[];
       expect(evaluaciones.length).toBe(1);
-      expect(evaluaciones[0].indicadorCodigo).toBe('MBA-01');
+      expect(evaluaciones[0].indicadorCodigo).toBe('MBR-01');
       expect(evaluaciones[0].puntos[0].puntaje).toBe(2);
     });
 
@@ -339,11 +353,12 @@ describe('Fase2GalponComponent', () => {
         emitidas.push(evaluaciones),
       );
 
-      componente.calificar(1, 2);
+      componente.seleccionarPunto(1);
+      componente.calificar(2);
       componente.guardarYSiguiente();
 
       expect(emitidas.length).toBe(1);
-      expect(componente.indicadorActivo()).toBe('MBR-01');
+      expect(componente.indicadorActivo()).toBe('MBR-02');
     });
 
     it('«No aplica» exige el motivo y sale del cálculo (RF25)', async () => {
@@ -389,7 +404,7 @@ describe('Fase2GalponComponent', () => {
       );
       expect(crear.request.body.nombre).toBe('cama.jpg');
       expect(crear.request.body.galponNumero).toBe(1);
-      expect(crear.request.body.indicadorCodigo).toBe('MBA-01');
+      expect(crear.request.body.indicadorCodigo).toBe('MBR-01');
       crear.flush({
         evidencia: {
           id: 'evidencia-1',
@@ -435,22 +450,25 @@ describe('Fase2GalponComponent', () => {
     it('no deja calificar hasta contar jaulas y aves (RF21)', async () => {
       await configurar(crearInspeccion('PONEDORA_JAULA'));
 
+      componente.abrirIndicador('MBA-01');
       expect(componente.puntos().length).toBe(9);
 
-      componente.calificar(1, 2);
+      componente.seleccionarPunto(1);
+      componente.calificar(2);
       expect(puntaje(1)).toBeNull();
 
-      componente.cambiarAves(1, evento('15'));
-      componente.cambiarJaulas(1, evento('4'));
-      componente.calificar(1, 2);
+      componente.cambiarAves(evento('15'));
+      componente.cambiarJaulas(evento('4'));
+      componente.calificar(2);
       expect(puntaje(1)).toBe(2);
     });
 
     it('avisa cuando la muestra se sale de lo que pide la metodología (RF20)', async () => {
       await configurar(crearInspeccion('PONEDORA_JAULA'));
 
-      componente.cambiarAves(1, evento('5'));
-      componente.cambiarJaulas(1, evento('9'));
+      componente.seleccionarPunto(1);
+      componente.cambiarAves(evento('5'));
+      componente.cambiarJaulas(evento('9'));
 
       const fila = componente.puntos().find((fila) => fila.numero === 1);
       expect(fila?.mensaje).toContain('entre 10 y 20 aves');

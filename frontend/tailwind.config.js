@@ -24,6 +24,7 @@ module.exports = {
         marca: {
           DEFAULT: 'var(--color-marca)',
           fuerte: 'var(--color-marca-fuerte)',
+          intermedia: 'var(--color-marca-intermedia)',
           media: 'var(--color-marca-media)',
           suave: 'var(--color-marca-suave)',
           tenue: 'var(--color-marca-tenue)',
