@@ -1,0 +1,22 @@
+/* Bloque de carga con un latido suave, en el tono tenue de la marca. */
+.esqueleto {
+  background-color: var(--color-marca-tenue);
+  animation: latido 1.4s ease-in-out infinite;
+}
+
+@keyframes latido {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+/* Respeta a quien prefiere menos movimiento (RNF15). */
+@media (prefers-reduced-motion: reduce) {
+  .esqueleto {
+    animation: none;
+  }
+}

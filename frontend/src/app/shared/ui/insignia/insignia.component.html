@@ -1,0 +1,9 @@
+<span
+  class="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium whitespace-nowrap"
+  [class]="clases()"
+>
+  @if (icono()) {
+    <mat-icon aria-hidden="true">{{ icono() }}</mat-icon>
+  }
+  <ng-content />
+</span>

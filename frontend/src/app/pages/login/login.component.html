@@ -1,7 +1,7 @@
 <div class="grid min-h-screen lg:grid-cols-2">
   <!-- Panel de marca (izquierda) -->
   <aside
-    class="hidden flex-col justify-between bg-emerald-900 p-10 text-emerald-50 lg:flex"
+    class="hidden flex-col justify-between bg-marca p-10 text-marca-contraste lg:flex"
   >
     <div class="flex items-center gap-2 text-lg font-semibold">
       <mat-icon>flutter_dash</mat-icon>
@@ -12,11 +12,11 @@
       <h1 class="text-4xl font-bold leading-tight">
         Aves felices,<br />granjas mejores.
       </h1>
-      <p class="mt-4 leading-relaxed text-emerald-100">
+      <p class="mt-4 leading-relaxed text-marca-suave">
         Evaluación del bienestar animal en aves con la metodología ICA v2.0
         (2024): indicadores, puntajes y calificación por visita.
       </p>
-      <ul class="mt-6 space-y-2 text-sm text-emerald-100">
+      <ul class="mt-6 space-y-2 text-sm text-marca-suave">
         <li class="flex items-center gap-2">
           <mat-icon class="text-base">check_circle</mat-icon>
           Inspección guiada por indicadores
@@ -32,37 +32,25 @@
       </ul>
     </div>
 
-    <p class="text-sm text-emerald-200">
+    <p class="text-sm text-marca-suave">
       © 2026 EBA Aves · Basado en la metodología ICA
     </p>
   </aside>
 
   <!-- Formulario (derecha) -->
-  <main class="flex items-center justify-center bg-slate-50 p-6">
+  <main class="flex items-center justify-center bg-fondo p-6">
     <div class="w-full max-w-md">
-      <h2 class="text-2xl font-bold text-slate-900">Bienvenido de nuevo</h2>
-      <p class="mt-1 text-sm text-slate-600">
+      <h2 class="text-2xl font-bold text-contenido">Bienvenido de nuevo</h2>
+      <p class="mt-1 text-sm text-contenido-suave">
         Ingrese para continuar con sus visitas de inspección.
       </p>
 
       @if (auth.aviso(); as aviso) {
-        <div
-          class="mt-4 flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900"
-          role="status"
-        >
-          <mat-icon class="text-base">info</mat-icon>
-          <span>{{ aviso }}</span>
-        </div>
+        <app-aviso tipo="advertencia" class="mt-4">{{ aviso }}</app-aviso>
       }
 
       @if (error(); as mensaje) {
-        <div
-          class="mt-4 flex items-start gap-2 rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-800"
-          role="alert"
-        >
-          <mat-icon class="text-base">error_outline</mat-icon>
-          <span>{{ mensaje }}</span>
-        </div>
+        <app-aviso tipo="peligro" class="mt-4">{{ mensaje }}</app-aviso>
       }
 
       <form
@@ -140,15 +128,15 @@
 
       <!-- Recuperación de contraseña (RF06) -->
       @if (recuperacionAbierta()) {
-        <div class="mt-4 rounded-lg border border-slate-200 bg-white p-4">
+        <div class="mt-4 rounded-md border border-borde bg-superficie p-4">
           @if (recuperacionEnviada()) {
-            <p class="text-sm text-slate-700">
+            <p class="text-sm text-contenido">
               Si el correo está registrado, recibirá las instrucciones para
               restablecer su contraseña. Revise también la carpeta de correo no
               deseado.
             </p>
           } @else {
-            <p class="text-sm text-slate-600">
+            <p class="text-sm text-contenido-suave">
               Escriba su correo institucional y le enviaremos un enlace para
               restablecer la contraseña.
             </p>
@@ -178,10 +166,12 @@
         </div>
       }
 
-      <div class="my-6 flex items-center gap-3 text-xs text-slate-400">
-        <span class="h-px grow bg-slate-200"></span>
+      <div
+        class="my-6 flex items-center gap-3 text-xs text-contenido-deshabilitado"
+      >
+        <span class="h-px grow bg-borde"></span>
         <span>o</span>
-        <span class="h-px grow bg-slate-200"></span>
+        <span class="h-px grow bg-borde"></span>
       </div>
 
       <!-- Acceso sin conexión con PIN (RF03) -->
@@ -196,7 +186,7 @@
         Entrar con PIN (modo sin conexión)
       </button>
       @if (!hayPin) {
-        <p class="mt-2 text-xs text-slate-500">
+        <p class="mt-2 text-xs text-contenido-suave">
           Todavía no hay un PIN configurado en este equipo. Puede crearlo desde
           el panel, después de ingresar.
         </p>
@@ -204,11 +194,11 @@
 
       @if (pinAbierto() && hayPin) {
         <form
-          class="mt-4 flex flex-col gap-2 rounded-lg border border-slate-200 bg-white p-4"
+          class="mt-4 flex flex-col gap-2 rounded-md border border-borde bg-superficie p-4"
           [formGroup]="formularioPin"
           (ngSubmit)="entrarConPin()"
         >
-          <p class="text-sm text-slate-600">
+          <p class="text-sm text-contenido-suave">
             Escriba su PIN para trabajar sin conexión en este equipo.
           </p>
           <mat-form-field appearance="outline" class="w-full">
@@ -235,7 +225,7 @@
         </form>
       }
 
-      <p class="mt-6 text-center text-xs text-slate-500">
+      <p class="mt-6 text-center text-xs text-contenido-suave">
         ¿Primera vez? Solicite acceso al administrador del sistema.
       </p>
     </div>

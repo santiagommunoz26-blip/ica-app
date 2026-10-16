@@ -15,6 +15,8 @@ import { MatToolbarModule } from '@angular/material/toolbar';
 import { AuthService } from '../../core/auth/auth.service';
 import { PERMISOS, type Permiso } from '../../core/auth/auth.modelos';
 import { mensajeDeError } from '../../core/http/errores';
+import { AvisoComponent } from '../../shared/ui/aviso/aviso.component';
+import { InsigniaComponent } from '../../shared/ui/insignia/insignia.component';
 
 /** Opción del menú lateral. */
 interface OpcionNavegacion {
@@ -40,6 +42,8 @@ interface OpcionNavegacion {
     RouterOutlet,
     RouterLink,
     RouterLinkActive,
+    AvisoComponent,
+    InsigniaComponent,
     MatButtonModule,
     MatDividerModule,
     MatIconModule,

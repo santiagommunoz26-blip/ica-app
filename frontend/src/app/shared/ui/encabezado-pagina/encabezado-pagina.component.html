@@ -1,0 +1,14 @@
+<header
+  class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"
+>
+  <div class="flex flex-col gap-1">
+    <h1 class="text-2xl font-bold text-contenido">{{ titulo() }}</h1>
+    @if (descripcion()) {
+      <p class="text-sm text-contenido-suave">{{ descripcion() }}</p>
+    }
+  </div>
+
+  <div class="flex flex-wrap items-center gap-2">
+    <ng-content />
+  </div>
+</header>

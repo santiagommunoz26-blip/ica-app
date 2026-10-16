@@ -19,6 +19,9 @@ import type {
   Usuario,
 } from '../../core/auth/auth.modelos';
 import { mensajeDeError } from '../../core/http/errores';
+import { AvisoComponent } from '../../shared/ui/aviso/aviso.component';
+import { EstadoVacioComponent } from '../../shared/ui/estado-vacio/estado-vacio.component';
+import { InsigniaComponent } from '../../shared/ui/insignia/insignia.component';
 
 /**
  * Administración de usuarios y roles (RF05, RF04).
@@ -34,6 +37,9 @@ import { mensajeDeError } from '../../core/http/errores';
   imports: [
     ReactiveFormsModule,
     DatePipe,
+    AvisoComponent,
+    EstadoVacioComponent,
+    InsigniaComponent,
     MatButtonModule,
     MatCheckboxModule,
     MatDividerModule,

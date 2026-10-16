@@ -13,6 +13,7 @@ import {
 } from '../../core/auth/auth.modelos';
 import { mensajeDeError } from '../../core/http/errores';
 import { camposIguales } from '../../core/validadores';
+import { AvisoComponent } from '../../shared/ui/aviso/aviso.component';
 
 /**
  * Restablecimiento de contraseña (RF06): el usuario llega desde el enlace del
@@ -24,6 +25,7 @@ import { camposIguales } from '../../core/validadores';
   imports: [
     ReactiveFormsModule,
     RouterLink,
+    AvisoComponent,
     MatButtonModule,
     MatCardModule,
     MatFormFieldModule,

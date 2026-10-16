@@ -1,0 +1,125 @@
+// =============================================================================
+// Tema propio de Angular Material 18 (M3) construido a partir de los tokens.
+// Sustituye al tema prebuilt «azure-blue». No define colores nuevos: solo
+// traduce la escala tonal de theme/_tokens.scss a las paletas de Material.
+// =============================================================================
+
+@use 'sass:map';
+@use '@angular/material' as mat;
+@use './tokens' as t;
+
+// Paleta primaria: la escala de marca. Se toma la paleta verde de Material para
+// heredar sus neutros (verde-grisáceos, coherentes con el wireframe), la
+// paleta de error estándar y la paleta secundaria; solo se reemplazan los
+// tonos por los de la marca.
+$paleta-marca: map.merge(
+  mat.$green-palette,
+  (
+    0: t.$marca-0,
+    10: t.$marca-10,
+    20: t.$marca-20,
+    25: t.$marca-25,
+    30: t.$marca-30,
+    35: t.$marca-35,
+    40: t.$marca-40,
+    50: t.$marca-50,
+    60: t.$marca-60,
+    70: t.$marca-70,
+    80: t.$marca-80,
+    90: t.$marca-90,
+    95: t.$marca-95,
+    98: t.$marca-98,
+    99: t.$marca-99,
+    100: t.$marca-100,
+  )
+);
+
+// Paleta de acento (terciaria): la escala lima. El tono 90 es el acento de los
+// wireframes; sus pares (contenedor claro + texto oscuro) quedan accesibles.
+// Igual que la primaria, hereda neutros y error de la paleta chartreuse de
+// Material y solo reemplaza los tonos.
+$paleta-acento: map.merge(
+  mat.$chartreuse-palette,
+  (
+    0: t.$acento-0,
+    10: t.$acento-10,
+    20: t.$acento-20,
+    25: t.$acento-25,
+    30: t.$acento-30,
+    35: t.$acento-35,
+    40: t.$acento-40,
+    50: t.$acento-50,
+    60: t.$acento-60,
+    70: t.$acento-70,
+    80: t.$acento-80,
+    90: t.$acento-90,
+    95: t.$acento-95,
+    98: t.$acento-98,
+    99: t.$acento-99,
+    100: t.$acento-100,
+  )
+);
+
+$tema: mat.define-theme(
+  (
+    color: (
+      primary: $paleta-marca,
+      tertiary: $paleta-acento,
+      theme-type: light,
+    ),
+    typography: (
+      plain-family: t.$fuente-base,
+      brand-family: t.$fuente-base,
+    ),
+    density: (
+      scale: 0,
+    ),
+  )
+);
+
+/// Aplica el tema a todos los componentes de Angular Material.
+@mixin aplicar-tema() {
+  @include mat.all-component-themes($tema);
+}
+
+/// Ajusta forma y superficie de los componentes de Material a los tokens.
+/// Los valores por defecto de Material 3 son más cerrados y usan superficies
+/// verde-grisáceas; aquí se alinean con la línea gráfica de los wireframes.
+/// Solo se reasignan variables existentes a tokens: no se inventan colores.
+@mixin ajustar-componentes() {
+  :root {
+    // Campos de texto: 12px (los de una línea del wireframe son tipo píldora;
+    // se usa un radio generoso para que los campos multilínea «Observaciones»
+    // no queden deformes). Cambiar a píldora es cambiar este token.
+    --mdc-outlined-text-field-container-shape: var(--radio-md);
+    --mdc-filled-text-field-container-shape: var(--radio-md);
+
+    // Tarjetas, diálogos y menús.
+    --mdc-elevated-card-container-shape: var(--radio-lg);
+    --mdc-outlined-card-container-shape: var(--radio-lg);
+    --mdc-dialog-container-shape: var(--radio-lg);
+    --mat-menu-container-shape: var(--radio-md);
+    --mat-autocomplete-container-shape: var(--radio-md);
+    --mat-sidenav-container-shape: 0;
+
+    // Superficies: panel lateral, barra y contenedores en la superficie clara;
+    // el área de contenido sobre el fondo crema.
+    --mat-sidenav-container-background-color: var(--color-superficie);
+    --mat-sidenav-container-text-color: var(--color-texto-suave);
+    --mat-sidenav-content-background-color: var(--color-fondo);
+    --mat-toolbar-container-background-color: var(--color-superficie);
+    --mat-toolbar-container-text-color: var(--color-texto);
+    --mdc-dialog-container-color: var(--color-superficie);
+    --mdc-elevated-card-container-color: var(--color-superficie);
+    --mdc-outlined-card-container-color: var(--color-superficie);
+    --mat-table-background-color: var(--color-superficie);
+    --mdc-snackbar-container-shape: var(--radio-md);
+
+    // Altura de los controles: 44px de área táctil para usarlos en campo y con
+    // una sola mano (RNF12).
+    --mdc-filled-button-container-height: var(--altura-control);
+    --mdc-outlined-button-container-height: var(--altura-control);
+    --mdc-protected-button-container-height: var(--altura-control);
+    --mdc-text-button-container-height: var(--altura-control);
+  }
+}

@@ -7,6 +7,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { AuthService } from '../../core/auth/auth.service';
+import { AvisoComponent } from '../../shared/ui/aviso/aviso.component';
 import { mensajeDeError } from '../../core/http/errores';
 
 /**
@@ -19,6 +20,7 @@ import { mensajeDeError } from '../../core/http/errores';
   standalone: true,
   imports: [
     ReactiveFormsModule,
+    AvisoComponent,
     MatButtonModule,
     MatCheckboxModule,
     MatFormFieldModule,

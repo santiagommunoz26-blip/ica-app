@@ -1,31 +1,31 @@
 <div class="mx-auto flex w-full max-w-4xl flex-col gap-6">
-  <mat-card appearance="outlined" class="rounded-xl">
+  <mat-card appearance="outlined" class="rounded-tarjeta">
     <mat-card-content class="flex flex-col gap-2 p-6">
-      <h1 class="text-2xl font-bold text-slate-900">
+      <h1 class="text-2xl font-bold text-contenido">
         Hola, {{ auth.usuario()?.nombreCompleto }}
       </h1>
-      <p class="text-sm text-slate-600">
+      <p class="text-sm text-contenido-suave">
         Sesión iniciada como
         <strong>{{ auth.usuario()?.etiquetaRol }}</strong> ({{
           auth.usuario()?.correo
         }}).
       </p>
-      <p class="text-sm text-slate-500">
+      <p class="text-sm text-contenido-suave">
         Cierre de sesión automático tras
         {{ auth.minutosDeInactividad() }} minutos de inactividad.
       </p>
     </mat-card-content>
   </mat-card>
 
-  <mat-card appearance="outlined" class="rounded-xl">
+  <mat-card appearance="outlined" class="rounded-tarjeta">
     <mat-card-content class="flex flex-col gap-3 p-6">
-      <h2 class="text-lg font-semibold text-slate-900">
+      <h2 class="text-lg font-semibold text-contenido">
         Qué puede hacer su rol
       </h2>
-      <ul class="flex flex-col gap-2 text-sm text-slate-700">
+      <ul class="flex flex-col gap-2 text-sm text-contenido">
         @for (permiso of auth.usuario()?.permisos ?? []; track permiso) {
           <li class="flex items-center gap-2">
-            <mat-icon class="text-base text-emerald-700">check_circle</mat-icon>
+            <mat-icon class="text-base text-marca">check_circle</mat-icon>
             {{ etiquetas[permiso] }}
           </li>
         }
@@ -33,15 +33,15 @@
     </mat-card-content>
   </mat-card>
 
-  <mat-card appearance="outlined" class="rounded-xl">
+  <mat-card appearance="outlined" class="rounded-tarjeta">
     <mat-card-content class="flex flex-col gap-3 p-6">
       <div class="flex items-center gap-2">
-        <mat-icon class="text-emerald-800">pin</mat-icon>
-        <h2 class="text-lg font-semibold text-slate-900">
+        <mat-icon class="text-marca">pin</mat-icon>
+        <h2 class="text-lg font-semibold text-contenido">
           Acceso sin conexión (PIN)
         </h2>
       </div>
-      <p class="text-sm text-slate-600">
+      <p class="text-sm text-contenido-suave">
         Con el PIN puede entrar en este equipo cuando no tenga internet ({{
           tienePin()
             ? 'ya tiene un PIN configurado; puede cambiarlo aquí'
@@ -50,22 +50,10 @@
       </p>
 
       @if (mensajePin(); as mensaje) {
-        <div
-          class="flex items-start gap-2 rounded-lg border border-emerald-300 bg-emerald-50 p-3 text-sm text-emerald-900"
-          role="status"
-        >
-          <mat-icon class="text-base">check_circle</mat-icon>
-          <span>{{ mensaje }}</span>
-        </div>
+        <app-aviso tipo="exito">{{ mensaje }}</app-aviso>
       }
       @if (errorPin(); as mensaje) {
-        <div
-          class="flex items-start gap-2 rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-800"
-          role="alert"
-        >
-          <mat-icon class="text-base">error_outline</mat-icon>
-          <span>{{ mensaje }}</span>
-        </div>
+        <app-aviso tipo="peligro">{{ mensaje }}</app-aviso>
       }
 
       <form
@@ -127,12 +115,12 @@
     </mat-card-content>
   </mat-card>
 
-  <mat-card appearance="outlined" class="rounded-xl bg-slate-50">
+  <mat-card appearance="outlined" class="rounded-tarjeta bg-superficie-alterna">
     <mat-card-content class="flex flex-col gap-1 p-6">
-      <p class="text-sm text-slate-500">
+      <p class="text-sm text-contenido-suave">
         Módulo en construcción: {{ moduloActual }}
       </p>
-      <p class="text-sm text-slate-700">
+      <p class="text-sm text-contenido">
         Siguiente entregable: <strong>{{ proximoModulo }}</strong
         >.
       </p>

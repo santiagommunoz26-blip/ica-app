@@ -3,13 +3,13 @@
   <nav class="flex flex-wrap gap-2 text-sm">
     <button
       type="button"
-      class="rounded-full bg-emerald-700 px-4 py-1.5 font-medium text-white"
+      class="rounded-full bg-marca px-4 py-1.5 font-medium text-marca-contraste"
     >
       Usuarios y roles
     </button>
     <button
       type="button"
-      class="rounded-full border border-slate-200 px-4 py-1.5 text-slate-400"
+      class="rounded-full border border-borde px-4 py-1.5 text-contenido-deshabilitado"
       disabled
       title="Disponible en M4 · Catálogo de indicadores"
     >
@@ -17,7 +17,7 @@
     </button>
     <button
       type="button"
-      class="rounded-full border border-slate-200 px-4 py-1.5 text-slate-400"
+      class="rounded-full border border-borde px-4 py-1.5 text-contenido-deshabilitado"
       disabled
       title="Disponible en M7–M8 · Historial y reportes"
     >
@@ -26,13 +26,7 @@
   </nav>
 
   @if (error(); as mensaje) {
-    <div
-      class="flex items-start gap-2 rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-800"
-      role="alert"
-    >
-      <mat-icon class="text-base">error_outline</mat-icon>
-      <span>{{ mensaje }}</span>
-    </div>
+    <app-aviso tipo="peligro">{{ mensaje }}</app-aviso>
   }
 
   <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -62,13 +56,17 @@
     </button>
   </div>
 
-  <div class="overflow-hidden rounded-xl border border-slate-200 bg-white">
+  <div
+    class="overflow-hidden rounded-tarjeta border border-borde bg-superficie"
+  >
     @if (cargando()) {
       <mat-progress-bar mode="indeterminate" />
     }
 
     <table class="w-full text-left text-sm">
-      <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+      <thead
+        class="bg-superficie-alterna text-xs uppercase tracking-wide text-contenido-suave"
+      >
         <tr>
           <th scope="col" class="px-4 py-3">Nombre</th>
           <th scope="col" class="px-4 py-3">Rol</th>
@@ -79,43 +77,40 @@
       </thead>
       <tbody>
         @for (usuario of usuarios(); track usuario.id) {
-          <tr class="border-t border-slate-100">
+          <tr class="border-t border-borde">
             <td class="px-4 py-3">
               <div class="flex items-center gap-3">
                 <span
-                  class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-xs font-semibold text-emerald-800"
+                  class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-marca-suave text-xs font-semibold text-marca"
                 >
                   {{ iniciales(usuario) }}
                 </span>
                 <div>
-                  <div class="font-medium text-slate-800">
+                  <div class="font-medium text-contenido">
                     {{ usuario.nombreCompleto }}
                   </div>
-                  <div class="text-xs text-slate-500">{{ usuario.correo }}</div>
+                  <div class="text-xs text-contenido-suave">
+                    {{ usuario.correo }}
+                  </div>
                 </div>
               </div>
             </td>
-            <td class="px-4 py-3 text-slate-700">{{ usuario.etiquetaRol }}</td>
+            <td class="px-4 py-3 text-contenido">{{ usuario.etiquetaRol }}</td>
             <td class="px-4 py-3">
-              <span
-                class="rounded-full px-2 py-0.5 text-xs font-medium"
-                [class]="
-                  usuario.estado === 'ACTIVO'
-                    ? 'bg-emerald-100 text-emerald-800'
-                    : 'bg-slate-200 text-slate-600'
-                "
-              >
-                {{ usuario.estado === 'ACTIVO' ? 'Activo' : 'Inactivo' }}
-              </span>
-              @if (usuario.debeCambiarPassword) {
-                <span
-                  class="ml-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-800"
+              <div class="flex flex-wrap items-center gap-1">
+                <app-insignia
+                  [tono]="usuario.estado === 'ACTIVO' ? 'exito' : 'neutro'"
                 >
-                  Contraseña temporal
-                </span>
-              }
+                  {{ usuario.estado === 'ACTIVO' ? 'Activo' : 'Inactivo' }}
+                </app-insignia>
+                @if (usuario.debeCambiarPassword) {
+                  <app-insignia tono="advertencia">
+                    Contraseña temporal
+                  </app-insignia>
+                }
+              </div>
             </td>
-            <td class="px-4 py-3 text-slate-600">
+            <td class="px-4 py-3 text-contenido-suave">
               {{
                 usuario.ultimoAcceso
                   ? (usuario.ultimoAcceso | date: 'short')
@@ -163,8 +158,12 @@
           </tr>
         } @empty {
           <tr>
-            <td colspan="5" class="px-4 py-8 text-center text-slate-500">
-              No hay usuarios que coincidan con la búsqueda.
+            <td colspan="5">
+              <app-estado-vacio
+                icono="person_search"
+                titulo="No hay usuarios que coincidan con la búsqueda"
+                descripcion="Pruebe con otro nombre, correo o rol; o cree un usuario nuevo."
+              />
             </td>
           </tr>
         }
@@ -172,7 +171,7 @@
     </table>
 
     <div
-      class="flex items-center justify-between border-t border-slate-100 px-4 py-3 text-sm text-slate-600"
+      class="flex items-center justify-between border-t border-borde px-4 py-3 text-sm text-contenido-suave"
     >
       <span>{{ total() }} usuario(s)</span>
       <div class="flex items-center gap-2">
@@ -201,16 +200,16 @@
 <!-- Panel lateral de creación/edición (drawer del wireframe) -->
 @if (panelAbierto()) {
   <div
-    class="fixed inset-0 z-40 bg-slate-900/30"
+    class="fixed inset-0 z-40 bg-velo"
     (click)="cerrarPanel()"
     aria-hidden="true"
   ></div>
   <aside
-    class="fixed right-0 top-0 z-50 flex h-full w-full max-w-md flex-col gap-4 overflow-auto bg-white p-6 shadow-2xl"
+    class="fixed right-0 top-0 z-50 flex h-full w-full max-w-md flex-col gap-4 overflow-auto bg-superficie p-6 shadow-2xl"
     aria-label="Formulario de usuario"
   >
     <div class="flex items-center justify-between">
-      <h2 class="text-lg font-semibold text-slate-900">
+      <h2 class="text-lg font-semibold text-contenido">
         {{ esEdicion() ? 'Editar usuario' : 'Nuevo usuario' }}
       </h2>
       <button
@@ -283,8 +282,10 @@
         </mat-form-field>
       }
 
-      <div class="rounded-lg bg-slate-50 p-3">
-        <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">
+      <div class="rounded-md bg-superficie-alterna p-3">
+        <p
+          class="text-xs font-semibold uppercase tracking-wide text-contenido-suave"
+        >
           Permisos del rol {{ formulario.controls.rol.value }}
         </p>
         <div class="mt-2 flex flex-col">
@@ -294,7 +295,7 @@
             </mat-checkbox>
           }
         </div>
-        <p class="mt-2 text-xs text-slate-500">
+        <p class="mt-2 text-xs text-contenido-suave">
           Los permisos vienen dados por el rol y no se editan por usuario.
         </p>
       </div>
@@ -324,27 +325,25 @@
 
 <!-- Contraseña temporal: se muestra una sola vez -->
 @if (credenciales(); as datos) {
-  <div
-    class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4"
-  >
-    <div class="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl">
-      <div class="flex items-center gap-2 text-emerald-800">
+  <div class="fixed inset-0 z-50 flex items-center justify-center bg-velo p-4">
+    <div class="w-full max-w-md rounded-tarjeta bg-superficie p-6 shadow-2xl">
+      <div class="flex items-center gap-2 text-marca">
         <mat-icon>key</mat-icon>
-        <h2 class="text-lg font-semibold text-slate-900">
+        <h2 class="text-lg font-semibold text-contenido">
           Contraseña temporal
         </h2>
       </div>
-      <p class="mt-2 text-sm text-slate-600">
+      <p class="mt-2 text-sm text-contenido-suave">
         Entregue esta contraseña a
         <strong>{{ datos.correo }}</strong
         >. No se volverá a mostrar.
       </p>
       <p
-        class="mt-4 select-all rounded-lg bg-slate-100 px-4 py-3 text-center font-mono text-lg tracking-wider text-slate-900"
+        class="mt-4 select-all rounded-md bg-superficie-alterna px-4 py-3 text-center font-mono text-lg tracking-wider text-contenido"
       >
         {{ datos.password }}
       </p>
-      <p class="mt-3 text-xs text-slate-500">
+      <p class="mt-3 text-xs text-contenido-suave">
         El usuario deberá cambiarla en su primer acceso.
       </p>
       <div class="mt-4 flex justify-end">

@@ -1,12 +1,69 @@
-/* Estilos globales. Tailwind se importa primero; el tema de Angular Material
-   se carga desde angular.json (@angular/material/prebuilt-themes/azure-blue.css)
-   antes que este archivo. */
+/* =============================================================================
+   ESTILOS GLOBALES — Aplicativo EBA Aves
+   Orden de carga:
+     1. Angular Material (core + tema propio, ver src/theme/).
+     2. Tailwind (preflight, componentes y utilidades).
+     3. Ajustes propios de base e interoperabilidad.
+   El color, la tipografía y las medidas NO se escriben aquí: salen de los
+   tokens de src/theme/_tokens.scss.
+   ============================================================================= */
+@use '@angular/material' as mat;
+@use './theme/tokens';
+@use './theme/material' as tema-material;
+
+/* 1. Angular Material ------------------------------------------------------ */
+@include mat.core();
+
+/* El tema M3 debe aplicarse dentro de un selector (Angular Material 18). */
+html {
+  @include tema-material.aplicar-tema();
+}
+@include tema-material.ajustar-componentes();
+
+/* 2. Tailwind -------------------------------------------------------------- */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Ajustes de interoperabilidad con Angular Material ---------------------------
-   Tailwind (Preflight) aplica «border-style: solid» a todos los elementos.
+/* 4. Clases globales de base ----------------------------------------------- */
+/* Solo lo que debe aplicarse fuera de los componentes encapsulados (por
+   ejemplo, las notificaciones, que se dibujan en una capa superpuesta).
+   Todos los valores salen de los tokens. */
+@layer components {
+  /* Acción de realce de marca (el lima del wireframe) sobre `mat-flat-button`. */
+  .boton-acento {
+    --mdc-filled-button-container-color: var(--color-acento);
+    --mdc-filled-button-label-text-color: var(--color-sobre-acento);
+  }
+
+  /* Tonos de las notificaciones (snackbar). */
+  .aviso-snack-info {
+    --mdc-snackbar-container-color: var(--color-info);
+    --mdc-snackbar-supporting-text-color: var(--color-sobre-info);
+    --mat-snack-bar-button-color: var(--color-sobre-info);
+  }
+
+  .aviso-snack-exito {
+    --mdc-snackbar-container-color: var(--color-exito);
+    --mdc-snackbar-supporting-text-color: var(--color-sobre-exito);
+    --mat-snack-bar-button-color: var(--color-sobre-exito);
+  }
+
+  .aviso-snack-advertencia {
+    --mdc-snackbar-container-color: var(--color-advertencia);
+    --mdc-snackbar-supporting-text-color: var(--color-sobre-advertencia);
+    --mat-snack-bar-button-color: var(--color-sobre-advertencia);
+  }
+
+  .aviso-snack-peligro {
+    --mdc-snackbar-container-color: var(--color-peligro);
+    --mdc-snackbar-supporting-text-color: var(--color-sobre-peligro);
+    --mat-snack-bar-button-color: var(--color-sobre-peligro);
+  }
+}
+
+/* 5. Ajustes propios de base ---------------------------------------------- */
+/* Tailwind (Preflight) aplica «border-style: solid» a todos los elementos.
    Los contornos de tipo «outline» de Angular Material dejan a propósito sin
    estilo el borde derecho de la muesca (notch) donde se apoya la etiqueta, así
    que ese reset lo volvía visible y aparecía una línea vertical dentro de los
@@ -22,6 +79,22 @@ body {
 
 body {
   margin: 0;
-  font-family: Roboto, 'Helvetica Neue', sans-serif;
-  background-color: #f8fafc;
+  font-family: var(--fuente-base);
+  font-size: var(--texto-base);
+  line-height: var(--interlinea-cuerpo);
+  color: var(--color-texto);
+  background-color: var(--color-fondo);
+}
+
+/* Foco visible y consistente en todo el producto (RNF15). */
+:focus-visible {
+  outline: 2px solid var(--color-marca);
+  outline-offset: 2px;
+}
+
+/* El armazón dibuja el panel lateral y la barra sobre la superficie clara. */
+.mat-drawer-container,
+.mat-sidenav-content {
+  background-color: var(--color-fondo);
+  color: var(--color-texto);
 }

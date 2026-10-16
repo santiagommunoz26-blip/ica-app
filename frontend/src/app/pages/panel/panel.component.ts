@@ -9,6 +9,7 @@ import { AuthService } from '../../core/auth/auth.service';
 import { ETIQUETA_PERMISO } from '../../core/auth/auth.modelos';
 import { mensajeDeError } from '../../core/http/errores';
 import { camposIguales } from '../../core/validadores';
+import { AvisoComponent } from '../../shared/ui/aviso/aviso.component';
 
 /**
  * Pantalla inicial tras ingresar (M1).
@@ -22,6 +23,7 @@ import { camposIguales } from '../../core/validadores';
   standalone: true,
   imports: [
     ReactiveFormsModule,
+    AvisoComponent,
     MatButtonModule,
     MatCardModule,
     MatFormFieldModule,

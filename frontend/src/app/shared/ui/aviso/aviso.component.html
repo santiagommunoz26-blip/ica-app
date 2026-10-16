@@ -1,0 +1,13 @@
+<div
+  class="flex items-start gap-2 rounded-md border p-3 text-sm"
+  [class]="clases()"
+  [attr.role]="rol()"
+>
+  <mat-icon aria-hidden="true">{{ iconoFinal() }}</mat-icon>
+  <div class="flex flex-col gap-1">
+    @if (titulo()) {
+      <p class="font-semibold">{{ titulo() }}</p>
+    }
+    <div><ng-content /></div>
+  </div>
+</div>

@@ -3,3 +3,15 @@
   display: block;
   height: 100%;
 }
+
+/* Opción de navegación activa: la píldora oscura de los wireframes. El texto y
+   el icono de un `mat-list-item` se pintan con variables de Material propias,
+   así que se reasignan a los tokens para que hereden el color claro. */
+.nav-activo {
+  --mdc-list-list-item-label-text-color: var(--color-sobre-marca);
+  --mdc-list-list-item-leading-icon-color: var(--color-sobre-marca);
+  --mdc-list-list-item-hover-label-text-color: var(--color-sobre-marca);
+  --mdc-list-list-item-focus-label-text-color: var(--color-sobre-marca);
+  --mdc-list-list-item-hover-state-layer-color: var(--color-sobre-marca);
+  background-color: var(--color-marca);
+}

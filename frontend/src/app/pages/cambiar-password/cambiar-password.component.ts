@@ -13,6 +13,7 @@ import {
 } from '../../core/auth/auth.modelos';
 import { mensajeDeError } from '../../core/http/errores';
 import { camposIguales } from '../../core/validadores';
+import { AvisoComponent } from '../../shared/ui/aviso/aviso.component';
 
 /**
  * Cambio de contraseña (RF07).
@@ -25,6 +26,7 @@ import { camposIguales } from '../../core/validadores';
   standalone: true,
   imports: [
     ReactiveFormsModule,
+    AvisoComponent,
     MatButtonModule,
     MatCardModule,
     MatFormFieldModule,

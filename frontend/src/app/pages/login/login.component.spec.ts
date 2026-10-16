@@ -107,6 +107,7 @@ describe('LoginComponent (RF01, RF06, RF03)', () => {
     });
 
     await componente.ingresar();
+    expect(componente.formulario.controls.correo.invalid).toBeTrue();
     http.expectNone(`${environment.apiUrl}/auth/login`);
   });
 

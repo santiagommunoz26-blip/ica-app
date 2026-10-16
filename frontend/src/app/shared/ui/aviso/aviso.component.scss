@@ -1,0 +1,14 @@
+/* Aviso a lo ancho de su contenedor; así los márgenes y el ancho de la
+   pantalla que lo usa se aplican bien. */
+:host {
+  display: block;
+}
+
+/* El icono del aviso se dibuja más pequeño que el tamaño por defecto de
+   `mat-icon` (24px) para no dominar el mensaje. */
+mat-icon {
+  flex-shrink: 0;
+  font-size: 1.25rem;
+  width: 1.25rem;
+  height: 1.25rem;
+}

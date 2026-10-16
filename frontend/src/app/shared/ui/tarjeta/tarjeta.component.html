@@ -1,0 +1,24 @@
+<section
+  class="flex flex-col rounded-tarjeta border shadow-suave"
+  [class]="clasesFondo()"
+>
+  @if (titulo()) {
+    <header
+      class="flex flex-wrap items-start justify-between gap-2 border-b border-borde px-lg py-md"
+    >
+      <div class="flex flex-col gap-1">
+        <h2 class="text-lg font-semibold">{{ titulo() }}</h2>
+        @if (descripcion()) {
+          <p class="text-sm opacity-80">{{ descripcion() }}</p>
+        }
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        <ng-content select="[acciones]" />
+      </div>
+    </header>
+  }
+
+  <div class="flex grow flex-col" [class]="clasesRelleno()">
+    <ng-content />
+  </div>
+</section>

@@ -1,0 +1,195 @@
+// =============================================================================
+// TOKENS DE DISEÑO — Aplicativo EBA Aves
+// ÚNICA FUENTE DE VERDAD para color, tipografía, espaciado, radios, elevación y
+// estados. Los consumen el tema de Angular Material (theme/_material.scss) y
+// los tokens de Tailwind (tailwind.config.js). Ningún componente debe escribir
+// colores de marca a mano: todo sale de aquí.
+//
+// Origen de la paleta: muestreo de color de los wireframes oficiales
+// (docs/Aplicativo EBA Aves – Wireframes.pdf), confirmado con el usuario:
+//   verde primario #10392A · acento lima #E8F06B · fondo crema #F4F2E8
+//   verde medio #2F7D4F · coral de aviso #E18D5B
+// =============================================================================
+
+// --- 1. Escala tonal de marca (verde esmeralda) ------------------------------
+// El tono 40 es el color primario de la aplicación; la escala sigue la
+// convención tonal de Material 3 (0 = negro, 100 = blanco).
+$marca-0: #000000;
+$marca-10: #04140c;
+$marca-20: #082417;
+$marca-25: #0b2f1e;
+$marca-30: #0d3424;
+$marca-35: #0f3728;
+$marca-40: #10392a; // primario de la aplicación (wireframes)
+$marca-50: #1c5b41;
+$marca-60: #2f7d4f; // verde medio (insignias y avatares del wireframe)
+$marca-70: #56a176;
+$marca-80: #86c39c;
+$marca-90: #c7e3ce; // contenedor claro (énfasis suave)
+$marca-95: #e3f1e6;
+$marca-98: #f3f8f2;
+$marca-99: #f9fcf8;
+$marca-100: #ffffff;
+
+// --- 2. Escala tonal de acento (lima) ---------------------------------------
+// El tono 90 es el acento de los wireframes (fondos de realce con texto oscuro).
+$acento-0: #000000;
+$acento-10: #1e2100;
+$acento-20: #333700;
+$acento-25: #3f4300;
+$acento-30: #4b4f00;
+$acento-35: #575c00;
+$acento-40: #646900;
+$acento-50: #7e8400;
+$acento-60: #99a000;
+$acento-70: #b5bd0f;
+$acento-80: #d2da38;
+$acento-90: #e8f06b; // acento (wireframes)
+$acento-95: #f2f7ae;
+$acento-98: #fbfde3;
+$acento-99: #fdfef2;
+$acento-100: #ffffff;
+
+// --- 3. Neutros y estados ---------------------------------------------------
+// Neutros cálidos (crema) tomados del wireframe; el texto y los bordes son
+// verde-grisáceos para mantener la coherencia con la marca.
+$fondo: #f4f2e8; // fondo general de la aplicación (crema del wireframe)
+$superficie: #fffefb; // tarjetas, tablas y paneles
+$superficie-alterna: #efecdf; // cajas de realce (avisos informativos)
+$borde: #dcdcd3;
+$borde-fuerte: #bcc3bb;
+$velo: rgba(16, 57, 42, 0.4); // fondo oscurecido tras paneles y diálogos
+$texto: #1b2a22;
+$texto-suave: #57685c;
+$texto-deshabilitado: #9aa79d;
+
+$exito: #2f7d4f;
+$exito-suave: #dcecdf;
+$advertencia: #e18d5b; // coral de aviso del wireframe («Inactivo», «Bajo»)
+$advertencia-suave: #f9e6d8;
+$advertencia-texto: #8a4a1b;
+$peligro: #b3261e;
+$peligro-suave: #f7dcd8;
+
+// Colores de la clasificación del bienestar (metodología ICA v2.0):
+// Excelente ≥90, Alto ≥75, Medio ≥50, Bajo <50.
+$nivel-excelente: $marca-40;
+$nivel-alto: $marca-60;
+$nivel-medio: $acento-90;
+$nivel-bajo: $advertencia;
+
+// --- 4. Medidas -------------------------------------------------------------
+$radio-xs: 6px;
+$radio-sm: 10px;
+$radio-md: 12px; // campos de formulario
+$radio-lg: 20px; // tarjetas y paneles
+$radio-xl: 28px;
+$radio-full: 9999px; // insignias, botones e imágenes de perfil
+
+$sombra-1: 0 1px 2px rgba(16, 57, 42, 0.06);
+$sombra-2: 0 2px 8px rgba(16, 57, 42, 0.08);
+$sombra-3: 0 8px 24px rgba(16, 57, 42, 0.1);
+$sombra-foco: 0 0 0 3px rgba(16, 57, 42, 0.3);
+
+$fuente-base: (Roboto, 'Helvetica Neue', Arial, sans-serif);
+
+$espacio-xs: 0.5rem; // 8px
+$espacio-sm: 0.75rem; // 12px
+$espacio-md: 1rem; // 16px
+$espacio-lg: 1.5rem; // 24px
+$espacio-xl: 2rem; // 32px
+$espacio-2xl: 3rem; // 48px
+$altura-control: 2.75rem; // 44px: área táctil mínima en campo (RNF12)
+$ancho-contenido: 72rem; // ancho máximo del contenido de una pantalla
+
+// --- 5. Tokens expuestos como variables CSS --------------------------------
+// Tailwind (tailwind.config.js) y los componentes los consumen por nombre
+// semántico, de modo que cambiar la marca es cambiar este archivo.
+:root {
+  color-scheme: light;
+
+  // Color — marca
+  --color-marca: #{$marca-40};
+  --color-marca-fuerte: #{$marca-30};
+  --color-marca-media: #{$marca-60};
+  --color-marca-suave: #{$marca-90};
+  --color-marca-tenue: #{$marca-95};
+  --color-sobre-marca: #{$marca-100};
+
+  // Color — acento
+  --color-acento: #{$acento-90};
+  --color-acento-fuerte: #{$acento-70};
+  --color-acento-suave: #{$acento-95};
+  --color-sobre-acento: #{$acento-10};
+
+  // Color — superficies y texto
+  --color-fondo: #{$fondo};
+  --color-superficie: #{$superficie};
+  --color-superficie-alterna: #{$superficie-alterna};
+  --color-velo: #{$velo};
+  --color-borde: #{$borde};
+  --color-borde-fuerte: #{$borde-fuerte};
+  --color-texto: #{$texto};
+  --color-texto-suave: #{$texto-suave};
+  --color-texto-deshabilitado: #{$texto-deshabilitado};
+
+  // Color — estados
+  --color-exito: #{$exito};
+  --color-exito-suave: #{$exito-suave};
+  --color-sobre-exito: #{$marca-100};
+  --color-info: #{$marca-40};
+  --color-info-suave: #{$marca-95};
+  --color-sobre-info: #{$marca-40};
+  --color-advertencia: #{$advertencia};
+  --color-advertencia-suave: #{$advertencia-suave};
+  --color-advertencia-texto: #{$advertencia-texto};
+  --color-sobre-advertencia: #{$texto};
+  --color-peligro: #{$peligro};
+  --color-peligro-suave: #{$peligro-suave};
+  --color-sobre-peligro: #{$marca-100};
+
+  // Color — clasificación del bienestar
+  --color-nivel-excelente: #{$nivel-excelente};
+  --color-nivel-alto: #{$nivel-alto};
+  --color-nivel-medio: #{$nivel-medio};
+  --color-nivel-bajo: #{$nivel-bajo};
+  --color-sobre-nivel-excelente: #{$marca-100};
+  --color-sobre-nivel-alto: #{$marca-100};
+  --color-sobre-nivel-medio: #{$acento-10};
+  --color-sobre-nivel-bajo: #{$texto};
+
+  // Tipografía
+  --fuente-base: #{$fuente-base};
+  --texto-xs: 0.75rem;
+  --texto-sm: 0.875rem;
+  --texto-base: 1rem;
+  --texto-lg: 1.125rem;
+  --texto-xl: 1.25rem;
+  --texto-2xl: 1.5rem;
+  --texto-3xl: 1.875rem;
+  --peso-normal: 400;
+  --peso-medio: 500;
+  --peso-fuerte: 700;
+  --interlinea-titulo: 1.25;
+  --interlinea-cuerpo: 1.5;
+
+  // Medidas
+  --radio-xs: #{$radio-xs};
+  --radio-sm: #{$radio-sm};
+  --radio-md: #{$radio-md};
+  --radio-lg: #{$radio-lg};
+  --radio-xl: #{$radio-xl};
+  --radio-full: #{$radio-full};
+  --sombra-1: #{$sombra-1};
+  --sombra-2: #{$sombra-2};
+  --sombra-3: #{$sombra-3};
+  --sombra-foco: #{$sombra-foco};
+  --espacio-xs: #{$espacio-xs};
+  --espacio-sm: #{$espacio-sm};
+  --espacio-md: #{$espacio-md};
+  --espacio-lg: #{$espacio-lg};
+  --espacio-xl: #{$espacio-xl};
+  --espacio-2xl: #{$espacio-2xl};
+  --altura-control: #{$altura-control};
+  --ancho-contenido: #{$ancho-contenido};
+}
