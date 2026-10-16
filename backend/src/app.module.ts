@@ -11,6 +11,7 @@ import { RolesGuard } from './common/guards/roles.guard.js';
 import { buildDatabaseOptions } from './database/database.config.js';
 import { HealthModule } from './health/health.module.js';
 import { UsuariosModule } from './usuarios/usuarios.module.js';
+import { VisitasModule } from './visitas/visitas.module.js';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { UsuariosModule } from './usuarios/usuarios.module.js';
     HealthModule,
     UsuariosModule,
     AuthModule,
+    VisitasModule,
   ],
   controllers: [AppController],
   providers: [

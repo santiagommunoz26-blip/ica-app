@@ -1,0 +1,465 @@
+<div class="mx-auto flex w-full max-w-6xl flex-col gap-4">
+  <app-encabezado-pagina
+    titulo="Visitas"
+    descripcion="Programe las visitas a los predios y siga su estado."
+  >
+    @if (puedeCrear()) {
+      <button
+        mat-flat-button
+        color="primary"
+        type="button"
+        (click)="abrirNueva()"
+      >
+        <mat-icon>add</mat-icon>
+        Nueva visita
+      </button>
+    }
+  </app-encabezado-pagina>
+
+  <!-- Sincronización (RF12) -->
+  @if (!sincronizacion.enLinea()) {
+    <app-aviso tipo="advertencia" titulo="Sin conexión">
+      Los cambios se guardan en este equipo y se envían solos cuando vuelva la
+      red.
+    </app-aviso>
+  }
+  @if (sincronizacion.pendientes() > 0) {
+    <app-aviso tipo="info">
+      <div class="flex flex-wrap items-center gap-2">
+        <span>
+          {{ sincronizacion.pendientes() }} registro(s) sin sincronizar.
+        </span>
+        <button
+          mat-stroked-button
+          type="button"
+          [disabled]="sincronizacion.sincronizando()"
+          (click)="sincronizarAhora()"
+        >
+          Sincronizar ahora
+        </button>
+      </div>
+    </app-aviso>
+  }
+
+  @if (error(); as mensaje) {
+    <app-aviso tipo="peligro">{{ mensaje }}</app-aviso>
+  }
+
+  @if (sincronizacion.sincronizando()) {
+    <mat-progress-bar mode="indeterminate" />
+  }
+
+  <app-tarjeta relleno="ninguno">
+    <!-- Barra de búsqueda y filtros (RF11) -->
+    <div class="flex flex-col gap-3 p-4">
+      <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <mat-form-field appearance="outline" class="grow">
+          <mat-label>Buscar por predio, municipio o vereda</mat-label>
+          <mat-icon matPrefix>search</mat-icon>
+          <input
+            matInput
+            type="search"
+            [value]="busqueda()"
+            (input)="buscar($event)"
+          />
+        </mat-form-field>
+
+        <button mat-stroked-button type="button" (click)="alternarFiltros()">
+          <mat-icon>tune</mat-icon>
+          Filtros
+          @if (hayFiltros()) {
+            <span class="ml-1 h-2 w-2 rounded-full bg-acento"></span>
+          }
+        </button>
+      </div>
+
+      @if (filtrosAbiertos()) {
+        <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <mat-form-field appearance="outline">
+            <mat-label>Municipio</mat-label>
+            <mat-select
+              [value]="municipio()"
+              (selectionChange)="municipio.set($event.value); aplicarFiltros()"
+            >
+              <mat-option value="">Todos</mat-option>
+              @for (nombre of municipios(); track nombre) {
+                <mat-option [value]="nombre">{{ nombre }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Tipo de predio</mat-label>
+            <mat-select
+              [value]="tipoPredio()"
+              (selectionChange)="tipoPredio.set($event.value); aplicarFiltros()"
+            >
+              <mat-option value="">Todos</mat-option>
+              <mat-option value="CORRAL">Granja (corral)</mat-option>
+              <mat-option value="TRASPATIO">Traspatio</mat-option>
+            </mat-select>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Desde</mat-label>
+            <input
+              matInput
+              type="date"
+              [value]="desde()"
+              (change)="desde.set($any($event.target).value); aplicarFiltros()"
+            />
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Hasta</mat-label>
+            <input
+              matInput
+              type="date"
+              [value]="hasta()"
+              (change)="hasta.set($any($event.target).value); aplicarFiltros()"
+            />
+          </mat-form-field>
+        </div>
+
+        @if (hayFiltros()) {
+          <div class="flex justify-end">
+            <button mat-button type="button" (click)="limpiarFiltros()">
+              Limpiar filtros
+            </button>
+          </div>
+        }
+      }
+    </div>
+
+    <!-- Pestañas por estado, como en el wireframe -->
+    <nav class="flex flex-wrap gap-2 px-4 pb-3 text-sm">
+      @for (pestana of pestanas; track pestana.clave) {
+        <button
+          type="button"
+          class="rounded-full px-4 py-1.5 font-medium transition-colors"
+          [class]="
+            estado() === pestana.clave
+              ? 'bg-marca text-marca-contraste'
+              : 'border border-borde text-contenido-suave hover:bg-superficie-alterna'
+          "
+          (click)="cambiarPestana(pestana.clave)"
+        >
+          {{ pestana.etiqueta }}
+          <span class="ml-1 opacity-80">{{
+            cantidadPestana(pestana.clave)
+          }}</span>
+        </button>
+      }
+    </nav>
+
+    <div class="overflow-x-auto">
+      <table class="w-full border-collapse text-sm">
+        <thead>
+          <tr class="border-y border-borde bg-superficie-alterna text-left">
+            <th class="px-4 py-3 font-semibold text-contenido">Predio</th>
+            <th class="px-4 py-3 font-semibold text-contenido">Tipo</th>
+            <th class="px-4 py-3 font-semibold text-contenido">Fecha</th>
+            <th class="px-4 py-3 font-semibold text-contenido">Estado</th>
+            <th class="px-4 py-3 font-semibold text-contenido">Calificación</th>
+            <th class="px-4 py-3 text-right font-semibold text-contenido">
+              Acciones
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (visita of lista()?.datos ?? []; track visita.id) {
+            <tr class="border-b border-borde hover:bg-superficie-alterna">
+              <td class="px-4 py-3">
+                <div class="flex flex-col">
+                  <span class="font-medium text-contenido">
+                    {{ visita.predio.nombre }}
+                  </span>
+                  <span class="text-xs text-contenido-suave">
+                    {{ visita.predio.municipio }} · {{ visita.predio.vereda }}
+                  </span>
+                </div>
+              </td>
+              <td class="px-4 py-3 text-contenido-suave">
+                {{ visita.predio.etiquetaTipoPredio }}
+              </td>
+              <td class="px-4 py-3 text-contenido-suave">
+                {{ visita.programadaPara | date: 'd MMM y, h:mm a' }}
+              </td>
+              <td class="px-4 py-3">
+                <app-insignia [tono]="tonoEstado[visita.estado]">
+                  {{ visita.etiquetaEstado }}
+                </app-insignia>
+                @if (visita.pendiente) {
+                  <span class="ml-1 text-xs text-contenido-suave">
+                    (sin sincronizar)
+                  </span>
+                }
+              </td>
+              <td class="px-4 py-3">
+                @if (visita.calificacion !== null) {
+                  <span class="font-medium text-contenido">
+                    {{ visita.calificacion | number: '1.1-1' }}
+                  </span>
+                  <span class="ml-1 text-xs text-contenido-suave">
+                    {{ visita.etiquetaClasificacion }}
+                  </span>
+                } @else {
+                  <span class="text-contenido-deshabilitado">—</span>
+                }
+              </td>
+              <td class="px-4 py-3 text-right">
+                <button
+                  mat-icon-button
+                  type="button"
+                  [matMenuTriggerFor]="menuAcciones"
+                  [attr.aria-label]="'Acciones para ' + visita.predio.nombre"
+                >
+                  <mat-icon>more_vert</mat-icon>
+                </button>
+                <mat-menu #menuAcciones="matMenu">
+                  <button
+                    mat-menu-item
+                    type="button"
+                    [disabled]="!visita.editable"
+                    (click)="abrirEdicion(visita)"
+                  >
+                    <mat-icon>edit</mat-icon>
+                    Editar
+                  </button>
+                  @if (visita.accionesPosibles.length > 0) {
+                    <button
+                      mat-menu-item
+                      type="button"
+                      [matMenuTriggerFor]="menuEstado"
+                    >
+                      <mat-icon>sync_alt</mat-icon>
+                      Cambiar estado
+                    </button>
+                    <mat-menu #menuEstado="matMenu">
+                      @for (estado of visita.accionesPosibles; track estado) {
+                        <button
+                          mat-menu-item
+                          type="button"
+                          (click)="cambiarEstado(visita, estado)"
+                        >
+                          {{ etiquetaEstado[estado] }}
+                        </button>
+                      }
+                    </mat-menu>
+                  }
+                </mat-menu>
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="6">
+                <app-estado-vacio
+                  icono="event_busy"
+                  [titulo]="
+                    hayFiltros() || estado() !== 'todas'
+                      ? 'No hay visitas que coincidan con la búsqueda'
+                      : 'Todavía no hay visitas programadas'
+                  "
+                  descripcion="Programe una visita con el botón «Nueva visita»."
+                />
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <div
+      class="flex items-center justify-between border-t border-borde px-4 py-3 text-sm text-contenido-suave"
+    >
+      <span>{{ lista()?.total ?? 0 }} visita(s)</span>
+      <div class="flex items-center gap-2">
+        <button
+          mat-button
+          type="button"
+          [disabled]="pagina() <= 1"
+          (click)="cambiarPagina(-1)"
+        >
+          Anterior
+        </button>
+        <span>Página {{ pagina() }} de {{ totalPaginas() }}</span>
+        <button
+          mat-button
+          type="button"
+          [disabled]="pagina() >= totalPaginas()"
+          (click)="cambiarPagina(1)"
+        >
+          Siguiente
+        </button>
+      </div>
+    </div>
+  </app-tarjeta>
+</div>
+
+<!-- Panel lateral de programación (drawer del wireframe) -->
+@if (panelAbierto()) {
+  <div
+    class="fixed inset-0 z-40 bg-velo"
+    (click)="cerrarPanel()"
+    aria-hidden="true"
+  ></div>
+  <aside
+    class="fixed right-0 top-0 z-50 flex h-full w-full max-w-md flex-col gap-4 overflow-auto bg-superficie p-6 shadow-2xl"
+    aria-label="Formulario de visita"
+  >
+    <div class="flex items-center justify-between">
+      <h2 class="text-lg font-semibold text-contenido">
+        {{ esEdicion() ? 'Editar visita' : 'Nueva visita' }}
+      </h2>
+      <button
+        mat-icon-button
+        type="button"
+        aria-label="Cerrar"
+        (click)="cerrarPanel()"
+      >
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+    <mat-divider />
+
+    <form
+      class="flex flex-col gap-3"
+      [formGroup]="formulario"
+      (ngSubmit)="guardar()"
+    >
+      @if (esEdicion()) {
+        <div class="rounded-md bg-superficie-alterna p-3 text-sm">
+          <p class="font-medium text-contenido">
+            {{ visitaEnEdicion()?.predio?.nombre }}
+          </p>
+          <p class="text-contenido-suave">
+            {{ visitaEnEdicion()?.predio?.municipio }} ·
+            {{ visitaEnEdicion()?.predio?.vereda }}
+          </p>
+        </div>
+      } @else {
+        <mat-form-field appearance="outline">
+          <mat-label>Predio</mat-label>
+          <mat-select formControlName="modoPredio">
+            <mat-option value="existente"
+              >Elegir un predio registrado</mat-option
+            >
+            <mat-option value="nuevo">Registrar un predio nuevo</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        @if (usarPredioExistente()) {
+          <mat-form-field appearance="outline">
+            <mat-label>Predio registrado</mat-label>
+            <mat-select
+              formControlName="predioId"
+              (openedChange)="alAbrirPredios($event)"
+            >
+              @for (predio of predios(); track predio.id) {
+                <mat-option [value]="predio.id">
+                  {{ predio.nombre }} — {{ predio.municipio }}
+                </mat-option>
+              } @empty {
+                <mat-option disabled>
+                  No hay predios registrados todavía.
+                </mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+        } @else {
+          <mat-form-field appearance="outline">
+            <mat-label>Nombre del predio</mat-label>
+            <input
+              matInput
+              formControlName="nombre"
+              placeholder="Nombre del predio"
+            />
+          </mat-form-field>
+
+          <div class="grid grid-cols-2 gap-3">
+            <mat-form-field appearance="outline">
+              <mat-label>Municipio</mat-label>
+              <input
+                matInput
+                formControlName="municipio"
+                placeholder="Municipio"
+              />
+            </mat-form-field>
+
+            <mat-form-field appearance="outline">
+              <mat-label>Vereda</mat-label>
+              <input matInput formControlName="vereda" placeholder="Vereda" />
+            </mat-form-field>
+          </div>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Tipo de predio</mat-label>
+            <mat-select formControlName="tipoPredio">
+              <mat-option value="CORRAL">Granja (corral)</mat-option>
+              <mat-option value="TRASPATIO">Traspatio</mat-option>
+            </mat-select>
+            <mat-hint>
+              El tipo se confirma con el número de aves durante la inspección.
+            </mat-hint>
+          </mat-form-field>
+        }
+      }
+
+      @if (esAdministrador()) {
+        <mat-form-field appearance="outline">
+          <mat-label>Inspector asignado</mat-label>
+          <mat-select formControlName="inspectorId">
+            <mat-option value="">Asignármela a mí</mat-option>
+            @for (inspector of inspectores(); track inspector.id) {
+              <mat-option [value]="inspector.id">
+                {{ inspector.nombre }}
+              </mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+      }
+
+      <div class="grid grid-cols-2 gap-3">
+        <mat-form-field appearance="outline">
+          <mat-label>Fecha</mat-label>
+          <input matInput type="date" formControlName="fecha" />
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Hora</mat-label>
+          <input matInput type="time" formControlName="hora" />
+        </mat-form-field>
+      </div>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Observaciones (opcional)</mat-label>
+        <textarea
+          matInput
+          rows="3"
+          formControlName="observaciones"
+          placeholder="Notas para la visita"
+        ></textarea>
+      </mat-form-field>
+
+      <div class="flex items-center justify-end gap-2 pt-2">
+        <button mat-button type="button" (click)="cerrarPanel()">
+          Cancelar
+        </button>
+        <button
+          mat-flat-button
+          color="primary"
+          type="submit"
+          [disabled]="guardando()"
+        >
+          {{
+            guardando()
+              ? 'Guardando…'
+              : esEdicion()
+                ? 'Guardar cambios'
+                : 'Programar visita'
+          }}
+        </button>
+      </div>
+    </form>
+  </aside>
+}

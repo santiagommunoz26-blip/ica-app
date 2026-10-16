@@ -41,7 +41,7 @@
   </mat-sidenav>
 
   <mat-sidenav-content class="flex flex-col bg-fondo">
-    @if (auth.sinConexion()) {
+    @if (sinConexion()) {
       <div class="px-lg pt-md">
         <app-aviso tipo="advertencia">
           <div class="flex flex-wrap items-center gap-2">
@@ -72,6 +72,24 @@
         }}
       </span>
       <span class="grow"></span>
+
+      <!-- Registros guardados sin conexión (RF12) -->
+      @if (sincronizacion.pendientes() > 0) {
+        <button
+          mat-stroked-button
+          type="button"
+          class="mr-2"
+          [disabled]="sincronizacion.sincronizando()"
+          (click)="sincronizar()"
+          [attr.aria-label]="
+            sincronizacion.pendientes() +
+            ' registro(s) sin sincronizar. Sincronizar ahora.'
+          "
+        >
+          <mat-icon>cloud_upload</mat-icon>
+          {{ sincronizacion.pendientes() }} sin sincronizar
+        </button>
+      }
 
       <button
         mat-button

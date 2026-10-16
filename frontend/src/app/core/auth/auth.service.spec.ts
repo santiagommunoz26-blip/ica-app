@@ -79,7 +79,11 @@ describe('AuthService', () => {
     expect(servicio.tokenActual()).toBe('token-de-acceso');
     expect(servicio.minutosDeInactividad()).toBe(30);
     // El token de refresco es lo único que se escribe en el equipo (RF02, RF03).
-    expect(localStorage.getItem('ica.refresco')).toBe('token-de-refresco');
+    // Sin PIN en el equipo se guarda en claro, identificado con su versión.
+    expect(JSON.parse(localStorage.getItem('ica.refresco') ?? '{}')).toEqual({
+      v: 0,
+      token: 'token-de-refresco',
+    });
   });
 
   it('reconoce los permisos del rol (RF04)', async () => {
@@ -108,7 +112,10 @@ describe('AuthService', () => {
   });
 
   it('restaura la sesión con el token de refresco (RF02)', async () => {
-    localStorage.setItem('ica.refresco', 'token-guardado');
+    localStorage.setItem(
+      'ica.refresco',
+      JSON.stringify({ v: 0, token: 'token-guardado' }),
+    );
 
     const promesa = servicio.restaurarSesion();
     const peticion = http.expectOne(`${environment.apiUrl}/auth/refresh`);
@@ -120,8 +127,29 @@ describe('AuthService', () => {
     expect(servicio.usuario()?.correo).toBe(USUARIO.correo);
   });
 
+  it('con el token cifrado pide el PIN en vez de renovar en silencio (RNF09)', async () => {
+    localStorage.setItem(
+      'ica.refresco',
+      JSON.stringify({
+        v: 1,
+        sal: 'c2Fs',
+        iv: 'aXY=',
+        datos: 'ZGF0b3M=',
+      }),
+    );
+
+    await servicio.restaurarSesion();
+
+    expect(servicio.autenticado()).toBe(false);
+    // El token cifrado no se borra: se podrá abrir con el PIN.
+    expect(localStorage.getItem('ica.refresco')).not.toBeNull();
+  });
+
   it('sin conexión conserva el perfil para poder entrar con el PIN (RF03)', async () => {
-    localStorage.setItem('ica.refresco', 'token-guardado');
+    localStorage.setItem(
+      'ica.refresco',
+      JSON.stringify({ v: 0, token: 'token-guardado' }),
+    );
     localStorage.setItem('ica.perfil', JSON.stringify(USUARIO));
 
     const promesa = servicio.restaurarSesion();

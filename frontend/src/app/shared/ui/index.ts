@@ -9,6 +9,10 @@ export {
 } from './esqueleto/esqueleto.component';
 export { EstadoVacioComponent } from './estado-vacio/estado-vacio.component';
 export {
+  GraficaComponent,
+  type TipoGrafica,
+} from './grafica/grafica.component';
+export {
   InsigniaComponent,
   type TonoInsignia,
 } from './insignia/insignia.component';

@@ -28,6 +28,7 @@ export enum EstadoUsuario {
 export const PERMISOS = {
   USUARIOS_GESTIONAR: 'usuarios:gestionar',
   CATALOGO_EDITAR: 'catalogo:editar',
+  VISITAS_CONSULTAR: 'visitas:consultar',
   VISITAS_CREAR: 'visitas:crear',
   INSPECCION_REGISTRAR: 'inspeccion:registrar',
   ACTA_GENERAR: 'acta:generar',
@@ -47,6 +48,7 @@ export const CATALOGO_PERMISOS: ReadonlyArray<{
     clave: PERMISOS.CATALOGO_EDITAR,
     etiqueta: 'Editar catálogo de indicadores',
   },
+  { clave: PERMISOS.VISITAS_CONSULTAR, etiqueta: 'Consultar visitas' },
   { clave: PERMISOS.VISITAS_CREAR, etiqueta: 'Crear y programar visitas' },
   { clave: PERMISOS.INSPECCION_REGISTRAR, etiqueta: 'Registrar inspección' },
   { clave: PERMISOS.ACTA_GENERAR, etiqueta: 'Generar acta PDF' },
@@ -63,25 +65,36 @@ export const ETIQUETA_ROL: Record<Rol, string> = {
 
 /**
  * Permisos por rol, según la tabla de roles del documento de módulos:
- * el Administrador gestiona usuarios, catálogo y consulta todo el historial;
- * el Inspector programa visitas, inspecciona, calcula y entrega el acta;
- * el rol Consulta (propuesto) solo ve resultados y reportes.
+ * el Administrador gestiona usuarios, el catálogo, programa visitas y consulta
+ * todo el historial; el Inspector programa y realiza sus visitas, inspecciona,
+ * calcula y entrega el acta; el rol Consulta (propuesto) solo ve.
+ *
+ * «Consultar visitas» y «Crear y programar visitas» se separan en M2: la tabla
+ * del módulo concede «Programar y realizar visitas» al Administrador y al
+ * Inspector, y «ver» a los tres roles (el Inspector, solo las suyas).
  */
 export const PERMISOS_POR_ROL: Record<Rol, readonly Permiso[]> = {
   [Rol.ADMINISTRADOR]: [
     PERMISOS.USUARIOS_GESTIONAR,
     PERMISOS.CATALOGO_EDITAR,
+    PERMISOS.VISITAS_CONSULTAR,
+    PERMISOS.VISITAS_CREAR,
     PERMISOS.HISTORIAL_CONSULTAR,
     PERMISOS.REPORTES_CONSULTAR,
   ],
   [Rol.INSPECTOR]: [
+    PERMISOS.VISITAS_CONSULTAR,
     PERMISOS.VISITAS_CREAR,
     PERMISOS.INSPECCION_REGISTRAR,
     PERMISOS.ACTA_GENERAR,
     PERMISOS.HISTORIAL_CONSULTAR,
     PERMISOS.REPORTES_CONSULTAR,
   ],
-  [Rol.CONSULTA]: [PERMISOS.HISTORIAL_CONSULTAR, PERMISOS.REPORTES_CONSULTAR],
+  [Rol.CONSULTA]: [
+    PERMISOS.VISITAS_CONSULTAR,
+    PERMISOS.HISTORIAL_CONSULTAR,
+    PERMISOS.REPORTES_CONSULTAR,
+  ],
 };
 
 /** Indica si un rol tiene un permiso concreto. */

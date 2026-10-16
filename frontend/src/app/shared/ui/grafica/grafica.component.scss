@@ -1,0 +1,5 @@
+/* La gráfica ocupa el ancho de su contenedor; el alto lo fija el marcado. */
+:host {
+  display: block;
+  width: 100%;
+}

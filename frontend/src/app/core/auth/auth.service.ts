@@ -7,11 +7,13 @@ import {
   finalize,
   firstValueFrom,
   map,
+  of,
   shareReplay,
   tap,
   throwError,
 } from 'rxjs';
 import { environment } from '../../../environments/environment';
+import { AlmacenRefrescoService } from './almacen-refresco.service';
 import { PinOfflineService } from './pin-offline.service';
 import type {
   Permiso,
@@ -21,7 +23,6 @@ import type {
 } from './auth.modelos';
 import { tienePermiso } from './auth.modelos';
 
-const CLAVE_REFRESCO = 'ica.refresco';
 const CLAVE_PERFIL = 'ica.perfil';
 /** Tiempo mínimo entre reinicios del temporizador de inactividad. */
 const ESPERA_ENTRE_REINICIOS_MS = 30_000;
@@ -35,18 +36,20 @@ interface EstadoSesion {
 /**
  * Autenticación y sesión (M1 · RF01–RF04, RF07).
  *
- * Almacenamiento de tokens (decisión registrada en docs/CONTEXTO_PROYECTO.txt):
+ * Almacenamiento de tokens (RNF09, decidido en M2):
  * - el token de acceso vive **en memoria** (no se escribe en disco);
- * - el token de refresco se guarda en el almacenamiento local del equipo,
- *   porque es lo único que permite recuperar la sesión al recargar o entrar
- *   sin conexión (RF03). Su cifrado en reposo se aborda en M2, junto con el
- *   almacenamiento sin conexión (RNF09).
+ * - el token de refresco se guarda en el equipo porque es lo único que permite
+ *   recuperar la sesión al recargar o entrar sin conexión (RF03), y se guarda
+ *   **cifrado con el PIN** cuando el equipo tiene PIN (`AlmacenRefrescoService`).
+ *   Mientras la aplicación está abierta la llave vive en memoria, así que las
+ *   renovaciones no vuelven a pedir el PIN.
  */
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
   private readonly pinOffline = inject(PinOfflineService);
+  private readonly almacen = inject(AlmacenRefrescoService);
 
   private readonly estado = signal<EstadoSesion | null>(null);
   /** Mensaje para mostrar en la pantalla de inicio de sesión. */
@@ -95,11 +98,16 @@ export class AuthService {
 
   /**
    * Restaura la sesión al abrir la aplicación: si hay token de refresco se
-   * renueva; si no hay conexión se conserva el perfil para poder entrar con el
-   * PIN (RF03).
+   * renueva; si el equipo tiene PIN, la sesión se recupera entrando con el PIN
+   * (RNF09); y si no hay conexión se conserva el perfil para poder entrar con
+   * el PIN (RF03).
    */
   async restaurarSesion(): Promise<void> {
-    const refresco = this.leerAlmacen(CLAVE_REFRESCO);
+    // Con el token cifrado no se puede renovar en silencio: se deja el perfil
+    // para que la pantalla de ingreso ofrezca «Entrar con PIN».
+    if (this.almacen.bloqueadoPorPin()) return;
+
+    const refresco = this.almacen.leer();
     if (!refresco) {
       this.limpiarSesion();
       return;
@@ -127,7 +135,7 @@ export class AuthService {
 
   /** Cierra la sesión (RF02). */
   async cerrarSesion(): Promise<void> {
-    const refresco = this.leerAlmacen(CLAVE_REFRESCO);
+    const refresco = this.almacen.leer();
     try {
       if (refresco && this.accessToken) {
         await firstValueFrom(
@@ -147,7 +155,7 @@ export class AuthService {
   renovarToken(): Observable<string> {
     this.renovacionEnCurso$ ??= this.http
       .post<SesionRespuesta>(`${environment.apiUrl}/auth/refresh`, {
-        token: this.leerAlmacen(CLAVE_REFRESCO),
+        token: this.almacen.leer(),
       })
       .pipe(
         tap((sesion) => this.aplicarSesion(sesion)),
@@ -167,6 +175,16 @@ export class AuthService {
   /** Token de acceso actual (para el interceptor). */
   tokenActual(): string | null {
     return this.accessToken;
+  }
+
+  /**
+   * Garantiza un token de acceso antes de llamar a la API: si no hay ninguno
+   * (por ejemplo, tras entrar con el PIN y recuperar la conexión) lo renueva.
+   */
+  asegurarAcceso(): Observable<string> {
+    const actual = this.accessToken;
+    if (actual) return of(actual);
+    return this.renovarToken();
   }
 
   /** ¿La petición es de autenticación (no debe reintentarse con refresco)? */
@@ -237,13 +255,18 @@ export class AuthService {
       this.http.put(`${environment.apiUrl}/auth/pin`, { pin, passwordActual }),
     );
     await this.pinOffline.guardar(pin, this.usuario()?.correo ?? '');
+    // A partir de aquí el token guardado en el equipo queda cifrado con el PIN
+    // (RNF09): sin el PIN no se puede recuperar la sesión.
+    await this.almacen.reCifrarConPin(pin);
     await this.cargarPerfil();
   }
 
   /**
-   * Entra sin conexión con el PIN (RF03). La comprobación es local; se
-   * restaura el último perfil guardado y la aplicación queda marcada como
-   * «sin conexión» hasta que vuelva la red.
+   * Entra con el PIN del equipo (RF03). La comprobación es local.
+   *
+   * Si el token está cifrado con ese PIN, se descifra (RNF09) y, cuando hay
+   * conexión, la sesión se renueva en el momento; si no hay red, la aplicación
+   * queda marcada como «sin conexión» y se trabaja con los datos guardados.
    */
   async entrarConPin(pin: string): Promise<void> {
     const perfil = this.leerPerfilCacheado();
@@ -262,8 +285,19 @@ export class AuthService {
           : 'PIN incorrecto. El acceso con PIN quedó bloqueado.',
       );
     }
+
+    await this.almacen.desbloquear(pin);
     this.estado.set({ usuario: perfil, sesionInactividadMinutos: 0 });
     this.sinConexion.set(true);
+
+    if (navigator.onLine && this.almacen.leer()) {
+      try {
+        await firstValueFrom(this.renovarToken());
+        this.sinConexion.set(false);
+      } catch {
+        // Sin red el PIN vale igual: se sigue trabajando sin conexión (RF12).
+      }
+    }
   }
 
   /** ¿Hay PIN configurado en este equipo? (RF03) */
@@ -280,7 +314,9 @@ export class AuthService {
 
   private aplicarSesion(sesion: SesionRespuesta): void {
     this.accessToken = sesion.accessToken;
-    this.escribirAlmacen(CLAVE_REFRESCO, sesion.refreshToken);
+    // El token de refresco se persiste cifrado si el equipo tiene PIN (RNF09);
+    // la escritura es asíncrona y no bloquea el ingreso.
+    void this.almacen.guardar(sesion.refreshToken);
     this.guardarPerfilCacheado(sesion.usuario);
     this.estado.set({
       usuario: sesion.usuario,
@@ -295,7 +331,7 @@ export class AuthService {
     this.accessToken = null;
     this.estado.set(null);
     this.sinConexion.set(false);
-    this.borrarAlmacen(CLAVE_REFRESCO);
+    this.almacen.borrar();
     this.detenerVigilanciaDeActividad();
   }
 

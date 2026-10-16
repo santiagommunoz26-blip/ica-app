@@ -1,9 +1,10 @@
 import { Injectable } from '@angular/core';
+import { ITERACIONES_PBKDF2, aBase64, desdeBase64 } from './cifrado';
 
 /** Clave de almacenamiento local del verificador del PIN. */
 const CLAVE_PIN = 'ica.pin';
 /** Iteraciones de PBKDF2 (recomendación OWASP para SHA-256). */
-const ITERACIONES = 210_000;
+const ITERACIONES = ITERACIONES_PBKDF2;
 /** Intentos fallidos permitidos antes de bloquear el acceso con PIN. */
 export const MAX_INTENTOS_PIN = 5;
 
@@ -145,23 +146,4 @@ export class PinOfflineService {
       // Sin almacenamiento no se puede mantener el PIN sin conexión.
     }
   }
-}
-
-/** Convierte bytes a base64. */
-function aBase64(bytes: Uint8Array): string {
-  let texto = '';
-  bytes.forEach((byte) => {
-    texto += String.fromCharCode(byte);
-  });
-  return btoa(texto);
-}
-
-/** Convierte base64 a bytes. */
-function desdeBase64(valor: string): Uint8Array {
-  const texto = atob(valor);
-  const bytes = new Uint8Array(texto.length);
-  for (let i = 0; i < texto.length; i++) {
-    bytes[i] = texto.charCodeAt(i);
-  }
-  return bytes;
 }

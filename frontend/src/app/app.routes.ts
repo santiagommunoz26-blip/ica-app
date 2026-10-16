@@ -55,6 +55,14 @@ export const routes: Routes = [
           import('./pages/panel/panel.component').then((m) => m.PanelComponent),
       },
       {
+        path: 'visitas',
+        title: 'Visitas · EBA Aves',
+        loadComponent: () =>
+          import('./pages/visitas/visitas.component').then(
+            (m) => m.VisitasComponent,
+          ),
+      },
+      {
         path: 'administracion/usuarios',
         title: 'Usuarios y roles · EBA Aves',
         canActivate: [rolGuard],

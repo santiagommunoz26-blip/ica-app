@@ -13,6 +13,7 @@ export type EstadoUsuario = 'ACTIVO' | 'INACTIVO';
 export const PERMISOS = {
   USUARIOS_GESTIONAR: 'usuarios:gestionar',
   CATALOGO_EDITAR: 'catalogo:editar',
+  VISITAS_CONSULTAR: 'visitas:consultar',
   VISITAS_CREAR: 'visitas:crear',
   INSPECCION_REGISTRAR: 'inspeccion:registrar',
   ACTA_GENERAR: 'acta:generar',
@@ -26,6 +27,7 @@ export type Permiso = (typeof PERMISOS)[keyof typeof PERMISOS];
 export const ETIQUETA_PERMISO: Record<Permiso, string> = {
   [PERMISOS.USUARIOS_GESTIONAR]: 'Gestionar usuarios',
   [PERMISOS.CATALOGO_EDITAR]: 'Editar catálogo de indicadores',
+  [PERMISOS.VISITAS_CONSULTAR]: 'Consultar visitas',
   [PERMISOS.VISITAS_CREAR]: 'Crear y programar visitas',
   [PERMISOS.INSPECCION_REGISTRAR]: 'Registrar inspección',
   [PERMISOS.ACTA_GENERAR]: 'Generar acta PDF',

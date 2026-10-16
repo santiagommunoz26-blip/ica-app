@@ -1,129 +1,255 @@
-<div class="mx-auto flex w-full max-w-4xl flex-col gap-6">
-  <mat-card appearance="outlined" class="rounded-tarjeta">
-    <mat-card-content class="flex flex-col gap-2 p-6">
-      <h1 class="text-2xl font-bold text-contenido">
-        Hola, {{ auth.usuario()?.nombreCompleto }}
-      </h1>
-      <p class="text-sm text-contenido-suave">
-        Sesión iniciada como
-        <strong>{{ auth.usuario()?.etiquetaRol }}</strong> ({{
-          auth.usuario()?.correo
-        }}).
-      </p>
-      <p class="text-sm text-contenido-suave">
-        Cierre de sesión automático tras
-        {{ auth.minutosDeInactividad() }} minutos de inactividad.
-      </p>
-    </mat-card-content>
-  </mat-card>
+<div class="mx-auto flex w-full max-w-6xl flex-col gap-4">
+  <app-encabezado-pagina
+    [titulo]="'Hola, ' + (auth.usuario()?.nombreCompleto ?? '')"
+    descripcion="Así va la evaluación del bienestar animal en aves."
+  >
+    <app-insignia tono="marca">{{ auth.usuario()?.etiquetaRol }}</app-insignia>
+    <button mat-stroked-button type="button" (click)="irAVisitas()">
+      <mat-icon>event_note</mat-icon>
+      Ver visitas
+    </button>
+  </app-encabezado-pagina>
 
-  <mat-card appearance="outlined" class="rounded-tarjeta">
-    <mat-card-content class="flex flex-col gap-3 p-6">
-      <h2 class="text-lg font-semibold text-contenido">
-        Qué puede hacer su rol
-      </h2>
-      <ul class="flex flex-col gap-2 text-sm text-contenido">
-        @for (permiso of auth.usuario()?.permisos ?? []; track permiso) {
-          <li class="flex items-center gap-2">
-            <mat-icon class="text-base text-marca">check_circle</mat-icon>
-            {{ etiquetas[permiso] }}
-          </li>
-        }
-      </ul>
-    </mat-card-content>
-  </mat-card>
+  @if (!sincronizacion.enLinea()) {
+    <app-aviso tipo="advertencia" titulo="Sin conexión">
+      Se muestran los datos guardados en este equipo; los cambios se enviarán al
+      recuperar la red.
+    </app-aviso>
+  }
 
-  <mat-card appearance="outlined" class="rounded-tarjeta">
-    <mat-card-content class="flex flex-col gap-3 p-6">
-      <div class="flex items-center gap-2">
-        <mat-icon class="text-marca">pin</mat-icon>
+  @if (error(); as mensaje) {
+    <app-aviso tipo="peligro">{{ mensaje }}</app-aviso>
+  }
+
+  @if (cargando()) {
+    <mat-progress-bar mode="indeterminate" />
+  }
+
+  <!-- Indicadores (RF10) -->
+  <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+    @for (indicador of indicadores(); track indicador.etiqueta) {
+      <app-tarjeta relleno="compacto">
+        <div class="flex items-start justify-between gap-3">
+          <div class="flex flex-col gap-1">
+            <p
+              class="text-xs font-semibold uppercase tracking-wide text-contenido-suave"
+            >
+              {{ indicador.etiqueta }}
+            </p>
+            <p class="text-3xl font-bold leading-none text-contenido">
+              {{ indicador.valor }}
+            </p>
+            <p class="text-xs text-contenido-suave">{{ indicador.detalle }}</p>
+          </div>
+          <span
+            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-marca-suave text-marca"
+          >
+            <mat-icon>{{ indicador.icono }}</mat-icon>
+          </span>
+        </div>
+      </app-tarjeta>
+    }
+  </div>
+
+  <div class="grid gap-4 lg:grid-cols-3">
+    <!-- Evolución de la calificación -->
+    <app-tarjeta
+      class="lg:col-span-2"
+      titulo="Evolución de la calificación"
+      descripcion="Promedio de las visitas con resultado, mes a mes (sobre 100)."
+    >
+      <app-grafica
+        tipo="linea"
+        [etiquetas]="etiquetasEvolucion()"
+        [valores]="valoresEvolucion()"
+        [maximo]="100"
+        titulo="Evolución de la calificación"
+        vacio="Aquí se verá cómo evoluciona la calificación mes a mes, en cuanto haya visitas con resultado."
+      />
+    </app-tarjeta>
+
+    <!-- Próximas visitas -->
+    <app-tarjeta
+      titulo="Próximas visitas"
+      descripcion="Lo que viene en la agenda."
+    >
+      @if (proximas().length === 0) {
+        <app-estado-vacio
+          icono="event_available"
+          titulo="No hay visitas próximas"
+          descripcion="Programe una visita desde la pantalla de visitas."
+        />
+      } @else {
+        <ul class="flex flex-col divide-y divide-borde">
+          @for (visita of proximas(); track visita.id) {
+            <li class="flex flex-col gap-1 py-3 first:pt-0 last:pb-0">
+              <div class="flex items-center justify-between gap-2">
+                <span class="font-medium text-contenido">
+                  {{ visita.predio.nombre }}
+                </span>
+                <app-insignia tono="neutro">
+                  {{ cuando(visita.programadaPara) }}
+                </app-insignia>
+              </div>
+              <span class="text-xs text-contenido-suave">
+                {{ visita.predio.municipio }} ·
+                {{ visita.inspector.nombreCompleto }}
+              </span>
+            </li>
+          }
+        </ul>
+      }
+    </app-tarjeta>
+  </div>
+
+  <div class="grid gap-4 lg:grid-cols-2">
+    <!-- Distribución por clasificación -->
+    <app-tarjeta
+      titulo="Distribución por clasificación"
+      descripcion="Visitas con resultado según el nivel de bienestar (metodología ICA v2.0)."
+    >
+      <app-grafica
+        tipo="dona"
+        [etiquetas]="etiquetasDistribucion()"
+        [valores]="valoresDistribucion()"
+        [colores]="coloresDistribucion()"
+        [textoCentro]="textoTotalClasificado()"
+        titulo="Distribución por clasificación"
+        vacio="La distribución aparecerá cuando las visitas tengan resultado."
+      />
+
+      @if (distribucion().length > 0) {
+        <ul class="mt-3 flex flex-col gap-2">
+          @for (conteo of distribucion(); track conteo.clasificacion) {
+            <li class="flex items-center justify-between gap-2 text-sm">
+              <span class="flex items-center gap-2 text-contenido">
+                <span
+                  class="h-3 w-3 rounded-full"
+                  [class]="claseNivel[conteo.clasificacion]"
+                ></span>
+                {{ conteo.etiqueta }}
+              </span>
+              <span class="text-contenido-suave">{{
+                conteoTexto(conteo)
+              }}</span>
+            </li>
+          }
+        </ul>
+      }
+    </app-tarjeta>
+
+    <!-- Promedio por grupo de medidas -->
+    <app-tarjeta
+      titulo="Promedio por grupo de medidas"
+      descripcion="Puntaje promedio de cada grupo de la metodología."
+    >
+      <app-grafica
+        tipo="barras"
+        [etiquetas]="etiquetasGrupos()"
+        [valores]="valoresGrupos()"
+        color="acento"
+        [maximo]="100"
+        titulo="Promedio por grupo de medidas"
+        vacio="Los promedios por grupo se calculan con las mediciones de la inspección (M3 a M6)."
+      />
+    </app-tarjeta>
+  </div>
+
+  <!-- Acceso sin conexión (PIN) · RF03 -->
+  <app-tarjeta>
+    <span acciones>
+      <button mat-button type="button" (click)="mostrarPin.set(!mostrarPin())">
+        <mat-icon>{{ mostrarPin() ? 'expand_less' : 'expand_more' }}</mat-icon>
+        {{ mostrarPin() ? 'Ocultar' : 'Configurar' }}
+      </button>
+    </span>
+
+    <div class="flex items-start gap-3">
+      <span
+        class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-marca-suave text-marca"
+      >
+        <mat-icon>pin</mat-icon>
+      </span>
+      <div class="flex flex-col gap-1">
         <h2 class="text-lg font-semibold text-contenido">
           Acceso sin conexión (PIN)
         </h2>
+        <p class="text-sm text-contenido-suave">
+          {{
+            tienePin()
+              ? 'Ya tiene un PIN en este equipo; puede cambiarlo aquí. El token de la sesión queda cifrado con él.'
+              : 'Configure un PIN de 6 dígitos para entrar en este equipo cuando no tenga internet.'
+          }}
+        </p>
       </div>
-      <p class="text-sm text-contenido-suave">
-        Con el PIN puede entrar en este equipo cuando no tenga internet ({{
-          tienePin()
-            ? 'ya tiene un PIN configurado; puede cambiarlo aquí'
-            : 'todavía no tiene un PIN configurado'
-        }}).
-      </p>
+    </div>
 
-      @if (mensajePin(); as mensaje) {
-        <app-aviso tipo="exito">{{ mensaje }}</app-aviso>
-      }
-      @if (errorPin(); as mensaje) {
-        <app-aviso tipo="peligro">{{ mensaje }}</app-aviso>
-      }
+    @if (mostrarPin()) {
+      <div class="mt-4 flex flex-col gap-3">
+        @if (mensajePin(); as mensaje) {
+          <app-aviso tipo="exito">{{ mensaje }}</app-aviso>
+        }
+        @if (errorPin(); as mensaje) {
+          <app-aviso tipo="peligro">{{ mensaje }}</app-aviso>
+        }
 
-      <form
-        class="flex flex-col gap-3 sm:flex-row sm:items-start"
-        [formGroup]="formularioPin"
-        (ngSubmit)="configurarPin()"
-      >
-        <mat-form-field appearance="outline" class="w-full sm:w-40">
-          <mat-label>PIN (6 dígitos)</mat-label>
-          <input
-            matInput
-            inputmode="numeric"
-            maxlength="6"
-            formControlName="pin"
-            autocomplete="off"
-          />
-          @if (formularioPin.controls.pin.hasError('pattern')) {
-            <mat-error>Debe tener 6 dígitos.</mat-error>
-          }
-        </mat-form-field>
-
-        <mat-form-field appearance="outline" class="w-full sm:w-40">
-          <mat-label>Repita el PIN</mat-label>
-          <input
-            matInput
-            inputmode="numeric"
-            maxlength="6"
-            formControlName="repetir"
-            autocomplete="off"
-          />
-          @if (formularioPin.hasError('camposDistintos')) {
-            <mat-error>Los PIN no coinciden.</mat-error>
-          }
-        </mat-form-field>
-
-        <mat-form-field appearance="outline" class="w-full sm:w-64">
-          <mat-label>Contraseña actual</mat-label>
-          <input
-            matInput
-            type="password"
-            formControlName="passwordActual"
-            autocomplete="current-password"
-          />
-          @if (formularioPin.controls.passwordActual.hasError('required')) {
-            <mat-error>Confirme su contraseña.</mat-error>
-          }
-        </mat-form-field>
-
-        <button
-          mat-flat-button
-          color="primary"
-          type="submit"
-          class="sm:mt-5"
-          [disabled]="guardandoPin()"
+        <form
+          class="flex flex-col gap-3 sm:flex-row sm:items-start"
+          [formGroup]="formularioPin"
+          (ngSubmit)="configurarPin()"
         >
-          {{ guardandoPin() ? 'Guardando…' : 'Guardar PIN' }}
-        </button>
-      </form>
-    </mat-card-content>
-  </mat-card>
+          <mat-form-field appearance="outline" class="w-full sm:w-40">
+            <mat-label>PIN (6 dígitos)</mat-label>
+            <input
+              matInput
+              inputmode="numeric"
+              maxlength="6"
+              formControlName="pin"
+              autocomplete="off"
+            />
+            @if (formularioPin.controls.pin.hasError('pattern')) {
+              <mat-error>Debe tener 6 dígitos.</mat-error>
+            }
+          </mat-form-field>
 
-  <mat-card appearance="outlined" class="rounded-tarjeta bg-superficie-alterna">
-    <mat-card-content class="flex flex-col gap-1 p-6">
-      <p class="text-sm text-contenido-suave">
-        Módulo en construcción: {{ moduloActual }}
-      </p>
-      <p class="text-sm text-contenido">
-        Siguiente entregable: <strong>{{ proximoModulo }}</strong
-        >.
-      </p>
-    </mat-card-content>
-  </mat-card>
+          <mat-form-field appearance="outline" class="w-full sm:w-40">
+            <mat-label>Repita el PIN</mat-label>
+            <input
+              matInput
+              inputmode="numeric"
+              maxlength="6"
+              formControlName="repetir"
+              autocomplete="off"
+            />
+            @if (formularioPin.hasError('camposDistintos')) {
+              <mat-error>Los PIN no coinciden.</mat-error>
+            }
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="w-full sm:w-64">
+            <mat-label>Contraseña actual</mat-label>
+            <input
+              matInput
+              type="password"
+              formControlName="passwordActual"
+              autocomplete="current-password"
+            />
+            @if (formularioPin.controls.passwordActual.hasError('required')) {
+              <mat-error>Confirme su contraseña.</mat-error>
+            }
+          </mat-form-field>
+
+          <button
+            mat-flat-button
+            color="primary"
+            type="submit"
+            class="sm:mt-5"
+            [disabled]="guardandoPin()"
+          >
+            {{ guardandoPin() ? 'Guardando…' : 'Guardar PIN' }}
+          </button>
+        </form>
+      </div>
+    }
+  </app-tarjeta>
 </div>

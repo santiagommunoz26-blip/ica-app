@@ -15,6 +15,7 @@ import { MatToolbarModule } from '@angular/material/toolbar';
 import { AuthService } from '../../core/auth/auth.service';
 import { PERMISOS, type Permiso } from '../../core/auth/auth.modelos';
 import { mensajeDeError } from '../../core/http/errores';
+import { SincronizacionService } from '../../core/visitas/sincronizacion.service';
 import { AvisoComponent } from '../../shared/ui/aviso/aviso.component';
 import { InsigniaComponent } from '../../shared/ui/insignia/insignia.component';
 
@@ -57,6 +58,7 @@ interface OpcionNavegacion {
 })
 export class ShellComponent {
   readonly auth = inject(AuthService);
+  readonly sincronizacion = inject(SincronizacionService);
   private readonly router = inject(Router);
   readonly error = signal<string | null>(null);
 
@@ -66,9 +68,8 @@ export class ShellComponent {
       etiqueta: 'Visitas',
       icono: 'event_note',
       ruta: '/visitas',
-      permiso: PERMISOS.VISITAS_CREAR,
-      disponible: false,
-      modulo: 'M2',
+      permiso: PERMISOS.VISITAS_CONSULTAR,
+      disponible: true,
     },
     {
       etiqueta: 'Inspección',
@@ -149,6 +150,20 @@ export class ShellComponent {
       }
     } catch (fallo) {
       this.error.set(mensajeDeError(fallo));
+    }
+  }
+
+  /** ¿Hay que avisar de que se está trabajando sin conexión? */
+  readonly sinConexion = computed(
+    () => this.auth.sinConexion() || !this.sincronizacion.enLinea(),
+  );
+
+  /** Envía los registros pendientes desde el propio armazón (RF12). */
+  async sincronizar(): Promise<void> {
+    try {
+      await this.sincronizacion.sincronizar();
+    } catch {
+      // Sin red: se reintenta cuando vuelva la conexión.
     }
   }
 }

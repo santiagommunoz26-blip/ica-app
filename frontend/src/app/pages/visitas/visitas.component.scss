@@ -1,0 +1,9 @@
+/* La pantalla de visitas se apoya en los tokens del tema; no hay colores
+   propios. Solo se ajusta el ancho mínimo de la tabla para que no se apriete. */
+:host {
+  display: block;
+}
+
+table {
+  min-width: 48rem;
+}

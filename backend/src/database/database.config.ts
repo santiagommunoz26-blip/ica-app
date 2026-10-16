@@ -5,6 +5,8 @@ import { RegistroAcceso } from '../usuarios/entities/registro-acceso.entity.js';
 import { Sesion } from '../usuarios/entities/sesion.entity.js';
 import { TokenPassword } from '../usuarios/entities/token-password.entity.js';
 import { Usuario } from '../usuarios/entities/usuario.entity.js';
+import { Predio } from '../visitas/entities/predio.entity.js';
+import { Visita } from '../visitas/entities/visita.entity.js';
 
 /** Lector de variables de entorno (compatible con process.env y ConfigService). */
 export interface EnvReader {
@@ -33,7 +35,15 @@ export function buildDatabaseOptions(env: EnvReader): DataSourceOptions {
     password: read('POSTGRES_PASSWORD', 'ica'),
     database: read('POSTGRES_DB', 'ica'),
     synchronize: false,
-    entities: [AppMetadata, Usuario, Sesion, TokenPassword, RegistroAcceso],
+    entities: [
+      AppMetadata,
+      Usuario,
+      Sesion,
+      TokenPassword,
+      RegistroAcceso,
+      Predio,
+      Visita,
+    ],
     // Al ejecutarse compilado, este archivo vive en dist/database, así que el
     // patrón apunta a las migraciones compiladas en dist/database/migrations.
     migrations: [join(import.meta.dirname, 'migrations/*.js')],

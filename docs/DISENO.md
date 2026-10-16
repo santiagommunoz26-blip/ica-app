@@ -282,6 +282,41 @@ Ocupa el lugar del contenido mientras llegan los datos (evita que la pantalla
 }
 ```
 
+### `app-grafica` — gráfica de una serie
+
+Envoltorio de Chart.js para el panel (RF10). Los colores **no se escriben a
+mano**: se piden con el nombre del token (`marca`, `acento`, `nivel-alto`…) y el
+componente los resuelve leyendo las variables CSS del tema. Sin datos no dibuja
+un lienzo vacío: muestra `app-estado-vacio` con la explicación de qué falta.
+
+| Entrada | Uso |
+| --- | --- |
+| `tipo` | `linea`, `barras`, `dona` |
+| `etiquetas`, `valores` | la serie (los huecos se escriben `null`) |
+| `color` | token de la serie (`marca` por defecto) |
+| `colores` | un token por categoría (solo dona) |
+| `maximo` | tope del eje (100 en las calificaciones) |
+| `textoCentro` | número que va en el hueco de la dona |
+| `vacio` | frase que explica por qué todavía no hay datos |
+
+```html
+<app-grafica
+  tipo="dona"
+  [etiquetas]="etiquetasDistribucion()"
+  [valores]="valoresDistribucion()"
+  [colores]="coloresDistribucion()"
+  [textoCentro]="textoTotalClasificado()"
+  vacio="La distribución aparecerá cuando las visitas tengan resultado."
+/>
+```
+
+### Pestañas de filtro (convención)
+
+Para filtrar por estado se usan píldoras como en el wireframe: la activa va con
+`bg-marca text-marca-contraste` y las demás con borde y `bg-superficie-alterna`.
+Cada píldora lleva su conteo (`Todas 24`). No es una tabla de Material: es un
+`<nav>` de botones, para que el conteo quede dentro de la píldora.
+
 ### Botones (convención)
 
 No hay componente envoltorio: se usan los botones de Angular Material, que ya
@@ -400,6 +435,19 @@ dentro de la pantalla) para no dejar mensajes pegados al formulario.
     pendientes son `mat-list-item` deshabilitados (estructura de lista correcta,
     con el icono, el nombre y la etiqueta del módulo alineados) sin la capa de
     estado de Material.
+13. **Las gráficas toman su color de los tokens** (`app-grafica` resuelve
+    `--color-<token>` al dibujar): no hay ningún color de marca escrito a mano en
+    un componente. Si un token no existe, el respaldo es un gris neutro
+    (`rgba(0,0,0,.4)`), nunca el color de otro token «parecido».
+14. **Fechas y números en español de Colombia** (`LOCALE_ID` `es-CO` con
+    `registerLocaleData` en `app.config.ts`): meses, días y horas en `es-CO`. Los
+    campos `input type="date"` nativos muestran el formato del idioma del
+    navegador, no el de Angular; es una limitación del control, no un olvido.
+15. **El presupuesto de advertencia del paquete inicial subió a 600 kB**
+    (`angular.json`). El paquete se mide **sin comprimir** e incluye Angular
+    Material completo; lo que descarga el usuario son ~130 kB. Con 500 kB la
+    advertencia ya saltaba desde la base de diseño (por 12 kB) sin que hubiera
+    nada que recortar.
 
 ## 8. Observaciones para la pasada de pulido final
 
