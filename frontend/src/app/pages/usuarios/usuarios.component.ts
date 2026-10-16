@@ -74,7 +74,10 @@ export class UsuariosComponent implements OnInit {
   );
 
   readonly formulario = inject(FormBuilder).nonNullable.group({
-    nombreCompleto: ['', [Validators.required, Validators.minLength(3)]],
+    nombreCompleto: [
+      '',
+      [Validators.required, Validators.minLength(3), Validators.maxLength(150)],
+    ],
     correo: ['', [Validators.required, Validators.email]],
     rol: ['INSPECTOR' as Rol, [Validators.required]],
     passwordTemporal: [''],

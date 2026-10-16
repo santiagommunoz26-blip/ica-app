@@ -210,8 +210,10 @@
               formControlName="pin"
               autocomplete="off"
             />
-            @if (formularioPin.controls.pin.hasError('pattern')) {
-              <mat-error>El PIN tiene 6 dígitos.</mat-error>
+            @if (formularioPin.controls.pin.hasError('required')) {
+              <mat-error>Escriba el PIN de 6 dígitos.</mat-error>
+            } @else if (formularioPin.controls.pin.hasError('pattern')) {
+              <mat-error>El PIN solo admite 6 números, sin letras.</mat-error>
             }
           </mat-form-field>
           <button

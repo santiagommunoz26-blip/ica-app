@@ -23,23 +23,28 @@ import {
 /** Un galpón registrado en la Fase I (RF16). */
 export class DatosGalponDto {
   @ApiProperty({ example: 1, minimum: 1, maximum: 99 })
-  @IsInt()
-  @Min(1)
-  @Max(99)
+  @Type(() => Number)
+  @IsInt({ message: 'El número de galpón debe ser un entero.' })
+  @Min(1, { message: 'El número de galpón debe ser al menos 1.' })
+  @Max(99, { message: 'El número de galpón no puede ser mayor que 99.' })
   numero: number;
 
   @ApiPropertyOptional({ example: 62, description: 'Edad de las aves.' })
   @IsOptional()
-  @IsInt()
-  @Min(0)
-  @Max(10000)
+  @Type(() => Number)
+  @IsInt({ message: 'La edad de las aves debe ser un entero (semanas).' })
+  @Min(0, { message: 'La edad de las aves no puede ser negativa.' })
+  @Max(10000, { message: 'La edad de las aves no puede ser mayor que 10000.' })
   edadSemanas?: number;
 
   @ApiPropertyOptional({ example: 62000 })
   @IsOptional()
-  @IsInt()
-  @Min(0)
-  @Max(10000000)
+  @Type(() => Number)
+  @IsInt({ message: 'La cantidad de aves del galpón debe ser un entero.' })
+  @Min(0, { message: 'La cantidad de aves del galpón no puede ser negativa.' })
+  @Max(10000000, {
+    message: 'La cantidad de aves del galpón no puede ser mayor que 10000000.',
+  })
   aves?: number;
 
   @ApiPropertyOptional({ description: 'Si se va a inspeccionar (RF16).' })
@@ -85,9 +90,12 @@ export class GuardarInspeccionDto {
     description: 'Número total de aves (capacidad instalada), RF13.',
   })
   @IsOptional()
-  @IsInt()
-  @Min(0)
-  @Max(10000000)
+  @Type(() => Number)
+  @IsInt({ message: 'El número de aves debe ser un entero.' })
+  @Min(0, { message: 'El número de aves no puede ser negativo.' })
+  @Max(10000000, {
+    message: 'El número de aves no puede ser mayor que 10000000.',
+  })
   numeroAves?: number;
 
   @ApiPropertyOptional({

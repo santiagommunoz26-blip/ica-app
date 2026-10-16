@@ -132,14 +132,14 @@ export class VisitasComponent implements OnInit {
   readonly formulario = this.fb.group({
     modoPredio: ['existente' as 'existente' | 'nuevo', Validators.required],
     predioId: [''],
-    nombre: [''],
-    municipio: [''],
-    vereda: [''],
+    nombre: ['', [Validators.minLength(3), Validators.maxLength(150)]],
+    municipio: ['', [Validators.minLength(3), Validators.maxLength(120)]],
+    vereda: ['', [Validators.minLength(1), Validators.maxLength(120)]],
     tipoPredio: ['CORRAL' as TipoPredio],
     inspectorId: [''],
     fecha: ['', Validators.required],
     hora: ['', Validators.required],
-    observaciones: [''],
+    observaciones: ['', [Validators.maxLength(2000)]],
   });
 
   ngOnInit(): void {
@@ -156,6 +156,10 @@ export class VisitasComponent implements OnInit {
         this.pagina.set(1);
         void this.cargar();
       });
+    this.formulario.controls.modoPredio.valueChanges
+      .pipe(takeUntilDestroyed())
+      .subscribe(() => this.aplicarValidadoresPredio());
+    this.aplicarValidadoresPredio();
   }
 
   // ------------------------------------------------------------- listado
@@ -320,6 +324,7 @@ export class VisitasComponent implements OnInit {
       hora: '09:00',
       observaciones: '',
     });
+    this.aplicarValidadoresPredio();
     this.panelAbierto.set(true);
     void this.cargarOpcionesDelPanel();
   }
@@ -340,6 +345,7 @@ export class VisitasComponent implements OnInit {
       hora: horaLocal(fecha),
       observaciones: visita.observaciones ?? '',
     });
+    this.aplicarValidadoresPredio();
     this.panelAbierto.set(true);
     void this.cargarOpcionesDelPanel();
   }
@@ -373,11 +379,55 @@ export class VisitasComponent implements OnInit {
     return this.formulario.controls.modoPredio.value === 'existente';
   }
 
+  /** Exige predio elegido o datos del predio nuevo, según el modo. */
+  private aplicarValidadoresPredio(): void {
+    const { predioId, nombre, municipio, vereda } = this.formulario.controls;
+    if (this.esEdicion() || this.usarPredioExistente()) {
+      predioId.setValidators(this.esEdicion() ? [] : [Validators.required]);
+      nombre.setValidators([
+        Validators.minLength(3),
+        Validators.maxLength(150),
+      ]);
+      municipio.setValidators([
+        Validators.minLength(3),
+        Validators.maxLength(120),
+      ]);
+      vereda.setValidators([
+        Validators.minLength(1),
+        Validators.maxLength(120),
+      ]);
+    } else {
+      predioId.clearValidators();
+      nombre.setValidators([
+        Validators.required,
+        Validators.minLength(3),
+        Validators.maxLength(150),
+      ]);
+      municipio.setValidators([
+        Validators.required,
+        Validators.minLength(3),
+        Validators.maxLength(120),
+      ]);
+      vereda.setValidators([Validators.required, Validators.maxLength(120)]);
+    }
+    predioId.updateValueAndValidity({ emitEvent: false });
+    nombre.updateValueAndValidity({ emitEvent: false });
+    municipio.updateValueAndValidity({ emitEvent: false });
+    vereda.updateValueAndValidity({ emitEvent: false });
+  }
+
   cerrarPanel(): void {
     this.panelAbierto.set(false);
   }
 
   async guardar(): Promise<void> {
+    this.aplicarValidadoresPredio();
+    if (this.formulario.invalid) {
+      this.formulario.markAllAsTouched();
+      this.notificaciones.error('Revise los campos marcados en rojo.');
+      return;
+    }
+
     const valores = this.formulario.getRawValue();
     const fecha = new Date(`${valores.fecha}T${valores.hora}:00`);
 

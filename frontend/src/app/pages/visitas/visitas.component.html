@@ -372,6 +372,9 @@
                 </mat-option>
               }
             </mat-select>
+            @if (formulario.controls.predioId.hasError('required')) {
+              <mat-error>Elija el predio de la visita.</mat-error>
+            }
           </mat-form-field>
         } @else {
           <mat-form-field appearance="outline">
@@ -379,8 +382,14 @@
             <input
               matInput
               formControlName="nombre"
+              maxlength="150"
               placeholder="Nombre del predio"
             />
+            @if (formulario.controls.nombre.hasError('required')) {
+              <mat-error>Escriba el nombre del predio.</mat-error>
+            } @else if (formulario.controls.nombre.hasError('minlength')) {
+              <mat-error>El nombre debe tener al menos 3 caracteres.</mat-error>
+            }
           </mat-form-field>
 
           <div class="grid grid-cols-2 gap-3">
@@ -389,13 +398,29 @@
               <input
                 matInput
                 formControlName="municipio"
+                maxlength="120"
                 placeholder="Municipio"
               />
+              @if (formulario.controls.municipio.hasError('required')) {
+                <mat-error>Escriba el municipio.</mat-error>
+              } @else if (formulario.controls.municipio.hasError('minlength')) {
+                <mat-error>
+                  El municipio debe tener al menos 3 caracteres.
+                </mat-error>
+              }
             </mat-form-field>
 
             <mat-form-field appearance="outline">
               <mat-label>Vereda</mat-label>
-              <input matInput formControlName="vereda" placeholder="Vereda" />
+              <input
+                matInput
+                formControlName="vereda"
+                maxlength="120"
+                placeholder="Vereda"
+              />
+              @if (formulario.controls.vereda.hasError('required')) {
+                <mat-error>Escriba la vereda.</mat-error>
+              }
             </mat-form-field>
           </div>
 
@@ -430,11 +455,17 @@
         <mat-form-field appearance="outline">
           <mat-label>Fecha</mat-label>
           <input matInput type="date" formControlName="fecha" />
+          @if (formulario.controls.fecha.hasError('required')) {
+            <mat-error>Indique la fecha.</mat-error>
+          }
         </mat-form-field>
 
         <mat-form-field appearance="outline">
           <mat-label>Hora</mat-label>
           <input matInput type="time" formControlName="hora" />
+          @if (formulario.controls.hora.hasError('required')) {
+            <mat-error>Indique la hora.</mat-error>
+          }
         </mat-form-field>
       </div>
 

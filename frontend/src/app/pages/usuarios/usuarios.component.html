@@ -237,6 +237,8 @@
         />
         @if (formulario.controls.nombreCompleto.hasError('required')) {
           <mat-error>El nombre es obligatorio.</mat-error>
+        } @else if (formulario.controls.nombreCompleto.hasError('minlength')) {
+          <mat-error>El nombre debe tener al menos 3 caracteres.</mat-error>
         }
       </mat-form-field>
 

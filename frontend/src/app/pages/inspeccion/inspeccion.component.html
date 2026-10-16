@@ -150,31 +150,52 @@
             <div class="grid gap-3 sm:grid-cols-2">
               <mat-form-field appearance="outline" class="sm:col-span-2">
                 <mat-label>Nombre del predio</mat-label>
-                <input matInput formControlName="nombrePredio" />
-                @if (ficha.controls.nombrePredio.invalid) {
+                <input
+                  matInput
+                  formControlName="nombrePredio"
+                  maxlength="150"
+                />
+                @if (ficha.controls.nombrePredio.hasError('required')) {
                   <mat-error>Escriba el nombre del predio.</mat-error>
+                } @else if (ficha.controls.nombrePredio.hasError('minlength')) {
+                  <mat-error
+                    >El nombre debe tener al menos 3 caracteres.</mat-error
+                  >
+                } @else if (ficha.controls.nombrePredio.hasError('maxlength')) {
+                  <mat-error
+                    >El nombre no puede pasar de 150 caracteres.</mat-error
+                  >
                 }
               </mat-form-field>
 
               <mat-form-field appearance="outline">
                 <mat-label>Municipio</mat-label>
-                <input matInput formControlName="municipio" />
-                @if (ficha.controls.municipio.invalid) {
+                <input matInput formControlName="municipio" maxlength="120" />
+                @if (ficha.controls.municipio.hasError('required')) {
                   <mat-error>Escriba el municipio.</mat-error>
+                } @else if (ficha.controls.municipio.hasError('minlength')) {
+                  <mat-error
+                    >El municipio debe tener al menos 3 caracteres.</mat-error
+                  >
                 }
               </mat-form-field>
 
               <mat-form-field appearance="outline">
                 <mat-label>Vereda</mat-label>
-                <input matInput formControlName="vereda" />
-                @if (ficha.controls.vereda.invalid) {
+                <input matInput formControlName="vereda" maxlength="120" />
+                @if (ficha.controls.vereda.hasError('required')) {
                   <mat-error>Escriba la vereda.</mat-error>
                 }
               </mat-form-field>
 
               <mat-form-field appearance="outline" class="sm:col-span-2">
                 <mat-label>Responsable o quien atiende</mat-label>
-                <input matInput formControlName="responsable" />
+                <input matInput formControlName="responsable" maxlength="150" />
+                @if (ficha.controls.responsable.hasError('minlength')) {
+                  <mat-error>
+                    El nombre del responsable debe tener al menos 3 caracteres.
+                  </mat-error>
+                }
               </mat-form-field>
 
               <mat-form-field appearance="outline">
@@ -191,12 +212,21 @@
                 <mat-label>N.º total de aves (capacidad instalada)</mat-label>
                 <input
                   matInput
-                  type="number"
-                  min="0"
+                  type="text"
+                  inputmode="numeric"
+                  autocomplete="off"
                   formControlName="numeroAves"
                 />
                 @if (ficha.controls.numeroAves.invalid) {
-                  <mat-error>Escriba un número de aves válido.</mat-error>
+                  <mat-error>
+                    {{
+                      mensajeEntero(
+                        ficha.controls.numeroAves,
+                        'el número de aves',
+                        { min: 0, max: 10000000 }
+                      )
+                    }}
+                  </mat-error>
                 }
               </mat-form-field>
 
@@ -246,6 +276,12 @@
               <span class="text-sm font-medium text-contenido">
                 Galpones a evaluar
               </span>
+              @if (galpones.hasError('numerosDuplicados')) {
+                <p class="text-sm text-peligro">
+                  Hay galpones con el mismo número. Cada galpón debe tener un
+                  número distinto.
+                </p>
+              }
               <div formArrayName="galpones" class="flex flex-col gap-2">
                 @for (
                   control of galpones.controls;
@@ -260,30 +296,69 @@
                       <mat-label>Galpón</mat-label>
                       <input
                         matInput
-                        type="number"
-                        min="1"
+                        type="text"
+                        inputmode="numeric"
+                        autocomplete="off"
                         formControlName="numero"
                       />
+                      @if (control.controls.numero.invalid) {
+                        <mat-error>
+                          {{
+                            mensajeEntero(
+                              control.controls.numero,
+                              'el galpón',
+                              {
+                                min: 1,
+                                max: 99,
+                              }
+                            )
+                          }}
+                        </mat-error>
+                      }
                     </mat-form-field>
 
                     <mat-form-field appearance="outline" class="w-32">
                       <mat-label>Edad (sem)</mat-label>
                       <input
                         matInput
-                        type="number"
-                        min="0"
+                        type="text"
+                        inputmode="numeric"
+                        autocomplete="off"
                         formControlName="edadSemanas"
                       />
+                      @if (control.controls.edadSemanas.invalid) {
+                        <mat-error>
+                          {{
+                            mensajeEntero(
+                              control.controls.edadSemanas,
+                              'la edad',
+                              { min: 0, max: 10000 }
+                            )
+                          }}
+                        </mat-error>
+                      }
                     </mat-form-field>
 
                     <mat-form-field appearance="outline" class="w-32">
                       <mat-label>Aves</mat-label>
                       <input
                         matInput
-                        type="number"
-                        min="0"
+                        type="text"
+                        inputmode="numeric"
+                        autocomplete="off"
                         formControlName="aves"
                       />
+                      @if (control.controls.aves.invalid) {
+                        <mat-error>
+                          {{
+                            mensajeEntero(
+                              control.controls.aves,
+                              'las aves del galpón',
+                              { min: 0, max: 10000000 }
+                            )
+                          }}
+                        </mat-error>
+                      }
                     </mat-form-field>
 
                     <mat-checkbox formControlName="seleccionado">

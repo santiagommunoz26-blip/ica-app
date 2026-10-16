@@ -348,4 +348,59 @@ describe('Apertura e inspección (e2e)', () => {
       fechaHora: 'no-es-fecha',
     }).expect(400);
   });
+
+  it('RF13: rechaza un número de aves con letras, decimales o negativo', async () => {
+    const visitaId = await programarVisita(tokenInspector);
+
+    const conLetras = await guardar(tokenInspector, visitaId, {
+      numeroAves: 'muchas',
+    }).expect(400);
+    expect(String(conLetras.body.message)).toContain('entero');
+
+    const conDecimales = await guardar(tokenInspector, visitaId, {
+      numeroAves: 62000.5,
+    }).expect(400);
+    expect(String(conDecimales.body.message)).toContain('entero');
+
+    const negativo = await guardar(tokenInspector, visitaId, {
+      numeroAves: -1,
+    }).expect(400);
+    expect(String(negativo.body.message)).toContain('negativo');
+  });
+
+  it('RF16: rechaza un galpón con número o aves que no son enteros válidos', async () => {
+    const visitaId = await programarVisita(tokenInspector);
+
+    const numeroDecimal = await guardar(tokenInspector, visitaId, {
+      galpones: [{ numero: 1.5 }],
+    }).expect(400);
+    expect(String(numeroDecimal.body.message)).toContain('entero');
+
+    const numeroCero = await guardar(tokenInspector, visitaId, {
+      galpones: [{ numero: 0 }],
+    }).expect(400);
+    expect(String(numeroCero.body.message)).toContain('al menos 1');
+
+    const avesNegativas = await guardar(tokenInspector, visitaId, {
+      galpones: [{ numero: 1, aves: -20 }],
+    }).expect(400);
+    expect(String(avesNegativas.body.message)).toContain('negativa');
+
+    const avesDecimales = await guardar(tokenInspector, visitaId, {
+      galpones: [{ numero: 1, aves: 12.5 }],
+    }).expect(400);
+    expect(String(avesDecimales.body.message)).toContain('entero');
+  });
+
+  it('RF16: rechaza dos galpones con el mismo número', async () => {
+    const visitaId = await programarVisita(tokenInspector);
+
+    const repetido = await guardar(tokenInspector, visitaId, {
+      galpones: [
+        { numero: 1, aves: 1000 },
+        { numero: 1, aves: 2000 },
+      ],
+    }).expect(400);
+    expect(String(repetido.body.message)).toContain('repetido');
+  });
 });

@@ -162,6 +162,23 @@ describe('VisitasComponent', () => {
     expect(texto()).toContain('No hay visitas que coincidan con la búsqueda');
   });
 
+  it('no programa una visita si el predio nuevo está incompleto', async () => {
+    componente.abrirNueva();
+    componente.formulario.patchValue({
+      modoPredio: 'nuevo',
+      nombre: 'AB',
+      municipio: '',
+      vereda: '',
+      fecha: '2026-10-25',
+      hora: '08:30',
+    });
+
+    await componente.guardar();
+
+    expect(componente.panelAbierto()).toBe(true);
+    expect(componente.formulario.invalid).toBe(true);
+  });
+
   it('permite programar una visita con un predio nuevo (RF08)', async () => {
     expect(componente.puedeCrear()).toBe(true);
 

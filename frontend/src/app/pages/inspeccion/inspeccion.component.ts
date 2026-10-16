@@ -31,6 +31,12 @@ import {
   type PeticionGuardarInspeccion,
   type SistemaProduccion,
 } from '../../core/inspeccion/inspeccion.modelos';
+import {
+  entero,
+  mensajeEntero,
+  numerosUnicos,
+  valorEntero,
+} from '../../core/validadores';
 import { SincronizacionService } from '../../core/visitas/sincronizacion.service';
 import {
   TONO_ESTADO,
@@ -46,9 +52,9 @@ import { TarjetaComponent } from '../../shared/ui/tarjeta/tarjeta.component';
 
 /** Campos de un galpón en el formulario (RF16). */
 interface GalponForm {
-  numero: FormControl<number>;
-  edadSemanas: FormControl<number | null>;
-  aves: FormControl<number | null>;
+  numero: FormControl<number | string>;
+  edadSemanas: FormControl<number | string | null>;
+  aves: FormControl<number | string | null>;
   seleccionado: FormControl<boolean>;
 }
 
@@ -123,10 +129,12 @@ export class InspeccionComponent {
       Validators.required,
       Validators.maxLength(120),
     ]),
-    responsable: this.fb.nonNullable.control('', [Validators.maxLength(150)]),
-    numeroAves: this.fb.control<number | null>(null, [
-      Validators.min(0),
-      Validators.max(10000000),
+    responsable: this.fb.nonNullable.control('', [
+      Validators.minLength(3),
+      Validators.maxLength(150),
+    ]),
+    numeroAves: this.fb.control<number | string | null>(null, [
+      entero({ min: 0, max: 10_000_000 }),
     ]),
     sistemaProduccion: this.fb.nonNullable.control<SistemaProduccion | ''>(''),
     fecha: this.fb.nonNullable.control(''),
@@ -135,8 +143,13 @@ export class InspeccionComponent {
     observaciones: this.fb.nonNullable.control('', [
       Validators.maxLength(2000),
     ]),
-    galpones: this.fb.array<FormGroup<GalponForm>>([]),
+    galpones: this.fb.array<FormGroup<GalponForm>>([], {
+      validators: [numerosUnicos()],
+    }),
   });
+
+  /** Mensajes de error de campos enteros, para el marcado. */
+  readonly mensajeEntero = mensajeEntero;
 
   /** Valor actual del formulario, para los cálculos de la pantalla. */
   private readonly valor = toSignal(
@@ -146,10 +159,8 @@ export class InspeccionComponent {
 
   /** Clasificación automática según el número de aves (RF14). */
   readonly clasificacion = computed<TipoPredio | null>(() => {
-    const aves = this.valor().numeroAves;
-    return aves === null || aves === undefined
-      ? null
-      : clasificarPorAves(Number(aves));
+    const aves = valorEntero(this.valor().numeroAves);
+    return aves === null ? null : clasificarPorAves(aves);
   });
 
   /** Tipo que se muestra: el clasificado o, mientras no haya aves, el declarado. */
@@ -194,23 +205,18 @@ export class InspeccionComponent {
 
   /** Números de galpón que la metodología sugiere evaluar (RF16). */
   readonly sugeridos = computed(() => {
-    const aves = this.valor().numeroAves;
+    const aves = valorEntero(this.valor().numeroAves);
     const galpones = this.valor().galpones.map((galpon) => ({
-      numero: Number(galpon.numero),
-      edadSemanas:
-        galpon.edadSemanas === null || galpon.edadSemanas === undefined
-          ? null
-          : Number(galpon.edadSemanas),
+      numero: valorEntero(galpon.numero) ?? 0,
+      edadSemanas: valorEntero(galpon.edadSemanas),
     }));
-    return numerosSugeridos(galpones, aves ?? null);
+    return numerosSugeridos(galpones, aves);
   });
 
   /** Cuántos galpones sugiere la metodología, si ya hay número de aves (RF16). */
   readonly galponesSugeridos = computed(() => {
-    const aves = this.valor().numeroAves;
-    return aves === null || aves === undefined
-      ? null
-      : galponesSugeridos(Number(aves));
+    const aves = valorEntero(this.valor().numeroAves);
+    return aves === null ? null : galponesSugeridos(aves);
   });
 
   readonly puedeGuardar = computed(
@@ -308,9 +314,9 @@ export class InspeccionComponent {
 
   /** Agrega un galpón a la ficha (RF16). */
   agregarGalpon(): void {
-    const numeros = this.galpones.controls.map(
-      (control) => control.controls.numero.value,
-    );
+    const numeros = this.galpones.controls
+      .map((control) => valorEntero(control.controls.numero.value))
+      .filter((numero): numero is number => numero !== null);
     const siguiente = numeros.length === 0 ? 1 : Math.max(...numeros) + 1;
     this.galpones.push(
       this.crearGrupoGalpon({
@@ -328,8 +334,9 @@ export class InspeccionComponent {
   }
 
   /** ¿La metodología sugiere evaluar este galpón? (RF16). */
-  esSugerido(numero: number): boolean {
-    return this.sugeridos().includes(numero);
+  esSugerido(numero: number | string | null): boolean {
+    const valor = valorEntero(numero);
+    return valor !== null && this.sugeridos().includes(valor);
   }
 
   /** Guarda el borrador; con `iniciar`, además pone la visita en curso (RF09). */
@@ -400,9 +407,15 @@ export class InspeccionComponent {
     seleccionado: boolean;
   }): FormGroup<GalponForm> {
     return this.fb.group<GalponForm>({
-      numero: this.fb.nonNullable.control(galpon.numero),
-      edadSemanas: this.fb.control<number | null>(galpon.edadSemanas),
-      aves: this.fb.control<number | null>(galpon.aves),
+      numero: this.fb.nonNullable.control(galpon.numero, {
+        validators: [entero({ min: 1, max: 99, requerido: true })],
+      }),
+      edadSemanas: this.fb.control<number | string | null>(galpon.edadSemanas, {
+        validators: [entero({ min: 0, max: 10_000 })],
+      }),
+      aves: this.fb.control<number | string | null>(galpon.aves, {
+        validators: [entero({ min: 0, max: 10_000_000 })],
+      }),
       seleccionado: this.fb.nonNullable.control(galpon.seleccionado),
     });
   }
@@ -415,20 +428,22 @@ export class InspeccionComponent {
       municipio: valor.municipio.trim(),
       vereda: valor.vereda.trim(),
       observaciones: valor.observaciones.trim(),
-      galpones: valor.galpones.map((galpon) => ({
-        numero: Number(galpon.numero),
-        seleccionado: galpon.seleccionado,
-        ...(galpon.edadSemanas === null
-          ? {}
-          : { edadSemanas: Number(galpon.edadSemanas) }),
-        ...(galpon.aves === null ? {} : { aves: Number(galpon.aves) }),
-      })),
+      galpones: valor.galpones.map((galpon) => {
+        const edadSemanas = valorEntero(galpon.edadSemanas);
+        const aves = valorEntero(galpon.aves);
+        return {
+          numero: valorEntero(galpon.numero) ?? 0,
+          seleccionado: galpon.seleccionado,
+          ...(edadSemanas === null ? {} : { edadSemanas }),
+          ...(aves === null ? {} : { aves }),
+        };
+      }),
     };
 
     const responsable = valor.responsable.trim();
     if (responsable.length >= 3) peticion.responsable = responsable;
-    if (valor.numeroAves !== null)
-      peticion.numeroAves = Number(valor.numeroAves);
+    const numeroAves = valorEntero(valor.numeroAves);
+    if (numeroAves !== null) peticion.numeroAves = numeroAves;
     if (valor.sistemaProduccion) {
       peticion.sistemaProduccion = valor.sistemaProduccion;
     }

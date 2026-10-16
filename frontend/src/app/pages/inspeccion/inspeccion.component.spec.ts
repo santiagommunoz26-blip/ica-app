@@ -276,6 +276,32 @@ describe('InspeccionComponent', () => {
       expect(texto()).toContain('Catálogo provisional');
     });
 
+    it('rechaza letras, decimales y negativos en el número de aves', () => {
+      const aves = componente.ficha.controls.numeroAves;
+      aves.setValue('abc');
+      expect(aves.invalid).toBe(true);
+      expect(aves.hasError('noNumero')).toBe(true);
+
+      aves.setValue('12.5');
+      expect(aves.hasError('noEntero')).toBe(true);
+
+      aves.setValue(-10);
+      expect(aves.hasError('min')).toBe(true);
+
+      aves.setValue(150);
+      expect(aves.valid).toBe(true);
+    });
+
+    it('no guarda si hay un galpón con datos inválidos', async () => {
+      componente.agregarGalpon();
+      componente.galpones.controls[0].controls.aves.setValue('muchas');
+      fixture.detectChanges();
+
+      await componente.guardar(false);
+
+      expect(componente.error()).toBe('Revise los campos marcados en rojo.');
+    });
+
     it('clasifica como traspatio con 199 aves o menos (RF14)', () => {
       componente.ficha.controls.numeroAves.setValue(150);
       fixture.detectChanges();
