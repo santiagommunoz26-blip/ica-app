@@ -1,7 +1,7 @@
 <mat-sidenav-container class="h-screen">
   <mat-sidenav mode="side" opened class="w-64 border-r border-borde">
     <div
-      class="flex items-center gap-2 px-4 py-5 text-lg font-semibold text-marca"
+      class="flex h-barra items-center gap-2 px-4 text-lg font-semibold text-marca"
     >
       <mat-icon>flutter_dash</mat-icon>
       <span>EBA Aves</span>
@@ -30,11 +30,11 @@
       </p>
       <mat-nav-list>
         @for (opcion of proximas(); track opcion.ruta) {
-          <div mat-list-item disabled class="opacity-60">
+          <mat-list-item disabled class="item-pendiente opacity-60">
             <mat-icon matListItemIcon>{{ opcion.icono }}</mat-icon>
             <span matListItemTitle>{{ opcion.etiqueta }}</span>
             <span matListItemLine class="text-xs">{{ opcion.modulo }}</span>
-          </div>
+          </mat-list-item>
         }
       </mat-nav-list>
     }
@@ -63,7 +63,7 @@
       </div>
     }
 
-    <mat-toolbar class="border-b border-borde">
+    <mat-toolbar class="shrink-0 border-b border-borde">
       <span class="font-semibold text-contenido">
         {{
           auth.usuario()?.rol === 'ADMINISTRADOR'
@@ -76,18 +76,18 @@
       <button
         mat-button
         type="button"
+        class="boton-usuario"
         [matMenuTriggerFor]="menuUsuario"
         aria-label="Menú del usuario"
       >
         <span
-          class="mr-2 flex h-8 w-8 items-center justify-center rounded-full bg-marca-suave text-xs font-semibold text-marca"
+          class="mr-2 flex h-8 w-8 items-center justify-center rounded-full bg-marca text-xs font-semibold text-marca-contraste"
         >
           {{ iniciales() }}
         </span>
         <span class="hidden text-sm sm:inline">
           {{ auth.usuario()?.nombreCompleto }}
         </span>
-        <mat-icon>arrow_drop_down</mat-icon>
       </button>
       <mat-menu #menuUsuario="matMenu">
         <div class="flex flex-col gap-1 px-4 py-2 text-xs text-contenido-suave">

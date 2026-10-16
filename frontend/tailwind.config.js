@@ -117,6 +117,9 @@ module.exports = {
       minHeight: {
         control: 'var(--altura-control)',
       },
+      height: {
+        barra: 'var(--altura-barra)',
+      },
     },
   },
   plugins: [],

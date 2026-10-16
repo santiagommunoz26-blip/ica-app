@@ -115,6 +115,12 @@ $tema: mat.define-theme(
     --mat-table-background-color: var(--color-superficie);
     --mdc-snackbar-container-shape: var(--radio-md);
 
+    // Barra superior: su alto es un token, el mismo que usa el bloque de marca
+    // del panel lateral, para que la división del panel coincida con el borde
+    // de la barra.
+    --mat-toolbar-standard-height: var(--altura-barra);
+    --mat-toolbar-mobile-height: var(--altura-barra);
+
     // Altura de los controles: 44px de área táctil para usarlos en campo y con
     // una sola mano (RNF12).
     --mdc-filled-button-container-height: var(--altura-control);

@@ -173,6 +173,10 @@ Tailwind (`bg-marca/40`) no funcionan**: para eso están los tonos `-suave`,
   campo con contorno se apoya en el borde superior y sobresale la mitad de su
   alto; ese espacio se reserva por encima de cada campo (`.mat-mdc-form-field`)
   para que la etiqueta nunca pise el párrafo o el título que va antes.
+- **Alto de la barra:** `--altura-barra` 64 px (`h-barra`). Es el alto de la barra
+  superior y del bloque de marca del panel lateral, de modo que la división del
+  panel coincide con el borde inferior de la barra. La barra no se encoge
+  (`shrink-0`): su alto no depende del contenido de la pantalla.
 - **Ancho de contenido:** `--ancho-contenido` 72 rem (`max-w-contenido`).
 
 ---
@@ -312,6 +316,25 @@ this.notificaciones.exito('Usuario creado.');
 this.notificaciones.error('No se pudo guardar el cambio.');
 ```
 
+### Armazón (`layout/shell`)
+
+Convenciones propias del armazón, todas con tokens:
+
+- **Barra superior:** alto `h-barra` (64 px) y `shrink-0`, para que su borde
+  coincida con la división del panel lateral y no dependa de la altura del
+  contenido.
+- **Ficha del usuario:** círculo verde de marca con las iniciales en blanco
+  (`bg-marca text-marca-contraste`) y, en pantallas anchas, el nombre; todo en
+  una línea. El contenido proyectado de un botón de Material se envuelve en
+  `.mdc-button__label`, que no es flexible: la clase `.boton-usuario`
+  (`shell.component.scss`) lo convierte en fila centrada, porque un `flex`
+  suelto dentro parte el botón en dos líneas.
+- **Navegación:** la opción activa es la píldora verde oscura (`.nav-activo`) y
+  los módulos que aún no existen van atenuados (`opacity-60`) y sin la capa de
+  estado que Material pinta en un elemento de lista deshabilitado
+  (`.item-pendiente`); el color de esos elementos vuelve a los tokens para que
+  sigan legibles.
+
 ---
 
 ## 6. Estados de la interfaz
@@ -367,12 +390,21 @@ dentro de la pantalla) para no dejar mensajes pegados al formulario.
     `--campo-reserva-etiqueta`): la etiqueta del contorno se apoya en el borde y
     sobresale, así que sin esa reserva pisaba el texto anterior (se veía en el
     bloque «Acceso sin conexión (PIN)» del panel).
+11. **El alto de la barra superior es un token** (`--altura-barra` 64 px) que
+    también usa el bloque de marca del panel lateral, y la barra lleva
+    `shrink-0`: sin eso la barra se encogía según el contenido de la pantalla y
+    su borde no coincidía con la división del panel.
+12. **La ficha del usuario y los módulos pendientes se ajustan en el armazón**
+    (no con estilos sueltos por pantalla): la ficha es un círculo verde con las
+    iniciales en blanco —como el wireframe— y una fila centrada; los módulos
+    pendientes son `mat-list-item` deshabilitados (estructura de lista correcta,
+    con el icono, el nombre y la etiqueta del módulo alineados) sin la capa de
+    estado de Material.
 
 ## 8. Observaciones para la pasada de pulido final
 
-Detectadas al revisar las capturas; **no** se corrigen aquí porque el pulido
-fino se hará en una sola pasada:
-
-- Los elementos de «Próximos módulos» del panel lateral muestran la etiqueta del
-  módulo (M5, M6…) desalineada de la columna de texto (es un detalle de la
-  plantilla del armazón, no de los tokens).
+Por ahora **no hay observaciones abiertas**: las detectadas en la primera
+revisión de capturas (separación entre un párrafo y el primer campo, etiqueta del
+buscador con icono de prefijo y desalineación de «Próximos módulos») se
+corrigieron el 15 de octubre de 2026. Este apartado queda para lo que aparezca en
+las siguientes revisiones.

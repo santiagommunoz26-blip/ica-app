@@ -15,3 +15,25 @@
   --mdc-list-list-item-hover-state-layer-color: var(--color-sobre-marca);
   background-color: var(--color-marca);
 }
+
+/* Ficha del usuario en la barra superior: avatar, nombre y flecha en una sola
+   línea, centrados. Material envuelve el contenido proyectado de un botón en
+   `.mdc-button__label`, que no es un contenedor flexible; por eso el avatar
+   (que es un bloque) partía el botón en dos líneas. */
+:host ::ng-deep .boton-usuario .mdc-button__label {
+  display: flex;
+  align-items: center;
+}
+
+/* Módulos que aún no existen: van atenuados y sin la capa de estado (el fondo)
+   que Material pinta en un elemento de lista deshabilitado. La atenuación la
+   aporta la utilidad `opacity-60` del armazón, así que aquí se devuelven los
+   colores de los tokens (Material los apaga aparte y quedarían ilegibles). */
+.item-pendiente {
+  --mdc-list-list-item-disabled-state-layer-color: transparent;
+  --mdc-list-list-item-hover-state-layer-color: transparent;
+  --mdc-list-list-item-focus-state-layer-color: transparent;
+  --mdc-list-list-item-disabled-label-text-color: var(--color-texto);
+  --mdc-list-list-item-disabled-label-text-opacity: 1;
+  --mdc-list-list-item-disabled-leading-icon-color: var(--color-marca);
+}
