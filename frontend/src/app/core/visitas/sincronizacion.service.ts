@@ -1,3 +1,4 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import {
   DestroyRef,
   Injectable,
@@ -347,6 +348,11 @@ export class SincronizacionService {
   /**
    * Envía las operaciones pendientes (RF12). Las que el servidor aplica y las
    * que rechaza salen de la cola: reintentar un rechazo no cambiaría nada.
+   *
+   * El servidor valida el lote entero de una vez: si una sola operación no
+   * cumple su contrato (error 400), ninguna se aplica. En ese caso se
+   * reintenta operación por operación, para que las que están bien no queden
+   * bloqueadas por una mal formada.
    */
   async sincronizar(): Promise<ResultadoSincronizacion[]> {
     const operaciones = this.cola();
@@ -354,15 +360,24 @@ export class SincronizacionService {
 
     this.sincronizando.set(true);
     try {
-      const respuesta = await this.conAcceso(() =>
-        this.http.sincronizar(operaciones.map(aServidor)),
-      );
+      let resultados: ResultadoSincronizacion[];
+      try {
+        const respuesta = await this.conAcceso(() =>
+          this.http.sincronizar(operaciones.map(aServidor)),
+        );
+        resultados = respuesta.resultados;
+      } catch (fallo) {
+        if (!(fallo instanceof HttpErrorResponse) || fallo.status !== 400) {
+          throw fallo;
+        }
+        resultados = await this.sincronizarUnaPorUna(operaciones);
+      }
 
       const enviadas = new Set(operaciones.map((operacion) => operacion.id));
       this.guardarCola(
         this.cola().filter((operacion) => !enviadas.has(operacion.id)),
       );
-      this.ultimoResultado.set(respuesta.resultados);
+      this.ultimoResultado.set(resultados);
 
       // La copia local se refresca con el estado que quedó en el servidor.
       try {
@@ -375,10 +390,41 @@ export class SincronizacionService {
         // Si falla, la próxima consulta traerá el estado bueno.
       }
 
-      return respuesta.resultados;
+      return resultados;
     } finally {
       this.sincronizando.set(false);
     }
+  }
+
+  /**
+   * Envía las operaciones una por una (cuando el lote fue rechazado por
+   * formato). Las que el servidor rechaza por su contenido se informan y salen
+   * de la cola; un fallo de red detiene el proceso y deja el resto pendiente.
+   */
+  private async sincronizarUnaPorUna(
+    operaciones: OperacionSincronizacion[],
+  ): Promise<ResultadoSincronizacion[]> {
+    const resultados: ResultadoSincronizacion[] = [];
+    for (const operacion of operaciones) {
+      try {
+        const respuesta = await this.conAcceso(() =>
+          this.http.sincronizar([aServidor(operacion)]),
+        );
+        resultados.push(...respuesta.resultados);
+      } catch (fallo) {
+        if (fallo instanceof HttpErrorResponse && fallo.status === 400) {
+          resultados.push({
+            id: operacion.id,
+            estado: 'RECHAZADA',
+            motivo:
+              'La operación no tiene el formato que espera el servidor y no se pudo aplicar.',
+          });
+          continue;
+        }
+        throw fallo;
+      }
+    }
+    return resultados;
   }
 
   // ------------------------------------------------------------- internos
@@ -517,7 +563,12 @@ export class SincronizacionService {
   }
 }
 
-/** Quita del envío los campos que son solo para la pantalla. */
+/**
+ * Quita del envío los campos que son solo para la pantalla o para el cálculo
+ * local (RF26): `resumen` y, dentro de la ficha, `guardadoEn` de cada
+ * evaluación y documento. El servidor valida el cuerpo contra su contrato y
+ * rechaza los campos que no declara, así que aquí solo viaja lo que espera.
+ */
 function aServidor(operacion: OperacionSincronizacion): unknown {
   return {
     id: operacion.id,
@@ -526,9 +577,50 @@ function aServidor(operacion: OperacionSincronizacion): unknown {
     crear: operacion.crear,
     actualizar: operacion.actualizar,
     estado: operacion.estado,
-    inspeccion: operacion.inspeccion,
+    inspeccion: operacion.inspeccion
+      ? aFichaDeServidor(operacion.inspeccion)
+      : undefined,
     registradoEn: operacion.registradoEn,
   };
+}
+
+/** Arma la ficha como la espera la API (sin los campos de pantalla). */
+function aFichaDeServidor(
+  inspeccion: PeticionGuardarInspeccion,
+): Record<string, unknown> {
+  const { evaluaciones, documentos, ...ficha } = inspeccion;
+  const enviada: Record<string, unknown> = { ...ficha };
+
+  if (evaluaciones) {
+    enviada['evaluaciones'] = evaluaciones.map((evaluacion) => ({
+      galponNumero: evaluacion.galponNumero,
+      indicadorCodigo: evaluacion.indicadorCodigo,
+      noAplica: evaluacion.noAplica,
+      motivoNoAplica: evaluacion.motivoNoAplica,
+      observaciones: evaluacion.observaciones,
+      puntos: evaluacion.puntos.map((punto) => ({
+        numero: punto.numero,
+        puntaje: punto.puntaje,
+        aves: punto.aves,
+        jaulas: punto.jaulas,
+      })),
+    }));
+  }
+
+  if (documentos) {
+    enviada['documentos'] = documentos.map((documento) => ({
+      indicadorCodigo: documento.indicadorCodigo,
+      presentado: documento.presentado,
+      legible: documento.legible,
+      firmadoResponsable: documento.firmadoResponsable,
+      firmadoProfesional: documento.firmadoProfesional,
+      mortalidad: documento.mortalidad,
+      puntaje: documento.puntaje,
+      pendiente: documento.pendiente,
+    }));
+  }
+
+  return enviada;
 }
 
 /** Aplica los cambios de una edición sobre la visita que se muestra. */

@@ -675,6 +675,19 @@ dentro de la pantalla) para no dejar mensajes pegados al formulario.
     quedaba con un token ya consumido, de modo que la segunda recarga pedía la
     contraseña. Una sesión que entró con contraseña sigue sin poder tocar el
     token cifrado (no conoce la llave).
+49. **La cola envía solo lo que el contrato de la API declara, y una operación
+    mal formada no bloquea a las demás** (corrección del 16 oct 2026, a partir
+    de «le doy sincronizar y no lo hace»): las evaluaciones de la Fase II y los
+    documentos de la Fase III llevan `guardadoEn` (campo de pantalla que la API
+    no declara) y el servidor —que rechaza los campos desconocidos— respondía
+    400 al **lote entero**, así que la cola nunca se vaciaba. Arreglo: al
+    enviar, la ficha se arma con los campos que la API declara (la cola local
+    conserva el borrador completo para la pantalla); y si el lote es rechazado
+    por formato (400), el servicio lo reintenta operación por operación: las
+    bien formadas se aplican y las mal formadas se informan con un motivo claro
+    y salen de la cola, de modo que una sola operación no bloquea el trabajo de
+    campo (RF12). Los DTO del backend siguen estrictos a propósito: el error de
+    formato se paga en la frontera del envío, no relajando el contrato.
 
 ## 8. Observaciones para la pasada de pulido final
 

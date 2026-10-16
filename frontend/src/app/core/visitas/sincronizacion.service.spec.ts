@@ -8,6 +8,7 @@ import { provideRouter } from '@angular/router';
 import { environment } from '../../../environments/environment';
 import { AuthService } from '../auth/auth.service';
 import type { SesionRespuesta, Usuario } from '../auth/auth.modelos';
+import type { PeticionGuardarInspeccion } from '../inspeccion/inspeccion.modelos';
 import { SincronizacionService } from './sincronizacion.service';
 import type { ListaVisitas, Visita } from './visitas.modelos';
 
@@ -80,6 +81,38 @@ const NUEVA = {
     tipoPredio: 'TRASPATIO' as const,
   },
   programadaPara: '2026-10-25T13:00:00.000Z',
+};
+
+/** Ficha con evaluación y documento: llevan `guardadoEn`, solo de pantalla. */
+const FICHA: PeticionGuardarInspeccion = {
+  nombrePredio: 'Granja El Rosal',
+  municipio: 'Sopó',
+  vereda: 'Vereda 1',
+  observaciones: 'Prueba',
+  evaluaciones: [
+    {
+      galponNumero: 1,
+      indicadorCodigo: 'MBA-01',
+      noAplica: false,
+      motivoNoAplica: null,
+      observaciones: 'Prueba de M4',
+      puntos: [{ numero: 1, puntaje: 2, aves: 20, jaulas: null }],
+      guardadoEn: '2026-10-16T14:54:30.014Z',
+    },
+  ],
+  documentos: [
+    {
+      indicadorCodigo: 'MBG-04',
+      presentado: true,
+      legible: true,
+      firmadoResponsable: true,
+      firmadoProfesional: null,
+      mortalidad: 7.5,
+      puntaje: 2,
+      pendiente: false,
+      guardadoEn: '2026-10-16T15:00:00.000Z',
+    },
+  ],
 };
 
 const esPeticion =
@@ -254,5 +287,99 @@ describe('SincronizacionService', () => {
 
     expect(resultados).toEqual([]);
     expect(servicio.pendientes()).toBe(1);
+  });
+
+  it('la ficha que se envía no lleva los campos de pantalla (RF12, RNF09)', async () => {
+    servicio.enLinea.set(false);
+    await servicio.guardarInspeccion(VISITA.id, FICHA);
+    expect(servicio.pendientes()).toBe(1);
+
+    servicio.enLinea.set(true);
+    const promesa = servicio.sincronizar();
+    await tick();
+
+    const envio = http.expectOne(esPeticion('/visitas/sincronizar', 'POST'));
+    // `guardadoEn` es solo para la pantalla: el servidor rechazaría el lote.
+    expect(JSON.stringify(envio.request.body)).not.toContain('guardadoEn');
+    const operacion = (
+      envio.request.body as {
+        operaciones: {
+          id: string;
+          inspeccion: {
+            evaluaciones: Record<string, unknown>[];
+            documentos: Record<string, unknown>[];
+          };
+        }[];
+      }
+    ).operaciones[0];
+    expect(operacion.inspeccion.evaluaciones[0]['galponNumero']).toBe(1);
+    expect(operacion.inspeccion.documentos[0]['indicadorCodigo']).toBe(
+      'MBG-04',
+    );
+
+    envio.flush({
+      resultados: [{ id: operacion.id, estado: 'APLICADA' }],
+      visitas: [],
+    });
+    await tick();
+    http.expectOne(esPeticion('/visitas', 'GET')).flush(LISTA);
+    await promesa;
+
+    expect(servicio.pendientes()).toBe(0);
+  });
+
+  it('una operación mal formada no bloquea a las demás (RF12)', async () => {
+    servicio.enLinea.set(false);
+    await servicio.cambiarEstado(VISITA, 'EN_CURSO');
+    await servicio.cambiarEstado(VISITA, 'PENDIENTE_DOCUMENTOS');
+    expect(servicio.pendientes()).toBe(2);
+
+    servicio.enLinea.set(true);
+    const promesa = servicio.sincronizar();
+    await tick();
+
+    // El servidor rechaza el lote entero por el formato de una operación…
+    const lote = http.expectOne(esPeticion('/visitas/sincronizar', 'POST'));
+    expect(
+      (lote.request.body as { operaciones: unknown[] }).operaciones.length,
+    ).toBe(2);
+    lote.flush(
+      { message: ['property inesperada should not exist'], statusCode: 400 },
+      { status: 400, statusText: 'Bad Request' },
+    );
+    await tick();
+
+    // …así que se reintenta una por una: la primera sigue mal formada y la
+    // segunda sí se aplica.
+    const primera = http.expectOne(esPeticion('/visitas/sincronizar', 'POST'));
+    const idPrimera = (
+      primera.request.body as { operaciones: { id: string }[] }
+    ).operaciones[0].id;
+    primera.flush(
+      { message: ['property inesperada should not exist'], statusCode: 400 },
+      { status: 400, statusText: 'Bad Request' },
+    );
+    await tick();
+
+    const segunda = http.expectOne(esPeticion('/visitas/sincronizar', 'POST'));
+    const idSegunda = (
+      segunda.request.body as { operaciones: { id: string }[] }
+    ).operaciones[0].id;
+    segunda.flush({
+      resultados: [{ id: idSegunda, estado: 'APLICADA' }],
+      visitas: [],
+    });
+    await tick();
+
+    http.expectOne(esPeticion('/visitas', 'GET')).flush(LISTA);
+    const resultados = await promesa;
+
+    expect(idPrimera).not.toBe(idSegunda);
+    expect(resultados.length).toBe(2);
+    expect(resultados[0].estado).toBe('RECHAZADA');
+    expect(resultados[0].motivo).toContain('formato');
+    expect(resultados[1].estado).toBe('APLICADA');
+    // Las dos salen de la cola: la mal formada ya no se reintenta sola.
+    expect(servicio.pendientes()).toBe(0);
   });
 });
