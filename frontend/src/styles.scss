@@ -5,6 +5,16 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Ajustes de interoperabilidad con Angular Material ---------------------------
+   Tailwind (Preflight) aplica «border-style: solid» a todos los elementos.
+   Los contornos de tipo «outline» de Angular Material dejan a propósito sin
+   estilo el borde derecho de la muesca (notch) donde se apoya la etiqueta, así
+   que ese reset lo volvía visible y aparecía una línea vertical dentro de los
+   campos. Se restaura el valor original (sin estilo). */
+.mdc-notched-outline__notch {
+  border-right-style: none;
+}
+
 html,
 body {
   height: 100%;

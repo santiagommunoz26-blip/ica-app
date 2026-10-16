@@ -5,6 +5,7 @@ import {
 } from '@angular/core';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { provideRouter } from '@angular/router';
+import { MAT_FORM_FIELD_DEFAULT_OPTIONS } from '@angular/material/form-field';
 
 import { routes } from './app.routes';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
@@ -24,6 +25,14 @@ export const appConfig: ApplicationConfig = {
     provideRouter(routes),
     provideHttpClient(withInterceptors([authInterceptor])),
     provideAnimationsAsync(),
+    {
+      // Todos los campos de formulario se dibujan con contorno y con la
+      // etiqueta flotando arriba. En Angular Material 18 la etiqueta solo
+      // flota cuando el campo tiene foco o contenido (el «placeholder» ya no
+      // la levanta), y quedaba dentro de la caja, superpuesta al ejemplo.
+      provide: MAT_FORM_FIELD_DEFAULT_OPTIONS,
+      useValue: { appearance: 'outline', floatLabel: 'always' },
+    },
     {
       provide: APP_INITIALIZER,
       useFactory: (auth: AuthService) => () => auth.restaurarSesion(),

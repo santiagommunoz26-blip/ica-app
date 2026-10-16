@@ -6,6 +6,7 @@ import {
 } from '@angular/common/http/testing';
 import { Router, provideRouter } from '@angular/router';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
+import { MAT_FORM_FIELD_DEFAULT_OPTIONS } from '@angular/material/form-field';
 import { LoginComponent } from './login.component';
 import { environment } from '../../../environments/environment';
 import type { SesionRespuesta, Usuario } from '../../core/auth/auth.modelos';
@@ -48,6 +49,11 @@ describe('LoginComponent (RF01, RF06, RF03)', () => {
         provideRouter([]),
         provideHttpClient(),
         provideHttpClientTesting(),
+        // Mismo valor por defecto que la aplicación (app.config.ts).
+        {
+          provide: MAT_FORM_FIELD_DEFAULT_OPTIONS,
+          useValue: { appearance: 'outline', floatLabel: 'always' },
+        },
       ],
     }).compileComponents();
 
@@ -61,6 +67,22 @@ describe('LoginComponent (RF01, RF06, RF03)', () => {
   afterEach(() => {
     http.verify();
     localStorage.clear();
+  });
+
+  it('muestra los rótulos flotando sobre el contorno (regresión visual)', () => {
+    const raiz = fixture.nativeElement as HTMLElement;
+    const etiqueta = raiz.querySelector(
+      '.mat-mdc-floating-label',
+    ) as HTMLElement;
+    expect(etiqueta.className).toContain('mdc-floating-label--float-above');
+
+    // La muesca del contorno no debe dibujar su borde derecho: Tailwind
+    // (Preflight) aplica «border-style: solid» a todo y se veía una línea
+    // vertical dentro de los campos (se corrige en styles.scss).
+    const muesca = raiz.querySelector(
+      '.mdc-notched-outline__notch',
+    ) as HTMLElement;
+    expect(getComputedStyle(muesca).borderRightWidth).toBe('0px');
   });
 
   it('exige correo y contraseña antes de llamar a la API', async () => {
