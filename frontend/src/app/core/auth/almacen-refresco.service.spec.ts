@@ -78,6 +78,20 @@ describe('AlmacenRefrescoService', () => {
     );
   });
 
+  it('tras desbloquear con el PIN, el token rotado se vuelve a cifrar (RNF09)', async () => {
+    await servicio.guardar('token-3', '482913');
+
+    // Una sesión que entró con el PIN conserva la llave en memoria: la
+    // rotación del token se guarda cifrada sin volver a pedir el PIN.
+    const conPin = new AlmacenRefrescoService();
+    await conPin.desbloquear('482913');
+    await conPin.guardar('token-4');
+
+    const otra = new AlmacenRefrescoService();
+    await expectAsync(otra.desbloquear('482913')).toBeResolvedTo('token-4');
+    expect(localStorage.getItem('ica.refresco')).not.toContain('token-4');
+  });
+
   it('borra el token del equipo al cerrar la sesión', async () => {
     await servicio.guardar('token-1');
     servicio.borrar();

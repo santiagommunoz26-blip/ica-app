@@ -65,8 +65,14 @@ export class AlmacenRefrescoService {
   }
 
   /**
-   * Guarda el token. Con `pin` se cifra; sin `pin` solo se guarda en claro si el
-   * equipo no tiene ya un token cifrado (no se rebaja la protección existente).
+   * Guarda el token. Con `pin` se cifra; sin `pin`:
+   *
+   * - si el equipo tiene un token cifrado y la llave está en memoria (se entró
+   *   con el PIN en esta sesión), el token **rotado** se vuelve a cifrar con
+   *   esa misma llave: el equipo sigue al día sin pedir el PIN otra vez;
+   * - si la llave no está en memoria (por ejemplo, un ingreso con contraseña),
+   *   solo queda en memoria y no se rebaja la protección existente;
+   * - si el equipo no tiene token cifrado, se guarda en claro.
    */
   async guardar(token: string, pin?: string): Promise<void> {
     this.tokenEnMemoria = token;
@@ -76,7 +82,11 @@ export class AlmacenRefrescoService {
       return;
     }
 
-    if (this.bloqueadoPorPin()) return;
+    if (this.bloqueadoPorPin()) {
+      if (this.llaveEnMemoria) await this.cifrarCon(token);
+      return;
+    }
+
     this.escribir({ v: 0, token });
   }
 
@@ -126,9 +136,14 @@ export class AlmacenRefrescoService {
     }
   }
 
-  private async cifrarCon(token: string, pin: string): Promise<void> {
+  private async cifrarCon(token: string, pin?: string): Promise<void> {
     const sal = this.llaveEnMemoria?.sal ?? salAleatoria();
-    const llave = this.llaveEnMemoria?.llave ?? (await derivarLlave(pin, sal));
+    let llave = this.llaveEnMemoria?.llave;
+    if (!llave) {
+      // Sin llave en memoria hace falta el PIN para derivarla.
+      if (!pin) return;
+      llave = await derivarLlave(pin, sal);
+    }
     const { iv, datos } = await cifrarTexto(llave, token);
     this.llaveEnMemoria = { llave, sal };
     this.escribir({

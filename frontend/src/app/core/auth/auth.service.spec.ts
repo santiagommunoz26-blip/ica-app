@@ -77,6 +77,19 @@ describe('AuthService', () => {
     throw new Error(`La aplicación no pidió ${url}`);
   }
 
+  /**
+   * Espera a que el equipo guarde (cifrado) un token: la escritura pasa por
+   * WebCrypto y no bloquea la promesa de la sesión.
+   */
+  async function esperarTokenGuardado(pin: string, token: string) {
+    for (let intento = 0; intento < 100; intento += 1) {
+      if ((await new AlmacenRefrescoService().desbloquear(pin)) === token)
+        return;
+      await new Promise((resolver) => setTimeout(resolver, 25));
+    }
+    throw new Error(`El equipo no guardó el token ${token}`);
+  }
+
   it('inicia sesión y guarda la sesión (RF01)', async () => {
     const promesa = servicio.iniciarSesion({
       correo: USUARIO.correo,
@@ -296,10 +309,28 @@ describe('AuthService', () => {
     expect(servicio.autenticado()).toBe(false);
   });
 
-  it('cierra la sesión, borra el token y olvida el PIN del equipo (RF02, RF03)', async () => {
+  it('cierra la sesión y conserva el PIN y la credencial del equipo (RF02, RF03)', async () => {
     const pinOffline = TestBed.inject(PinOfflineService);
     await pinOffline.guardar('482913', USUARIO.correo);
 
+    const promesa = servicio.iniciarSesion({
+      correo: USUARIO.correo,
+      password: 'Definitiva2026*',
+    });
+    http.expectOne(`${environment.apiUrl}/auth/login`).flush(SESION);
+    await promesa;
+
+    await servicio.cerrarSesion();
+
+    // Con PIN el equipo queda habilitado: no se revoca ni se borra nada, para
+    // poder volver a entrar con el PIN desde la pantalla de ingreso (RF03).
+    http.expectNone(`${environment.apiUrl}/auth/logout`);
+    expect(servicio.autenticado()).toBe(false);
+    expect(localStorage.getItem('ica.refresco')).not.toBeNull();
+    expect(servicio.hayPinEnEquipo()).toBe(true);
+  });
+
+  it('cierra la sesión sin PIN: revoca y borra el token del equipo (RF02)', async () => {
     const promesa = servicio.iniciarSesion({
       correo: USUARIO.correo,
       password: 'Definitiva2026*',
@@ -315,8 +346,44 @@ describe('AuthService', () => {
 
     expect(servicio.autenticado()).toBe(false);
     expect(localStorage.getItem('ica.refresco')).toBeNull();
-    // La sesión guardada se revocó: el PIN del equipo ya no tiene nada que abrir.
     expect(servicio.hayPinEnEquipo()).toBe(false);
+  });
+
+  it('al revalidar tras el PIN, el token rotado queda cifrado en el equipo (RNF09)', async () => {
+    localStorage.setItem('ica.perfil', JSON.stringify(USUARIO));
+    await TestBed.inject(AlmacenRefrescoService).guardar(
+      'token-viejo',
+      '482913',
+    );
+    const pinOffline = TestBed.inject(PinOfflineService);
+    await pinOffline.guardar('482913', USUARIO.correo);
+
+    const entrada = servicio.entrarConPin('482913');
+    const renovacion = await esperarPeticion(
+      `${environment.apiUrl}/auth/refresh`,
+    );
+    renovacion.flush(SESION);
+    await entrada;
+
+    // El token rotado se guardó cifrado con la llave en memoria: antes se
+    // descartaba y la recarga siguiente pedía la contraseña.
+    await esperarTokenGuardado('482913', 'token-de-refresco');
+    const crudo = localStorage.getItem('ica.refresco') ?? '';
+    expect(crudo).not.toContain('token-de-refresco');
+  });
+
+  it('no entra con el PIN si el equipo quedó configurado para otro usuario (RF03)', async () => {
+    localStorage.setItem(
+      'ica.perfil',
+      JSON.stringify({ ...USUARIO, correo: 'otro.usuario@entidad.gov.co' }),
+    );
+    const pinOffline = TestBed.inject(PinOfflineService);
+    await pinOffline.guardar('482913', USUARIO.correo);
+
+    await expectAsync(servicio.entrarConPin('482913')).toBeRejectedWithError(
+      /otro usuario/,
+    );
+    expect(servicio.autenticado()).toBe(false);
   });
 
   it('cambia la contraseña y recarga el perfil (RF07)', async () => {

@@ -646,12 +646,21 @@ dentro de la pantalla) para no dejar mensajes pegados al formulario.
     guardada el ingreso se rechaza con un mensaje claro («No hay una sesión
     guardada en este equipo para entrar sin conexión. Ingrese con su
     contraseña.») en vez de dejar el armazón a medias. La identidad sale del
-    perfil cacheado del equipo, nunca del correo del PIN.
-46. **Cerrar sesión olvida el PIN del equipo** (RF03): al cerrar sesión de
-    verdad se revoca la sesión ante el servidor, así que el PIN ya no tendría
-    nada que abrir y solo confundiría en la pantalla de ingreso; «Cerrar sesión»
-    y «Olvidar PIN» lo borran. El PIN solo se ofrece mientras haya una sesión
-    recuperable en el equipo.
+    perfil cacheado del equipo, nunca del correo del PIN; si el PIN pertenece a
+    otro correo que el de la sesión guardada, también se rechaza (no se mezclan
+    sesiones en un mismo equipo).
+46. **El PIN pertenece al equipo y sobrevive al cierre de sesión** (RF02, RF03;
+    revisado el 16 oct 2026 a pedido del usuario): el equipo donde el usuario
+    ya inició sesión queda habilitado para volver a entrar con su PIN, también
+    después de cerrar sesión. En un equipo **con PIN**, «Cerrar sesión» cierra
+    la sesión de uso y conserva la credencial (el token cifrado y el PIN): no
+    se revoca ante el servidor, porque el token está cifrado con el PIN (RNF09)
+    y solo se puede usar con él; la rotación lo renueva en cada entrada. En un
+    equipo **sin PIN**, el cierre sí es total: se revoca la sesión y se borra
+    el token, que nadie más protege. El cierre por inactividad es un cierre
+    **local**: conserva siempre la credencial del equipo (con PIN o sin él),
+    porque sin ella el trabajo de campo sin internet quedaría bloqueado
+    (RF03, RF12).
 47. **La renovación de la sesión distingue el fallo de red del rechazo del
     servidor** (RF12): un fallo de red (sin conexión, `status 0`) no cierra la
     sesión —se sigue trabajando con lo guardado—; si es el servidor el que
@@ -659,6 +668,13 @@ dentro de la pantalla) para no dejar mensajes pegados al formulario.
     nuevo.» y se vuelve al ingreso. Antes, cualquier fallo al renovar —incluso
     sin token, al abrir con el PIN— cerraba la sesión sin navegar y dejaba el
     armazón solo con «Panel» y sin usuario.
+48. **La rotación del token se vuelve a cifrar en el equipo** (corrección del
+    16 oct 2026, hallada al revisar el ciclo del PIN): al entrar con el PIN la
+    llave queda en memoria (RNF09) y cada renovación guarda el token rotado
+    cifrado con esa misma llave; antes la escritura se descartaba y el equipo
+    quedaba con un token ya consumido, de modo que la segunda recarga pedía la
+    contraseña. Una sesión que entró con contraseña sigue sin poder tocar el
+    token cifrado (no conoce la llave).
 
 ## 8. Observaciones para la pasada de pulido final
 

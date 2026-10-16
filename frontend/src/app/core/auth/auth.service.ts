@@ -134,25 +134,32 @@ export class AuthService {
   }
 
   /**
-   * Cierra la sesión (RF02). Al cerrarla de verdad se olvida también el PIN
-   * del equipo (RF03): la sesión guardada se revocó, así que el PIN ya no
-   * tendría nada que abrir y solo confundiría en la pantalla de ingreso.
+   * Cierra la sesión de uso (RF02).
+   *
+   * En un equipo **con PIN**, el equipo conserva su credencial (el token de
+   * refresco cifrado y el PIN): el ingreso con PIN sigue disponible después de
+   * cerrar sesión, también sin conexión (RF03). En un equipo **sin PIN** el
+   * cierre es total: se revoca la sesión ante el servidor y se borra el token
+   * del equipo, porque nadie más lo protege.
    */
   async cerrarSesion(): Promise<void> {
-    const refresco = this.almacen.leer();
-    try {
-      if (refresco && this.accessToken) {
-        await firstValueFrom(
-          this.http.post(`${environment.apiUrl}/auth/logout`, {
-            token: refresco,
-          }),
-        );
+    if (this.pinOffline.hayPin()) {
+      this.soltarSesion();
+    } else {
+      const refresco = this.almacen.leer();
+      try {
+        if (refresco && this.accessToken) {
+          await firstValueFrom(
+            this.http.post(`${environment.apiUrl}/auth/logout`, {
+              token: refresco,
+            }),
+          );
+        }
+      } catch {
+        // Aunque la API falle, la sesión local se cierra igual.
       }
-    } catch {
-      // Aunque la API falle, la sesión local se cierra igual.
+      this.limpiarSesion();
     }
-    this.limpiarSesion();
-    this.pinOffline.olvidar();
     await this.router.navigate(['/login']);
   }
 
@@ -289,6 +296,13 @@ export class AuthService {
     if (!perfil) {
       throw new Error('No hay una sesión anterior en este equipo.');
     }
+    const correoDelPin = this.pinOffline.correoDelPin();
+    if (correoDelPin && correoDelPin !== perfil.correo) {
+      // El PIN pertenece a otro usuario del equipo: no se mezclan sesiones.
+      throw new Error(
+        'El PIN de este equipo pertenece a otro usuario. Ingrese con su contraseña.',
+      );
+    }
     if (this.pinOffline.bloqueado()) {
       throw new Error('El PIN está bloqueado. Ingrese con su contraseña.');
     }
@@ -364,9 +378,24 @@ export class AuthService {
     this.detenerVigilanciaDeActividad();
   }
 
+  /**
+   * Suelta la sesión activa sin destruir la credencial del equipo (RF03): el
+   * token guardado (cifrado con el PIN o en claro) y el perfil cacheado se
+   * conservan para volver a entrar renovando o con el PIN.
+   */
+  private soltarSesion(): void {
+    this.accessToken = null;
+    this.estado.set(null);
+    this.sinConexion.set(false);
+    this.detenerVigilanciaDeActividad();
+  }
+
   /** Cierra la sesión por inactividad (RF02). */
   private cerrarPorInactividad(): void {
-    this.limpiarSesion();
+    // Es un cierre local: la credencial del equipo se conserva para poder
+    // volver a entrar (renovando o con el PIN; sin ella, el trabajo de campo
+    // sin internet quedaría bloqueado, RF03/RF12).
+    this.soltarSesion();
     this.aviso.set(
       'La sesión se cerró por inactividad. Ingrese de nuevo para continuar.',
     );
