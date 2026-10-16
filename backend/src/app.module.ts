@@ -10,6 +10,8 @@ import { PasswordTemporalGuard } from './common/guards/password-temporal.guard.j
 import { RolesGuard } from './common/guards/roles.guard.js';
 import { buildDatabaseOptions } from './database/database.config.js';
 import { HealthModule } from './health/health.module.js';
+import { InspeccionModule } from './inspeccion/inspeccion.module.js';
+import { MetodologiaModule } from './metodologia/metodologia.module.js';
 import { UsuariosModule } from './usuarios/usuarios.module.js';
 import { VisitasModule } from './visitas/visitas.module.js';
 
@@ -28,6 +30,8 @@ import { VisitasModule } from './visitas/visitas.module.js';
     HealthModule,
     UsuariosModule,
     AuthModule,
+    MetodologiaModule,
+    InspeccionModule,
     VisitasModule,
   ],
   controllers: [AppController],

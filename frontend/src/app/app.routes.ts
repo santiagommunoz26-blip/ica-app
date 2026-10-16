@@ -63,6 +63,26 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'inspeccion',
+        title: 'Inspección · EBA Aves',
+        canActivate: [rolGuard],
+        data: { roles: ['INSPECTOR', 'ADMINISTRADOR'] },
+        loadComponent: () =>
+          import('./pages/inspeccion/inspeccion.component').then(
+            (m) => m.InspeccionComponent,
+          ),
+      },
+      {
+        path: 'inspeccion/:visitaId',
+        title: 'Inspección · EBA Aves',
+        canActivate: [rolGuard],
+        data: { roles: ['INSPECTOR', 'ADMINISTRADOR'] },
+        loadComponent: () =>
+          import('./pages/inspeccion/inspeccion.component').then(
+            (m) => m.InspeccionComponent,
+          ),
+      },
+      {
         path: 'administracion/usuarios',
         title: 'Usuarios y roles · EBA Aves',
         canActivate: [rolGuard],

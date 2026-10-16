@@ -7,6 +7,12 @@ import {
 } from '@angular/core';
 import { firstValueFrom, type Observable } from 'rxjs';
 import { AuthService } from '../auth/auth.service';
+import { InspeccionService } from '../inspeccion/inspeccion.service';
+import {
+  aplicarBorrador,
+  type InspeccionRespuesta,
+  type PeticionGuardarInspeccion,
+} from '../inspeccion/inspeccion.modelos';
 import { VisitasService } from './visitas.service';
 import {
   ETIQUETA_ESTADO,
@@ -29,6 +35,7 @@ const CLAVE_COLA = 'ica.visitas.cola';
 const CLAVE_CACHE = 'ica.visitas.cache';
 const CLAVE_RESUMEN = 'ica.visitas.resumen';
 const CLAVE_FILTROS = 'ica.visitas.filtros';
+const CLAVE_INSPECCION = 'ica.inspeccion.cache';
 
 /** Resultado de guardar un cambio: si quedó pendiente de enviar. */
 export interface ResultadoGuardado {
@@ -55,6 +62,7 @@ export interface ResultadoGuardado {
 @Injectable({ providedIn: 'root' })
 export class SincronizacionService {
   private readonly http = inject(VisitasService);
+  private readonly inspeccionHttp = inject(InspeccionService);
   private readonly auth = inject(AuthService);
 
   /** ¿Hay conexión? Se actualiza con los avisos del navegador. */
@@ -73,6 +81,10 @@ export class SincronizacionService {
   readonly listaLocal = signal<ListaVisitas | null>(null);
   /** Últimos indicadores del panel, para poder verlos sin conexión. */
   readonly resumenLocal = signal<ResumenPanel | null>(null);
+  /** Últimas fichas de inspección consultadas, por visita (M3 · RF13–RF17). */
+  readonly inspeccionesLocales = signal<Record<string, InspeccionRespuesta>>(
+    {},
+  );
 
   private filtrosUsados: FiltrosVisitas = {};
 
@@ -80,6 +92,9 @@ export class SincronizacionService {
     this.cola.set(leer<OperacionSincronizacion[]>(CLAVE_COLA) ?? []);
     this.listaLocal.set(leer<ListaVisitas>(CLAVE_CACHE));
     this.resumenLocal.set(leer<ResumenPanel>(CLAVE_RESUMEN));
+    this.inspeccionesLocales.set(
+      leer<Record<string, InspeccionRespuesta>>(CLAVE_INSPECCION) ?? {},
+    );
     this.filtrosUsados = leer<FiltrosVisitas>(CLAVE_FILTROS) ?? {};
 
     if (typeof window !== 'undefined') {
@@ -160,6 +175,30 @@ export class SincronizacionService {
     }
   }
 
+  /**
+   * Ficha general y catálogo de una visita (M3 · RF13–RF17). Con conexión
+   * pregunta al servidor y guarda la copia; sin conexión usa la copia del
+   * equipo. En ambos casos aplica encima los borradores aún sin sincronizar.
+   */
+  async cargarInspeccion(
+    visitaId: string,
+  ): Promise<InspeccionRespuesta | null> {
+    if (this.enLinea()) {
+      try {
+        const respuesta = await this.conAcceso(() =>
+          this.inspeccionHttp.obtener(visitaId),
+        );
+        this.guardarInspeccionLocal(visitaId, respuesta);
+        return this.proyectarInspeccion(visitaId, respuesta);
+      } catch {
+        // Si la petición falla se sigue con lo que hay en el equipo.
+      }
+    }
+
+    const local = this.inspeccionesLocales()[visitaId];
+    return local ? this.proyectarInspeccion(visitaId, local) : null;
+  }
+
   // -------------------------------------------------------------- cambios
 
   /** Programa una visita (RF08). Se guarda en el equipo antes de enviarla. */
@@ -204,6 +243,49 @@ export class SincronizacionService {
       estado: { estado },
       registradoEn: new Date().toISOString(),
       resumen: `${visita.predio.nombre}: ${ETIQUETA_ESTADO[estado]}`,
+    });
+  }
+
+  /**
+   * Marca el inicio de la inspección: la visita pasa a «En curso» (RF09).
+   * Reutiliza la operación de cambio de estado, para que también funcione sin
+   * conexión (RF12).
+   */
+  async iniciarInspeccion(
+    visitaId: string,
+    nombrePredio: string,
+  ): Promise<ResultadoGuardado> {
+    return this.encolar({
+      id: nuevoId(),
+      tipo: 'CAMBIAR_ESTADO',
+      visitaId,
+      estado: { estado: 'EN_CURSO' },
+      registradoEn: new Date().toISOString(),
+      resumen: `${nombrePredio}: ${ETIQUETA_ESTADO.EN_CURSO}`,
+    });
+  }
+
+  /**
+   * Guarda la ficha de la Fase I (M3 · RF13–RF16). Como el resto de cambios,
+   * primero queda en el equipo y luego se envía (RF12); sin conexión se ve el
+   * borrador aplicado sobre la copia local.
+   */
+  async guardarInspeccion(
+    visitaId: string,
+    peticion: PeticionGuardarInspeccion,
+  ): Promise<ResultadoGuardado> {
+    const actual = this.inspeccionesLocales()[visitaId];
+    if (actual) {
+      this.guardarInspeccionLocal(visitaId, aplicarBorrador(actual, peticion));
+    }
+
+    return this.encolar({
+      id: nuevoId(),
+      tipo: 'GUARDAR_INSPECCION',
+      visitaId,
+      inspeccion: peticion,
+      registradoEn: new Date().toISOString(),
+      resumen: 'Guardar la ficha de la inspección',
     });
   }
 
@@ -275,6 +357,34 @@ export class SincronizacionService {
   private guardarCola(cola: OperacionSincronizacion[]): void {
     this.cola.set(cola);
     guardar(CLAVE_COLA, cola);
+  }
+
+  /** Guarda la copia local de una ficha de inspección (M3 · RF12). */
+  private guardarInspeccionLocal(
+    visitaId: string,
+    respuesta: InspeccionRespuesta,
+  ): void {
+    const mapa = { ...this.inspeccionesLocales(), [visitaId]: respuesta };
+    this.inspeccionesLocales.set(mapa);
+    guardar(CLAVE_INSPECCION, mapa);
+  }
+
+  /** Aplica los borradores pendientes sobre la ficha que se muestra (RF12). */
+  private proyectarInspeccion(
+    visitaId: string,
+    respuesta: InspeccionRespuesta,
+  ): InspeccionRespuesta {
+    let resultado = respuesta;
+    for (const operacion of this.cola()) {
+      if (
+        operacion.tipo === 'GUARDAR_INSPECCION' &&
+        operacion.visitaId === visitaId &&
+        operacion.inspeccion
+      ) {
+        resultado = aplicarBorrador(resultado, operacion.inspeccion);
+      }
+    }
+    return resultado;
   }
 
   /** Aplica los cambios pendientes sobre lo que devolvió el servidor. */
@@ -381,6 +491,7 @@ function aServidor(operacion: OperacionSincronizacion): unknown {
     crear: operacion.crear,
     actualizar: operacion.actualizar,
     estado: operacion.estado,
+    inspeccion: operacion.inspeccion,
     registradoEn: operacion.registradoEn,
   };
 }

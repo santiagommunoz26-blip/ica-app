@@ -217,6 +217,13 @@
                   <mat-icon>more_vert</mat-icon>
                 </button>
                 <mat-menu #menuAcciones="matMenu">
+                  @if (puedeInspeccionar() && visita.estado !== 'CERRADA') {
+                    <a mat-menu-item [routerLink]="['/inspeccion', visita.id]">
+                      <mat-icon>fact_check</mat-icon>
+                      Abrir inspección
+                    </a>
+                    <mat-divider />
+                  }
                   <button
                     mat-menu-item
                     type="button"

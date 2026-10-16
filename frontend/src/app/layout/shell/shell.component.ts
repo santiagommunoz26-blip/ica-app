@@ -76,8 +76,7 @@ export class ShellComponent {
       icono: 'fact_check',
       ruta: '/inspeccion',
       permiso: PERMISOS.INSPECCION_REGISTRAR,
-      disponible: false,
-      modulo: 'M3',
+      disponible: true,
     },
     {
       etiqueta: 'Resultados',

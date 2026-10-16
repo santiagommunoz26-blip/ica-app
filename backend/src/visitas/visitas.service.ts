@@ -18,6 +18,7 @@ import type {
 import { RegistroAccesoService } from '../usuarios/registro-acceso.service.js';
 import { EventoBitacora } from '../usuarios/entities/registro-acceso.entity.js';
 import { Usuario } from '../usuarios/entities/usuario.entity.js';
+import { InspeccionService } from '../inspeccion/inspeccion.service.js';
 import { Predio } from './entities/predio.entity.js';
 import { Visita } from './entities/visita.entity.js';
 import { clasificar } from './calificacion.js';
@@ -81,6 +82,7 @@ export class VisitasService {
     @InjectRepository(Usuario)
     private readonly usuarios: Repository<Usuario>,
     private readonly bitacora: RegistroAccesoService,
+    private readonly inspeccion: InspeccionService,
   ) {}
 
   // -------------------------------------------------------------- consulta
@@ -536,6 +538,20 @@ export class VisitasService {
           contexto,
         );
         return visita.id;
+      }
+      case TipoOperacionSincronizacion.GUARDAR_INSPECCION: {
+        if (!operacion.visitaId || !operacion.inspeccion) {
+          throw new BadRequestException(
+            'Faltan la visita o la ficha de la inspección.',
+          );
+        }
+        await this.inspeccion.guardar(
+          operacion.visitaId,
+          operacion.inspeccion,
+          usuario,
+          contexto,
+        );
+        return operacion.visitaId;
       }
       default:
         throw new BadRequestException('Tipo de operación desconocido.');

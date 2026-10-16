@@ -10,6 +10,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSelectModule } from '@angular/material/select';
+import { RouterLink } from '@angular/router';
 import { Subject, debounceTime, firstValueFrom } from 'rxjs';
 import { AuthService } from '../../core/auth/auth.service';
 import { PERMISOS } from '../../core/auth/auth.modelos';
@@ -54,6 +55,7 @@ const POR_PAGINA = 10;
     DatePipe,
     DecimalPipe,
     ReactiveFormsModule,
+    RouterLink,
     MatButtonModule,
     MatDividerModule,
     MatFormFieldModule,
@@ -108,6 +110,9 @@ export class VisitasComponent implements OnInit {
   readonly guardando = signal(false);
 
   readonly puedeCrear = computed(() => this.auth.puede(PERMISOS.VISITAS_CREAR));
+  readonly puedeInspeccionar = computed(() =>
+    this.auth.puede(PERMISOS.INSPECCION_REGISTRAR),
+  );
   readonly esAdministrador = computed(
     () => this.auth.usuario()?.rol === 'ADMINISTRADOR',
   );

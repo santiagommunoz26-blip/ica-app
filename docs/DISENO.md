@@ -317,6 +317,14 @@ Para filtrar por estado se usan píldoras como en el wireframe: la activa va con
 Cada píldora lleva su conteo (`Todas 24`). No es una tabla de Material: es un
 `<nav>` de botones, para que el conteo quede dentro de la píldora.
 
+Las **pestañas de fase** de la inspección (Fase I · Apertura, II · Galpón,
+III · Documental y IV · Cierre) usan la misma píldora; la fase que todavía no
+existe se ve con borde, atenuada y con el módulo entre paréntesis (`(M4)`), y al
+pulsarla no cambia de pestaña: muestra un aviso de que llega en ese módulo. Las
+opciones de una sola elección que en el wireframe son tarjetas (el grupo
+productivo) se escriben como botones con borde que se rellenan con
+`bg-info-suave text-marca` al quedar elegidos, no como `mat-radio-button`.
+
 ### Botones (convención)
 
 No hay componente envoltorio: se usan los botones de Angular Material, que ya
@@ -448,6 +456,13 @@ dentro de la pantalla) para no dejar mensajes pegados al formulario.
     Material completo; lo que descarga el usuario son ~130 kB. Con 500 kB la
     advertencia ya saltaba desde la base de diseño (por 12 kB) sin que hubiera
     nada que recortar.
+16. **La pantalla de inspección reutiliza las convenciones en vez de inventar
+    otras** (M3): las fases son píldoras con el módulo que las construirá, las
+    tarjetas de opción son botones con borde, la clasificación automática se
+    muestra en una tarjeta lateral con los pesos aplicados, y el catálogo
+    provisional se anuncia con `app-aviso tipo="advertencia"`. Cuando todavía no
+    se ha registrado el número de aves, la tarjeta de clasificación muestra el
+    tipo declarado al programar la visita y lo dice, en vez de quedar vacía.
 
 ## 8. Observaciones para la pasada de pulido final
 

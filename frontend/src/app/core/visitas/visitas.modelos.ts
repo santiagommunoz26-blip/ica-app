@@ -6,6 +6,8 @@
  * en cada pantalla (una sola fuente, RNF15).
  */
 
+import type { PeticionGuardarInspeccion } from '../inspeccion/inspeccion.modelos';
+
 /** Estados de una visita (RF09). */
 export type EstadoVisita =
   'PROGRAMADA' | 'EN_CURSO' | 'PENDIENTE_DOCUMENTOS' | 'CERRADA';
@@ -221,7 +223,10 @@ export interface PeticionActualizarVisita {
 
 /** Tipo de operación guardada sin conexión (RF12). */
 export type TipoOperacionSincronizacion =
-  'CREAR_VISITA' | 'ACTUALIZAR_VISITA' | 'CAMBIAR_ESTADO';
+  | 'CREAR_VISITA'
+  | 'ACTUALIZAR_VISITA'
+  | 'CAMBIAR_ESTADO'
+  | 'GUARDAR_INSPECCION';
 
 /** Operación hecha sin conexión, pendiente de enviar (RF12). */
 export interface OperacionSincronizacion {
@@ -232,6 +237,8 @@ export interface OperacionSincronizacion {
   crear?: PeticionCrearVisita;
   actualizar?: PeticionActualizarVisita;
   estado?: { estado: EstadoVisita };
+  /** Ficha de la Fase I guardada sin conexión (M3 · RF13–RF16). */
+  inspeccion?: PeticionGuardarInspeccion;
   /** Cuándo se hizo la operación en el equipo. */
   registradoEn: string;
   /** Resumen legible, para mostrarlo en la pantalla de pendientes. */

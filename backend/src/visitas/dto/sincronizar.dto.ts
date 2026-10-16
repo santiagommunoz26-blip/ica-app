@@ -12,12 +12,15 @@ import {
 import { ActualizarVisitaDto } from './actualizar-visita.dto.js';
 import { CambiarEstadoVisitaDto } from './cambiar-estado-visita.dto.js';
 import { CrearVisitaDto } from './crear-visita.dto.js';
+import { GuardarInspeccionDto } from '../../inspeccion/dto/guardar-inspeccion.dto.js';
 
 /** Operación guardada en el equipo mientras no había conexión (RF12). */
 export enum TipoOperacionSincronizacion {
   CREAR_VISITA = 'CREAR_VISITA',
   ACTUALIZAR_VISITA = 'ACTUALIZAR_VISITA',
   CAMBIAR_ESTADO = 'CAMBIAR_ESTADO',
+  /** Ficha de la Fase I guardada sin conexión (M3 · RF13–RF16). */
+  GUARDAR_INSPECCION = 'GUARDAR_INSPECCION',
 }
 
 /**
@@ -60,6 +63,12 @@ export class OperacionSincronizacionDto {
   @ValidateNested()
   @Type(() => CambiarEstadoVisitaDto)
   estado?: CambiarEstadoVisitaDto;
+
+  @ApiPropertyOptional({ type: GuardarInspeccionDto })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => GuardarInspeccionDto)
+  inspeccion?: GuardarInspeccionDto;
 
   @ApiProperty({ description: 'Cuándo se hizo la operación en el equipo.' })
   @IsISO8601()

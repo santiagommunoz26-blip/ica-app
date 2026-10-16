@@ -1,0 +1,452 @@
+<div class="mx-auto flex w-full max-w-6xl flex-col gap-4">
+  @if (!visitaId()) {
+    <!-- Selector: elegir la visita que se va a inspeccionar (RF13) -->
+    <app-encabezado-pagina
+      titulo="Inspección"
+      descripcion="Elija la visita que va a inspeccionar. La ficha se diligencia en cuatro fases."
+    />
+
+    @if (!sincronizacion.enLinea()) {
+      <app-aviso tipo="advertencia" titulo="Sin conexión">
+        Los cambios se guardan en este equipo y se envían solos cuando vuelva la
+        red.
+      </app-aviso>
+    }
+    @if (error(); as mensaje) {
+      <app-aviso tipo="peligro">{{ mensaje }}</app-aviso>
+    }
+
+    <app-tarjeta relleno="ninguno">
+      @if (cargando()) {
+        <div class="p-lg">
+          <app-esqueleto forma="tabla" [filas]="4" />
+        </div>
+      } @else if (abiertas().length === 0) {
+        <app-estado-vacio
+          icono="fact_check"
+          titulo="No hay visitas por inspeccionar"
+          descripcion="Programe una visita en la sección «Visitas» y vuelva aquí para diligenciar su ficha."
+        />
+      } @else {
+        <ul class="divide-y divide-borde">
+          @for (visita of abiertas(); track visita.id) {
+            <li
+              class="flex flex-wrap items-center justify-between gap-3 px-4 py-3"
+            >
+              <div class="flex flex-col">
+                <span class="font-medium text-contenido">
+                  {{ visita.predio.nombre }}
+                </span>
+                <span class="text-xs text-contenido-suave">
+                  {{ visita.predio.municipio }} · {{ visita.predio.vereda }} ·
+                  {{ visita.programadaPara | date: 'd MMM y, h:mm a' }}
+                </span>
+              </div>
+              <div class="flex items-center gap-3">
+                <app-insignia [tono]="tonoEstado[visita.estado]">
+                  {{ visita.etiquetaEstado }}
+                </app-insignia>
+                <a
+                  mat-flat-button
+                  color="primary"
+                  [routerLink]="['/inspeccion', visita.id]"
+                >
+                  Abrir
+                  <mat-icon iconPositionEnd>arrow_forward</mat-icon>
+                </a>
+              </div>
+            </li>
+          }
+        </ul>
+      }
+    </app-tarjeta>
+  } @else {
+    <!-- Fase I: ficha general del predio y del responsable (RF13–RF17) -->
+    <app-encabezado-pagina
+      [titulo]="'Inspección · ' + (respuesta()?.predio?.nombre ?? 'Fase I')"
+      descripcion="Fase I · Apertura: ficha general del predio, del responsable y del grupo productivo."
+    >
+      <a mat-stroked-button routerLink="/inspeccion">
+        <mat-icon>arrow_back</mat-icon>
+        Otras visitas
+      </a>
+    </app-encabezado-pagina>
+
+    @if (sincronizacion.sincronizando()) {
+      <mat-progress-bar mode="indeterminate" />
+    }
+    @if (!sincronizacion.enLinea()) {
+      <app-aviso tipo="advertencia" titulo="Sin conexión">
+        Los cambios se guardan en este equipo y se envían solos cuando vuelva la
+        red.
+      </app-aviso>
+    }
+    @if (respuesta()?.pendiente) {
+      <app-aviso tipo="info">
+        Esta ficha tiene cambios guardados en el equipo que todavía no han
+        llegado al servidor.
+      </app-aviso>
+    }
+    @if (respuesta()?.catalogo?.provisional) {
+      <app-aviso tipo="advertencia" titulo="Catálogo provisional">
+        Los nombres y la aplicabilidad de los indicadores son provisionales,
+        mientras se carga el documento de la metodología ICA v2.0. Los pesos y
+        la clasificación por número de aves sí son los de los documentos.
+      </app-aviso>
+    }
+    @if (error(); as mensaje) {
+      <app-aviso tipo="peligro">{{ mensaje }}</app-aviso>
+    }
+    @if (aviso(); as mensaje) {
+      <app-aviso tipo="info">{{ mensaje }}</app-aviso>
+    }
+
+    <!-- Pestañas de fase, como en el wireframe -->
+    <nav class="flex flex-wrap gap-2 text-sm">
+      @for (fase of fases; track fase.numero) {
+        <button
+          type="button"
+          class="rounded-full px-4 py-1.5 font-medium transition-colors"
+          [class]="
+            faseActiva() === fase.numero && fase.disponible
+              ? 'bg-marca text-marca-contraste'
+              : 'border border-borde text-contenido-suave hover:bg-superficie-alterna'
+          "
+          (click)="
+            fase.disponible
+              ? faseActiva.set(fase.numero)
+              : faseNoDisponible(fase)
+          "
+        >
+          Fase {{ fase.romano }} · {{ fase.etiqueta }}
+          @if (!fase.disponible) {
+            <span class="ml-1 text-xs opacity-70">({{ fase.modulo }})</span>
+          }
+        </button>
+      }
+    </nav>
+
+    @if (cargando()) {
+      <app-tarjeta>
+        <app-esqueleto forma="tarjeta" [filas]="6" />
+      </app-tarjeta>
+    } @else if (!respuesta()) {
+      <app-tarjeta>
+        <app-estado-vacio
+          icono="search_off"
+          titulo="No se pudo cargar la inspección"
+          descripcion="Vuelva a la lista de visitas y abra la inspección de nuevo."
+        />
+      </app-tarjeta>
+    } @else {
+      <form [formGroup]="ficha" class="flex flex-col gap-4">
+        <div class="grid gap-4 lg:grid-cols-3">
+          <!-- Ficha general -->
+          <app-tarjeta
+            class="lg:col-span-2"
+            titulo="Ficha general del predio"
+            descripcion="Datos del predio y del responsable (RF13)."
+          >
+            <div class="grid gap-3 sm:grid-cols-2">
+              <mat-form-field appearance="outline" class="sm:col-span-2">
+                <mat-label>Nombre del predio</mat-label>
+                <input matInput formControlName="nombrePredio" />
+                @if (ficha.controls.nombrePredio.invalid) {
+                  <mat-error>Escriba el nombre del predio.</mat-error>
+                }
+              </mat-form-field>
+
+              <mat-form-field appearance="outline">
+                <mat-label>Municipio</mat-label>
+                <input matInput formControlName="municipio" />
+                @if (ficha.controls.municipio.invalid) {
+                  <mat-error>Escriba el municipio.</mat-error>
+                }
+              </mat-form-field>
+
+              <mat-form-field appearance="outline">
+                <mat-label>Vereda</mat-label>
+                <input matInput formControlName="vereda" />
+                @if (ficha.controls.vereda.invalid) {
+                  <mat-error>Escriba la vereda.</mat-error>
+                }
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="sm:col-span-2">
+                <mat-label>Responsable o quien atiende</mat-label>
+                <input matInput formControlName="responsable" />
+              </mat-form-field>
+
+              <mat-form-field appearance="outline">
+                <mat-label>Fecha</mat-label>
+                <input matInput type="date" formControlName="fecha" />
+              </mat-form-field>
+
+              <mat-form-field appearance="outline">
+                <mat-label>Hora</mat-label>
+                <input matInput type="time" formControlName="hora" />
+              </mat-form-field>
+
+              <mat-form-field appearance="outline">
+                <mat-label>N.º total de aves (capacidad instalada)</mat-label>
+                <input
+                  matInput
+                  type="number"
+                  min="0"
+                  formControlName="numeroAves"
+                />
+                @if (ficha.controls.numeroAves.invalid) {
+                  <mat-error>Escriba un número de aves válido.</mat-error>
+                }
+              </mat-form-field>
+
+              <mat-form-field appearance="outline">
+                <mat-label>Sistema de producción</mat-label>
+                <mat-select formControlName="sistemaProduccion">
+                  @for (
+                    opcion of respuesta()!.catalogo.sistemasProduccion;
+                    track opcion.codigo
+                  ) {
+                    <mat-option [value]="opcion.codigo">
+                      {{ opcion.etiqueta }}
+                    </mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+            </div>
+
+            <!-- Grupo productivo (RF15) -->
+            <div class="mt-4 flex flex-col gap-2">
+              <span class="text-sm font-medium text-contenido">
+                Grupo productivo
+              </span>
+              <div class="flex flex-wrap gap-2">
+                @for (
+                  opcion of respuesta()!.catalogo.gruposProductivos;
+                  track opcion.codigo
+                ) {
+                  <button
+                    type="button"
+                    class="rounded-lg border px-4 py-2 text-left text-sm transition-colors"
+                    [class]="
+                      ficha.controls.grupoProductivo.value === opcion.codigo
+                        ? 'border-marca bg-info-suave text-marca'
+                        : 'border-borde text-contenido-suave hover:bg-superficie-alterna'
+                    "
+                    (click)="elegirGrupo(opcion.codigo)"
+                  >
+                    {{ opcion.etiqueta }}
+                  </button>
+                }
+              </div>
+            </div>
+
+            <!-- Galpones (RF16) -->
+            <div class="mt-4 flex flex-col gap-2">
+              <span class="text-sm font-medium text-contenido">
+                Galpones a evaluar
+              </span>
+              <div formArrayName="galpones" class="flex flex-col gap-2">
+                @for (
+                  control of galpones.controls;
+                  track $index;
+                  let i = $index
+                ) {
+                  <div
+                    [formGroupName]="i"
+                    class="flex flex-wrap items-center gap-2 rounded-lg border border-borde p-3"
+                  >
+                    <mat-form-field appearance="outline" class="w-28">
+                      <mat-label>Galpón</mat-label>
+                      <input
+                        matInput
+                        type="number"
+                        min="1"
+                        formControlName="numero"
+                      />
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline" class="w-32">
+                      <mat-label>Edad (sem)</mat-label>
+                      <input
+                        matInput
+                        type="number"
+                        min="0"
+                        formControlName="edadSemanas"
+                      />
+                    </mat-form-field>
+
+                    <mat-form-field appearance="outline" class="w-32">
+                      <mat-label>Aves</mat-label>
+                      <input
+                        matInput
+                        type="number"
+                        min="0"
+                        formControlName="aves"
+                      />
+                    </mat-form-field>
+
+                    <mat-checkbox formControlName="seleccionado">
+                      Inspeccionar
+                    </mat-checkbox>
+
+                    @if (esSugerido(control.controls.numero.value)) {
+                      <app-insignia tono="acento" icono="star">
+                        Sugerido
+                      </app-insignia>
+                    }
+
+                    <button
+                      mat-icon-button
+                      type="button"
+                      [attr.aria-label]="
+                        'Quitar el galpón ' + control.controls.numero.value
+                      "
+                      (click)="quitarGalpon(i)"
+                    >
+                      <mat-icon>delete</mat-icon>
+                    </button>
+                  </div>
+                }
+
+                <div>
+                  <button
+                    mat-stroked-button
+                    type="button"
+                    (click)="agregarGalpon()"
+                  >
+                    <mat-icon>add</mat-icon>
+                    Agregar galpón
+                  </button>
+                </div>
+              </div>
+            </div>
+          </app-tarjeta>
+
+          <!-- Clasificación automática (RF14, RF16) -->
+          <app-tarjeta
+            titulo="Clasificación automática"
+            descripcion="La determina el sistema con el número de aves."
+          >
+            <div class="flex flex-col gap-4 text-sm">
+              <div class="flex flex-wrap items-center gap-2">
+                <app-insignia
+                  [tono]="tipoMostrado() === 'CORRAL' ? 'marca' : 'acento'"
+                >
+                  {{
+                    tipoMostrado() === 'CORRAL'
+                      ? 'Granja (corral)'
+                      : 'Traspatio'
+                  }}
+                </app-insignia>
+                <span class="text-xs text-contenido-suave">
+                  @if (clasificacion() === null) {
+                    tipo declarado; se confirma con el número de aves
+                  } @else {
+                    {{
+                      tipoMostrado() === 'CORRAL'
+                        ? '200 aves o más'
+                        : '199 aves o menos'
+                    }}
+                  }
+                </span>
+              </div>
+
+              <div>
+                <h3 class="font-semibold text-contenido">Pesos aplicados</h3>
+                <ul class="mt-1 flex flex-col gap-1">
+                  @for (peso of pesos(); track peso.grupo) {
+                    <li class="flex items-center justify-between">
+                      <span class="text-contenido-suave">{{
+                        peso.etiqueta
+                      }}</span>
+                      <span class="font-medium text-contenido">
+                        {{ peso.peso | number: '1.0-2' }} %
+                      </span>
+                    </li>
+                  }
+                </ul>
+              </div>
+
+              <p class="text-xs text-contenido-suave">
+                Si el predio fuera traspatio (199 aves o menos):
+                {{ textoPesosTraspatio() }}.
+              </p>
+
+              <div>
+                <h3 class="font-semibold text-contenido">Galpones a evaluar</h3>
+                @if (galponesSugeridos() === null) {
+                  <p class="mt-1 text-contenido-suave">
+                    Registre el número de aves para saber cuántos galpones
+                    evaluar.
+                  </p>
+                } @else {
+                  <p class="mt-1 text-contenido-suave">
+                    {{ galponesSugeridos() }} de {{ galpones.length }}
+                    galpón(es) registrados; se priorizan los de aves de mayor
+                    edad.
+                  </p>
+                }
+              </div>
+            </div>
+          </app-tarjeta>
+        </div>
+
+        <!-- Indicadores aplicables (RF17) -->
+        <app-tarjeta
+          titulo="Indicadores aplicables"
+          descripcion="El sistema carga solo los indicadores del grupo productivo elegido (RF17)."
+        >
+          @if (!ficha.controls.grupoProductivo.value) {
+            <app-estado-vacio
+              icono="rule"
+              titulo="Elija el grupo productivo"
+              descripcion="Al elegirlo, el sistema muestra los indicadores que aplican."
+            />
+          } @else {
+            <p class="text-sm text-contenido-suave">
+              {{ indicadores().length }} indicador(es) para «{{
+                etiquetaGrupo()
+              }}».
+            </p>
+            <ul class="mt-3 grid gap-2 text-sm sm:grid-cols-2 lg:grid-cols-3">
+              @for (indicador of indicadores(); track indicador.codigo) {
+                <li class="flex items-center gap-2">
+                  <span
+                    class="rounded bg-superficie-alterna px-1.5 py-0.5 font-mono text-xs text-contenido-suave"
+                  >
+                    {{ indicador.codigo }}
+                  </span>
+                  <span class="text-contenido">{{ indicador.nombre }}</span>
+                </li>
+              }
+            </ul>
+          }
+        </app-tarjeta>
+
+        <!-- Acciones -->
+        <div class="flex flex-wrap items-center justify-end gap-2">
+          <button
+            mat-stroked-button
+            type="button"
+            [disabled]="guardando() || !puedeGuardar()"
+            (click)="guardar(false)"
+          >
+            <mat-icon>save</mat-icon>
+            Guardar borrador
+          </button>
+          <button
+            mat-flat-button
+            color="primary"
+            type="button"
+            [disabled]="guardando() || !puedeGuardar()"
+            (click)="guardar(true)"
+          >
+            Iniciar inspección
+            <mat-icon iconPositionEnd>arrow_forward</mat-icon>
+          </button>
+        </div>
+      </form>
+    }
+  }
+</div>
