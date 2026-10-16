@@ -184,9 +184,13 @@ export class AuthService {
     }
 
     // Rotación: la sesión anterior se revoca y se emite una nueva con la
-    // misma duración que tenía (conserva «recordarme»).
+    // misma duración que tenía (conserva «recordarme»). Cuidado con las
+    // unidades: las fechas se miden en milisegundos y la duración de la nueva
+    // sesión se pide en segundos.
     const duracion = Math.max(
-      sesion.expiraEn.getTime() - sesion.createdAt.getTime(),
+      Math.round(
+        (sesion.expiraEn.getTime() - sesion.createdAt.getTime()) / 1000,
+      ),
       this.duracionRefrescoSegundos,
     );
     await this.sesiones.revocar(sesion);

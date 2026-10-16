@@ -236,12 +236,23 @@ describe('Autenticación y usuarios (e2e)', () => {
       .send({ correo: correoAdmin, password: PASSWORD_DEFINITIVA })
       .expect(200);
     const refrescoOriginal = sesion.body.refreshToken as string;
+    const duracionOriginal = sesion.body.refreshExpiraEnSegundos as number;
 
     const renovada = await servidor()
       .post('/api/v1/auth/refresh')
       .send({ token: refrescoOriginal })
       .expect(200);
     expect(renovada.body.refreshToken).not.toBe(refrescoOriginal);
+
+    // Renovar conserva la duración de la sesión: no la alarga ni la acorta.
+    expect(renovada.body.refreshExpiraEnSegundos).toBe(duracionOriginal);
+
+    // Y tampoco se alarga al renovar varias veces seguidas.
+    const renovadaOtraVez = await servidor()
+      .post('/api/v1/auth/refresh')
+      .send({ token: renovada.body.refreshToken })
+      .expect(200);
+    expect(renovadaOtraVez.body.refreshExpiraEnSegundos).toBe(duracionOriginal);
 
     // El token anterior ya fue usado: no se puede repetir.
     await servidor()
@@ -251,13 +262,13 @@ describe('Autenticación y usuarios (e2e)', () => {
 
     await servidor()
       .post('/api/v1/auth/logout')
-      .set('Authorization', `Bearer ${renovada.body.accessToken}`)
-      .send({ token: renovada.body.refreshToken })
+      .set('Authorization', `Bearer ${renovadaOtraVez.body.accessToken}`)
+      .send({ token: renovadaOtraVez.body.refreshToken })
       .expect(200);
 
     await servidor()
       .post('/api/v1/auth/refresh')
-      .send({ token: renovada.body.refreshToken })
+      .send({ token: renovadaOtraVez.body.refreshToken })
       .expect(401);
   });
 
