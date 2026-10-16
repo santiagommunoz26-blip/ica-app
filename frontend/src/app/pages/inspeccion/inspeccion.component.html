@@ -138,6 +138,14 @@
           descripcion="Vuelva a la lista de visitas y abra la inspección de nuevo."
         />
       </app-tarjeta>
+    } @else if (faseActiva() === 2) {
+      <!-- Fase II: inspección en galpón (M4 · RF18–RF26) -->
+      <app-fase2-galpon
+        [respuesta]="respuesta()!"
+        [guardando]="guardando()"
+        (guardar)="guardarFase2($event)"
+        (refrescar)="recargar()"
+      />
     } @else {
       <form [formGroup]="ficha" class="flex flex-col gap-4">
         <div class="grid gap-4 lg:grid-cols-3">

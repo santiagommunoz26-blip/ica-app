@@ -4,6 +4,7 @@ import {
   provideHttpClientTesting,
 } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import {
   ActivatedRoute,
@@ -19,6 +20,7 @@ import type {
   InspeccionRespuesta,
 } from '../../core/inspeccion/inspeccion.modelos';
 import type { ListaVisitas } from '../../core/visitas/visitas.modelos';
+import { Fase2GalponComponent } from './fase2-galpon.component';
 import { InspeccionComponent } from './inspeccion.component';
 
 const USUARIO: Usuario = {
@@ -80,6 +82,9 @@ const CATALOGO: Catalogo = {
       orden: 1,
       escalaMin: 0,
       escalaMax: 2,
+      escalaDescripciones: null,
+      tipoMuestreo: 'PUNTOS_9',
+      pregunta: null,
       gruposProductivos: ['POLLO_ENGORDE', 'PONEDORA_PISO', 'PONEDORA_JAULA'],
     },
     {
@@ -91,6 +96,9 @@ const CATALOGO: Catalogo = {
       orden: 1,
       escalaMin: 0,
       escalaMax: 2,
+      escalaDescripciones: null,
+      tipoMuestreo: 'PUNTOS_9',
+      pregunta: null,
       gruposProductivos: ['POLLO_ENGORDE', 'PONEDORA_PISO', 'PONEDORA_JAULA'],
     },
     {
@@ -102,6 +110,9 @@ const CATALOGO: Catalogo = {
       orden: 1,
       escalaMin: 0,
       escalaMax: 2,
+      escalaDescripciones: null,
+      tipoMuestreo: 'PUNTOS_9',
+      pregunta: null,
       gruposProductivos: ['POLLO_ENGORDE', 'PONEDORA_PISO', 'PONEDORA_JAULA'],
     },
   ],
@@ -143,8 +154,39 @@ const INSPECCION: InspeccionRespuesta = {
     galponesSugeridos: null,
     guardada: false,
   },
-  galpones: [],
+  galpones: [
+    {
+      id: '66666666-6666-6666-6666-666666666666',
+      numero: 1,
+      edadSemanas: 40,
+      aves: 5000,
+      seleccionado: true,
+      sugerido: true,
+    },
+  ],
   catalogo: CATALOGO,
+  fase2: {
+    reglas: {
+      puntos: 9,
+      hojasCentinelaMinimo: 3,
+      jaula: false,
+      avesMin: 15,
+      avesMax: 30,
+      jaulasMin: null,
+      jaulasMax: null,
+    },
+    evaluaciones: [],
+    evidencias: [],
+    avance: [
+      {
+        galponNumero: 1,
+        grupos: [
+          { grupo: 'MBA', etiqueta: 'Animal (MBA)', completos: 0, total: 1 },
+          { grupo: 'MBR', etiqueta: 'Recursos (MBR)', completos: 0, total: 1 },
+        ],
+      },
+    ],
+  },
 };
 
 const LISTA: ListaVisitas = {
@@ -372,6 +414,97 @@ describe('InspeccionComponent', () => {
         ficha: { ...INSPECCION.ficha, guardada: true },
       });
       await guardado;
+      fixture.detectChanges();
+
+      expect(texto()).toContain('Borrador guardado');
+    });
+  });
+
+  describe('Fase II · inspección en galpón (RF18–RF26)', () => {
+    /** La inspección con la Fase I ya guardada (grupo productivo elegido). */
+    const CON_FICHA: InspeccionRespuesta = {
+      ...INSPECCION,
+      ficha: {
+        ...INSPECCION.ficha,
+        grupoProductivo: 'POLLO_ENGORDE',
+        etiquetaGrupoProductivo: 'Pollo de engorde',
+        guardada: true,
+      },
+    };
+
+    const hijo = () =>
+      fixture.debugElement.query(By.directive(Fase2GalponComponent))
+        .componentInstance as Fase2GalponComponent;
+
+    beforeEach(async () => {
+      await configurar(VISITA_ID);
+      http
+        .expectOne(esPeticion(`/inspeccion/${VISITA_ID}`, 'GET'))
+        .flush(CON_FICHA);
+      await tick();
+      fixture.detectChanges();
+
+      componente.faseActiva.set(2);
+      fixture.detectChanges();
+      // El efecto de la Fase II siembra el estado en el primer chequeo; este
+      // segundo vuelve a pintar con lo sembrado.
+      fixture.detectChanges();
+    });
+
+    it('muestra los indicadores con su avance y el cálculo en vivo (RF17, RF24)', () => {
+      expect(texto()).toContain('Indicadores MBR');
+      expect(texto()).toContain('Partículas en el aire');
+      expect(texto()).toContain('Cálculo en vivo');
+      expect(texto()).toContain('Avance galpón 1');
+    });
+
+    it('califica puntos y calcula promedio y valor del indicador (RF19, RF34)', () => {
+      hijo().abrirIndicador('MBA-01');
+      hijo().calificar(1, 2);
+      hijo().calificar(2, 2);
+      hijo().calificar(3, 1);
+      hijo().calificar(4, 1);
+      fixture.detectChanges();
+
+      // (2 + 2 + 1 + 1) / 4 = 1.50 → (1.50 × 100) / 2 = 75 %.
+      expect(hijo().calculo()?.promedio).toBe(1.5);
+      expect(hijo().calculo()?.valor).toBe(75);
+      expect(hijo().calculo()?.faltan).toBe(5);
+      expect(texto()).toContain('75 %');
+      expect(texto()).toContain('Faltan 5 de 9 puntos');
+    });
+
+    it('guarda las evaluaciones por la misma cola (RF12, RF26)', async () => {
+      hijo().abrirIndicador('MBA-01');
+      hijo().calificar(1, 2);
+      hijo().guardarBorrador();
+      await tick();
+
+      const sincronizar = http.expectOne(
+        esPeticion('/visitas/sincronizar', 'POST'),
+      );
+      const operacion = sincronizar.request.body.operaciones[0];
+      expect(operacion.tipo).toBe('GUARDAR_INSPECCION');
+      expect(operacion.inspeccion.evaluaciones.length).toBe(1);
+      expect(operacion.inspeccion.evaluaciones[0].indicadorCodigo).toBe(
+        'MBA-01',
+      );
+      expect(operacion.inspeccion.evaluaciones[0].puntos[0].puntaje).toBe(2);
+      sincronizar.flush({
+        resultados: [{ id: operacion.id, estado: 'APLICADA' }],
+        visitas: [],
+      });
+
+      // Tras sincronizar, el servicio refresca la lista de visitas (RF12).
+      await tick();
+      http.expectOne(esPeticion('/visitas', 'GET')).flush(LISTA);
+
+      // Y la pantalla vuelve a leer la inspección del servidor.
+      await tick();
+      http
+        .expectOne(esPeticion(`/inspeccion/${VISITA_ID}`, 'GET'))
+        .flush(CON_FICHA);
+      await tick();
       fixture.detectChanges();
 
       expect(texto()).toContain('Borrador guardado');

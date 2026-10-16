@@ -1,0 +1,439 @@
+<div class="flex flex-col gap-4">
+  @if (respuesta().ficha.grupoProductivo === null) {
+    <app-aviso tipo="advertencia" titulo="Falta el grupo productivo">
+      Elija en la Fase I el grupo productivo del predio: de ahí salen los
+      indicadores que se evalúan (RF17).
+    </app-aviso>
+  } @else if (galponesSeleccionados().length === 0) {
+    <app-aviso tipo="advertencia" titulo="Faltan galpones por evaluar">
+      Marque en la Fase I, en la lista de galpones, los que va a inspeccionar
+      (RF16).
+    </app-aviso>
+  } @else {
+    <!-- Galpón activo y reglas de muestreo (RF16, RF18–RF22) -->
+    <div class="flex flex-wrap items-center gap-2">
+      <span class="text-sm text-contenido-suave">Galpón:</span>
+      @for (galpon of galponesSeleccionados(); track galpon.numero) {
+        <button
+          type="button"
+          class="rounded-full border px-4 py-1.5 text-sm font-medium transition-colors"
+          [class]="
+            galponActivo() === galpon.numero
+              ? 'border-transparent bg-marca text-marca-contraste'
+              : 'border-borde text-contenido-suave hover:bg-superficie-alterna'
+          "
+          (click)="elegirGalpon(galpon.numero)"
+        >
+          Galpón {{ galpon.numero }}
+        </button>
+      }
+      <span class="ml-auto text-xs text-contenido-suave">
+        {{ textoReglas() }}
+      </span>
+    </div>
+
+    @if (error(); as mensaje) {
+      <app-aviso tipo="peligro">{{ mensaje }}</app-aviso>
+    }
+    @if (aviso(); as mensaje) {
+      <app-aviso tipo="exito">{{ mensaje }}</app-aviso>
+    }
+
+    <div class="grid gap-4 lg:grid-cols-[230px_minmax(0,1fr)_250px]">
+      <!-- Indicadores del animal y de recursos (RF17, RF24) -->
+      <app-tarjeta relleno="ninguno">
+        <div class="flex flex-col">
+          @for (grupo of grupos(); track grupo.grupo) {
+            <div class="border-b border-borde px-4 py-3">
+              <p class="text-sm font-semibold text-contenido">
+                {{ grupo.etiqueta }}
+              </p>
+              <p class="text-xs text-contenido-suave">
+                {{ grupo.completos }} de {{ grupo.total }} completos
+              </p>
+            </div>
+            <ul class="flex flex-col gap-0.5 p-2">
+              @for (indicador of grupo.indicadores; track indicador.codigo) {
+                <li>
+                  <button
+                    type="button"
+                    class="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition-colors"
+                    [class]="
+                      indicadorActivo() === indicador.codigo
+                        ? 'bg-superficie-alterna font-medium text-contenido'
+                        : 'text-contenido-suave hover:bg-superficie-alterna'
+                    "
+                    (click)="abrirIndicador(indicador.codigo)"
+                  >
+                    <mat-icon
+                      class="text-base"
+                      [class]="
+                        estaCompleto(indicador.codigo)
+                          ? 'text-exito'
+                          : 'text-contenido-suave'
+                      "
+                    >
+                      {{
+                        estaCompleto(indicador.codigo)
+                          ? 'check_circle'
+                          : 'radio_button_unchecked'
+                      }}
+                    </mat-icon>
+                    <span class="truncate">{{ indicador.nombre }}</span>
+                  </button>
+                </li>
+              }
+            </ul>
+          }
+        </div>
+      </app-tarjeta>
+
+      <!-- Indicador activo: puntos de muestreo, foto y observación (RF18–RF23) -->
+      <app-tarjeta relleno="ninguno">
+        @if (indicadorActivoObj(); as indicador) {
+          <div class="border-b border-borde px-4 py-3">
+            <p class="text-xs uppercase tracking-wide text-contenido-suave">
+              {{ indicador.etiquetaGrupo }} ·
+              {{ indicador.metodo ?? 'visual' }}
+            </p>
+            <h2 class="text-lg font-semibold text-contenido">
+              {{ indicador.nombre }}
+            </h2>
+            @if (indicador.pregunta) {
+              <p class="text-sm text-contenido-suave">
+                {{ indicador.pregunta }}
+              </p>
+            }
+            @if (guardadoActivo(); as guardado) {
+              <p class="mt-1 text-xs text-contenido-suave">
+                Guardado el {{ guardado | date: 'd MMM, h:mm a' }} (RF26)
+              </p>
+            }
+          </div>
+
+          <div class="flex flex-col gap-4 p-4">
+            <!-- «No aplica» con motivo (RF25) -->
+            <div class="flex flex-wrap items-center gap-3">
+              <mat-checkbox
+                [checked]="evaluacionActiva()?.noAplica ?? false"
+                (change)="cambiarNoAplica($event.checked)"
+              >
+                No aplica
+              </mat-checkbox>
+              @if (evaluacionActiva()?.noAplica) {
+                <mat-form-field
+                  appearance="outline"
+                  class="min-w-[260px] flex-1"
+                  subscriptSizing="dynamic"
+                >
+                  <mat-label>Motivo por el que no aplica</mat-label>
+                  <input
+                    matInput
+                    maxlength="300"
+                    [value]="evaluacionActiva()?.motivoNoAplica ?? ''"
+                    (input)="cambiarMotivo($event)"
+                  />
+                </mat-form-field>
+              }
+            </div>
+
+            @if (!evaluacionActiva()?.noAplica) {
+              <div class="flex flex-col gap-3">
+                <div
+                  class="flex flex-wrap items-baseline justify-between gap-2"
+                >
+                  <p class="text-sm font-semibold text-contenido">
+                    Punto de muestreo
+                  </p>
+                  @if (indicador.tipoMuestreo === 'HOJAS_CENTINELA') {
+                    <p class="text-xs text-contenido-suave">
+                      Hojas centinela: mínimo
+                      {{ reglas().hojasCentinelaMinimo }} según el tipo de
+                      predio; se colocan al inicio y se retiran al final (RF22).
+                    </p>
+                  }
+                </div>
+
+                <!-- Puntos 1..9 (o hojas centinela): muestra y calificación -->
+                <div class="flex flex-col gap-2">
+                  @for (fila of puntos(); track fila.numero) {
+                    <div
+                      class="grid items-center gap-2 sm:grid-cols-[80px_110px_110px_minmax(0,1fr)]"
+                    >
+                      <span class="text-sm text-contenido"
+                        >Punto {{ fila.numero }}</span
+                      >
+                      <mat-form-field
+                        appearance="outline"
+                        subscriptSizing="dynamic"
+                      >
+                        <mat-label>Aves</mat-label>
+                        <input
+                          matInput
+                          type="text"
+                          inputmode="numeric"
+                          [value]="fila.punto.aves ?? ''"
+                          (input)="cambiarAves(fila.numero, $event)"
+                        />
+                      </mat-form-field>
+                      @if (reglas().jaula) {
+                        <mat-form-field
+                          appearance="outline"
+                          subscriptSizing="dynamic"
+                        >
+                          <mat-label>Jaulas</mat-label>
+                          <input
+                            matInput
+                            type="text"
+                            inputmode="numeric"
+                            [value]="fila.punto.jaulas ?? ''"
+                            (input)="cambiarJaulas(fila.numero, $event)"
+                          />
+                        </mat-form-field>
+                      } @else {
+                        <span></span>
+                      }
+                      <div class="flex flex-wrap items-center gap-1">
+                        @for (valor of puntajes; track valor) {
+                          <button
+                            type="button"
+                            class="h-9 w-9 rounded-full border text-sm font-semibold transition-colors disabled:opacity-40"
+                            [class]="
+                              fila.punto.puntaje === valor
+                                ? 'border-transparent bg-marca text-marca-contraste'
+                                : 'border-borde text-contenido-suave hover:bg-superficie-alterna'
+                            "
+                            [disabled]="!fila.calificable"
+                            [matTooltip]="descripcionPuntaje(indicador, valor)"
+                            (click)="calificar(fila.numero, valor)"
+                          >
+                            {{ valor }}
+                          </button>
+                        }
+                        @if (reglas().jaula && !fila.calificable) {
+                          <span class="text-xs text-contenido-suave">
+                            Registre las jaulas y el total de aves antes de
+                            calificar (RF21).
+                          </span>
+                        }
+                      </div>
+                      @if (fila.mensaje) {
+                        <p class="text-xs text-peligro sm:col-span-4">
+                          {{ fila.mensaje }}
+                        </p>
+                      }
+                    </div>
+                  }
+
+                  @if (
+                    indicador.tipoMuestreo === 'HOJAS_CENTINELA' &&
+                    puntos().length < maximoPuntos
+                  ) {
+                    <button
+                      mat-stroked-button
+                      type="button"
+                      class="self-start"
+                      (click)="agregarHoja()"
+                    >
+                      <mat-icon>add</mat-icon>
+                      Agregar hoja
+                    </button>
+                  }
+                </div>
+
+                <!-- Descripciones de la escala, si el catálogo las trae (RF19) -->
+                @if (indicador.escalaDescripciones; as descripciones) {
+                  <ul
+                    class="flex flex-col gap-0.5 text-xs text-contenido-suave"
+                  >
+                    @for (descripcion of descripciones; track $index) {
+                      <li>{{ $index }} · {{ descripcion }}</li>
+                    }
+                  </ul>
+                }
+              </div>
+            }
+
+            <!-- Foto y observación del indicador (RF23) -->
+            <div class="flex flex-col gap-2 border-t border-borde pt-3">
+              <div class="flex flex-wrap items-center gap-2">
+                <label
+                  class="inline-flex cursor-pointer items-center gap-1 rounded-full border border-borde px-3 py-1.5 text-sm text-contenido-suave transition-colors hover:bg-superficie-alterna"
+                >
+                  <mat-icon class="text-base">photo_camera</mat-icon>
+                  Adjuntar foto
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    class="hidden"
+                    [disabled]="!sincronizacion.enLinea() || subiendo()"
+                    (change)="adjuntarFoto($event)"
+                  />
+                </label>
+                @if (!sincronizacion.enLinea()) {
+                  <span class="text-xs text-contenido-suave">
+                    Sin conexión: las fotos se suben al volver la red.
+                  </span>
+                }
+                @if (subiendo()) {
+                  <span class="text-xs text-contenido-suave">Subiendo…</span>
+                }
+              </div>
+
+              @if (evidencias().length > 0) {
+                <ul class="flex flex-col gap-1">
+                  @for (evidencia of evidencias(); track evidencia.id) {
+                    <li class="flex flex-wrap items-center gap-2 text-sm">
+                      <mat-icon class="text-base text-contenido-suave"
+                        >image</mat-icon
+                      >
+                      <span class="truncate text-contenido">{{
+                        evidencia.nombre
+                      }}</span>
+                      @if (!evidencia.confirmada) {
+                        <app-insignia tono="advertencia">
+                          sin confirmar
+                        </app-insignia>
+                      }
+                      <button
+                        mat-button
+                        type="button"
+                        (click)="verFoto(evidencia)"
+                      >
+                        Ver
+                      </button>
+                      <button
+                        mat-button
+                        type="button"
+                        (click)="quitarFoto(evidencia)"
+                      >
+                        Quitar
+                      </button>
+                    </li>
+                  }
+                </ul>
+              }
+
+              <mat-form-field appearance="outline" class="w-full">
+                <mat-label>Observación del indicador</mat-label>
+                <textarea
+                  matInput
+                  rows="2"
+                  maxlength="2000"
+                  [value]="evaluacionActiva()?.observaciones ?? ''"
+                  (input)="cambiarObservaciones($event)"
+                ></textarea>
+              </mat-form-field>
+            </div>
+
+            <!-- Navegación y guardado del borrador (RF26) -->
+            <div class="flex flex-wrap items-center gap-2">
+              <button
+                mat-stroked-button
+                type="button"
+                [disabled]="!hayAnterior()"
+                (click)="anterior()"
+              >
+                <mat-icon>chevron_left</mat-icon>
+                Anterior
+              </button>
+              <button
+                mat-stroked-button
+                type="button"
+                [disabled]="guardando()"
+                (click)="guardarBorrador()"
+              >
+                <mat-icon>save</mat-icon>
+                Guardar borrador
+              </button>
+              <button
+                mat-flat-button
+                color="primary"
+                type="button"
+                [disabled]="guardando()"
+                (click)="guardarYSiguiente()"
+              >
+                Guardar y siguiente
+                <mat-icon iconPositionEnd>chevron_right</mat-icon>
+              </button>
+            </div>
+          </div>
+        } @else {
+          <app-estado-vacio
+            icono="rule"
+            titulo="Sin indicadores por evaluar"
+            descripcion="Elija el grupo productivo en la Fase I para cargar los indicadores."
+          />
+        }
+      </app-tarjeta>
+
+      <!-- Cálculo en vivo y avance del galpón (RF24, RF34) -->
+      <app-tarjeta relleno="ninguno">
+        <div class="border-b border-borde px-4 py-3">
+          <p class="text-sm font-semibold text-contenido">Cálculo en vivo</p>
+          <p class="text-xs text-contenido-suave">
+            Se actualiza con cada punto calificado.
+          </p>
+        </div>
+        <div class="flex flex-col gap-3 p-4">
+          @if (calculo(); as dato) {
+            <div>
+              <p class="text-xs text-contenido-suave">Puntos registrados</p>
+              <div class="mt-1 flex flex-wrap gap-1">
+                @for (puntaje of dato.puntajes; track $index) {
+                  <span
+                    class="inline-flex h-6 w-6 items-center justify-center rounded bg-superficie-alterna text-xs font-medium text-contenido"
+                  >
+                    {{ puntaje ?? '–' }}
+                  </span>
+                }
+              </div>
+            </div>
+
+            <div>
+              <p class="text-xs text-contenido-suave">Promedio</p>
+              <p class="text-lg font-semibold text-contenido">
+                {{
+                  dato.promedio === null
+                    ? '–'
+                    : (dato.promedio | number: '1.2-2')
+                }}
+              </p>
+              @if (dato.promedio !== null) {
+                <p class="text-xs text-contenido-suave">
+                  ({{ dato.promedio | number: '1.2-2' }} × 100) / 2
+                </p>
+              }
+            </div>
+
+            <div>
+              <p class="text-lg font-semibold text-contenido">
+                {{ dato.valor === null ? '–' : (dato.valor | number: '1.0-2') }}
+                %
+              </p>
+              <p class="text-xs text-contenido-suave">valor del indicador</p>
+            </div>
+
+            <div
+              class="border-t border-borde pt-2 text-xs text-contenido-suave"
+            >
+              @if (dato.noAplica) {
+                «No aplica»: el indicador sale del cálculo (RF25).
+              } @else if (dato.completo) {
+                Indicador completo ✓
+              } @else {
+                Faltan {{ dato.faltan }} de {{ dato.minimo }} puntos
+              }
+            </div>
+          }
+
+          <div class="border-t border-borde pt-2">
+            <p class="text-xs text-contenido-suave">
+              Avance galpón {{ galponActivo() }}: {{ textoAvance() }}
+            </p>
+          </div>
+        </div>
+      </app-tarjeta>
+    </div>
+  }
+</div>

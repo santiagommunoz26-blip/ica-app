@@ -10,6 +10,7 @@ import { AuthService } from '../auth/auth.service';
 import { InspeccionService } from '../inspeccion/inspeccion.service';
 import {
   aplicarBorrador,
+  fusionarPeticiones,
   type InspeccionRespuesta,
   type PeticionGuardarInspeccion,
 } from '../inspeccion/inspeccion.modelos';
@@ -266,9 +267,14 @@ export class SincronizacionService {
   }
 
   /**
-   * Guarda la ficha de la Fase I (M3 · RF13–RF16). Como el resto de cambios,
-   * primero queda en el equipo y luego se envía (RF12); sin conexión se ve el
-   * borrador aplicado sobre la copia local.
+   * Guarda la ficha de la Fase I y las evaluaciones de la Fase II (M3–M4 ·
+   * RF12–RF26). Como el resto de cambios, primero queda en el equipo y luego
+   * se envía (RF12); sin conexión se ve el borrador aplicado sobre la copia
+   * local.
+   *
+   * Si ya hay un borrador de esta inspección sin enviar, se funde con él: la
+   * última versión contiene todo lo anterior y así la cola no acumula una
+   * copia completa de la ficha por cada guardado (RF26).
    */
   async guardarInspeccion(
     visitaId: string,
@@ -277,6 +283,31 @@ export class SincronizacionService {
     const actual = this.inspeccionesLocales()[visitaId];
     if (actual) {
       this.guardarInspeccionLocal(visitaId, aplicarBorrador(actual, peticion));
+    }
+
+    const cola = this.cola();
+    const pendiente = cola.find(
+      (operacion) =>
+        operacion.tipo === 'GUARDAR_INSPECCION' &&
+        operacion.visitaId === visitaId &&
+        operacion.inspeccion,
+    );
+
+    if (pendiente?.inspeccion) {
+      const fundida: OperacionSincronizacion = {
+        ...pendiente,
+        // Identificador nuevo: si la anterior ya iba en un envío en curso, no
+        // se pierde al retirar las enviadas de la cola.
+        id: nuevoId(),
+        inspeccion: fusionarPeticiones(pendiente.inspeccion, peticion),
+        registradoEn: new Date().toISOString(),
+      };
+      this.guardarCola(
+        cola.map((operacion) =>
+          operacion === pendiente ? fundida : operacion,
+        ),
+      );
+      return this.enviarSiHayRed();
     }
 
     return this.encolar({
@@ -294,7 +325,11 @@ export class SincronizacionService {
     operacion: OperacionSincronizacion,
   ): Promise<ResultadoGuardado> {
     this.guardarCola([...this.cola(), operacion]);
+    return this.enviarSiHayRed();
+  }
 
+  /** Envía lo que haya pendiente cuando hay red; si falla, queda en la cola. */
+  private async enviarSiHayRed(): Promise<ResultadoGuardado> {
     if (!this.enLinea()) return { pendiente: true, rechazos: [] };
 
     try {

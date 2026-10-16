@@ -98,6 +98,26 @@ export const ORDEN_SISTEMAS_PRODUCCION: readonly SistemaProduccion[] = [
   SistemaProduccion.AMBIENTE_CONTROLADO,
 ];
 
+/**
+ * Forma en que se toma la muestra de un indicador (M4 · RF18, RF22).
+ *
+ * Los documentos fuente describen dos formas de muestreo: los 9 puntos de
+ * muestreo por galpón (RF18) y las hojas centinela para las partículas en el
+ * aire, con un mínimo de 3 en corral y 1 en traspatio (RF22). Cuál usa cada
+ * indicador lo decide el catálogo (lo administra M8); aquí solo se declaran
+ * las dos formas conocidas.
+ */
+export enum TipoMuestreo {
+  PUNTOS_9 = 'PUNTOS_9',
+  HOJAS_CENTINELA = 'HOJAS_CENTINELA',
+}
+
+/** Etiqueta legible de la forma de muestreo. */
+export const ETIQUETA_TIPO_MUESTREO: Record<TipoMuestreo, string> = {
+  [TipoMuestreo.PUNTOS_9]: '9 puntos de muestreo',
+  [TipoMuestreo.HOJAS_CENTINELA]: 'Hojas centinela',
+};
+
 /** Opción de una lista (código + etiqueta), para enviarla a la interfaz. */
 export interface OpcionCatalogo<T extends string> {
   codigo: T;

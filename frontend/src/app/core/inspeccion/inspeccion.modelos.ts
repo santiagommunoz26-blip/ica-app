@@ -1,9 +1,17 @@
 /**
- * Modelos de la apertura y ficha general, Fase I (M3 · RF13–RF17).
+ * Modelos de la apertura y ficha general, Fase I (M3 · RF13–RF17), y de la
+ * inspección en galpón, Fase II (M4 · RF18–RF26).
  * Reflejan lo que devuelve la API (`backend/src/inspeccion/dto`).
  */
 
 import type { EstadoVisita, TipoPredio } from '../visitas/visitas.modelos';
+import {
+  claveEvaluacion,
+  proyectarFase2,
+  reglasFase2,
+  type EvaluacionFase2,
+  type Fase2,
+} from './fase2.modelos';
 
 /** Grupos de medidas de la metodología (RF34–RF36). */
 export type GrupoMedidas = 'MBA' | 'MBR' | 'MBG';
@@ -37,6 +45,12 @@ export interface IndicadorCatalogo {
   orden: number;
   escalaMin: number;
   escalaMax: number;
+  /** Descripción de cada puntaje (RF19), si el catálogo ya la trae. */
+  escalaDescripciones: string[] | null;
+  /** Forma de muestreo del indicador (RF18, RF22). */
+  tipoMuestreo: 'PUNTOS_9' | 'HOJAS_CENTINELA';
+  /** Pregunta que resume el indicador (RF47), como en el wireframe. */
+  pregunta: string | null;
   gruposProductivos: GrupoProductivo[];
 }
 
@@ -109,13 +123,15 @@ export interface FichaInspeccion {
   guardada: boolean;
 }
 
-/** Respuesta completa de la Fase I (RF13–RF17). */
+/** Respuesta completa de la Fase I (RF13–RF17) y la Fase II (RF18–RF26). */
 export interface InspeccionRespuesta {
   visita: VisitaFicha;
   predio: PredioFicha;
   ficha: FichaInspeccion;
   galpones: Galpon[];
   catalogo: Catalogo;
+  /** Inspección en galpón: reglas, evaluaciones, evidencias y avance (M4). */
+  fase2: Fase2;
   /** Marca solo local: hay cambios guardados en el equipo sin sincronizar. */
   pendiente?: boolean;
 }
@@ -140,6 +156,8 @@ export interface PeticionGuardarInspeccion {
   grupoProductivo?: GrupoProductivo;
   observaciones?: string;
   galpones?: DatosGalpon[];
+  /** Evaluaciones de la Fase II por galpón e indicador (M4 · RF18–RF26). */
+  evaluaciones?: EvaluacionFase2[];
 }
 
 /** Las cuatro fases de la visita, como en el wireframe. */
@@ -161,7 +179,7 @@ export const FASES_INSPECCION: readonly {
     numero: 2,
     romano: 'II',
     etiqueta: 'Inspección galpón',
-    disponible: false,
+    disponible: true,
     modulo: 'M4',
   },
   {
@@ -281,6 +299,16 @@ export function aplicarBorrador(
   );
   const sugeridos = numerosSugeridos(galpones, predio.numeroAves);
 
+  const grupoProductivo =
+    borrador.grupoProductivo !== undefined
+      ? borrador.grupoProductivo
+      : respuesta.ficha.grupoProductivo;
+  // La Fase II solo evalúa indicadores del animal y de recursos (M4).
+  const indicadoresFase2 = indicadoresAplicables(
+    respuesta.catalogo,
+    grupoProductivo,
+  ).filter((indicador) => indicador.grupo !== 'MBG');
+
   return {
     ...respuesta,
     predio,
@@ -288,12 +316,18 @@ export function aplicarBorrador(
       ...galpon,
       sugerido: sugeridos.includes(galpon.numero),
     })),
+    fase2: proyectarFase2(
+      respuesta.fase2,
+      borrador.evaluaciones ?? [],
+      indicadoresFase2,
+      galpones
+        .filter((galpon) => galpon.seleccionado)
+        .map((galpon) => galpon.numero),
+      reglasFase2(tipoPredio, grupoProductivo),
+    ),
     ficha: {
       ...respuesta.ficha,
-      grupoProductivo:
-        borrador.grupoProductivo !== undefined
-          ? borrador.grupoProductivo
-          : respuesta.ficha.grupoProductivo,
+      grupoProductivo,
       fechaHora: borrador.fechaHora ?? respuesta.ficha.fechaHora,
       observaciones:
         borrador.observaciones !== undefined
@@ -313,4 +347,47 @@ export function aplicarBorrador(
     },
     pendiente: true,
   };
+}
+
+/**
+ * Funde dos borradores de la misma inspección (RF12, RF26): el nuevo gana
+ * campo a campo y las evaluaciones de la Fase II se mezclan por galpón e
+ * indicador. Sirve para que la cola no acumule una copia completa de la ficha
+ * por cada guardado sin conexión.
+ */
+export function fusionarPeticiones(
+  anterior: PeticionGuardarInspeccion,
+  nuevo: PeticionGuardarInspeccion,
+): PeticionGuardarInspeccion {
+  const evaluaciones = fusionarEvaluaciones(
+    anterior.evaluaciones,
+    nuevo.evaluaciones,
+  );
+  return {
+    ...anterior,
+    ...nuevo,
+    ...(evaluaciones ? { evaluaciones } : {}),
+  };
+}
+
+/** Mezcla dos listas de evaluaciones: la última versión de cada una gana. */
+function fusionarEvaluaciones(
+  anteriores?: EvaluacionFase2[],
+  nuevas?: EvaluacionFase2[],
+): EvaluacionFase2[] | undefined {
+  if (!anteriores && !nuevas) return undefined;
+  const porClave = new Map<string, EvaluacionFase2>();
+  for (const evaluacion of anteriores ?? []) {
+    porClave.set(
+      claveEvaluacion(evaluacion.galponNumero, evaluacion.indicadorCodigo),
+      evaluacion,
+    );
+  }
+  for (const evaluacion of nuevas ?? []) {
+    porClave.set(
+      claveEvaluacion(evaluacion.galponNumero, evaluacion.indicadorCodigo),
+      evaluacion,
+    );
+  }
+  return [...porClave.values()];
 }

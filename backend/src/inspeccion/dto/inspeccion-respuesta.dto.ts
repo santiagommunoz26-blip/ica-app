@@ -19,6 +19,7 @@ import type { Inspeccion } from '../entities/inspeccion.entity.js';
 import type { Galpon } from '../entities/galpon.entity.js';
 import type { VisitaConRelaciones } from '../../visitas/dto/visita-respuesta.dto.js';
 import { numerosSugeridos, clasificarPorAves } from '../inspeccion.reglas.js';
+import { Fase2RespuestaDto } from './fase2-respuesta.dto.js';
 
 /** Predio, con el tipo ya clasificado por el número de aves (RF14). */
 export class PredioFichaRespuestaDto {
@@ -108,6 +109,12 @@ export class InspeccionRespuestaDto {
 
   @ApiProperty({ type: CatalogoRespuestaDto })
   catalogo: CatalogoRespuestaDto;
+
+  @ApiProperty({
+    type: () => Fase2RespuestaDto,
+    description: 'Inspección en galpón, Fase II (M4 · RF18–RF26).',
+  })
+  fase2: Fase2RespuestaDto;
 }
 
 /** Arma la respuesta de la Fase I a partir de lo que hay en la base. */
@@ -116,6 +123,7 @@ export function mapearInspeccion(
   inspeccion: Inspeccion | null,
   galpones: Galpon[],
   catalogo: CatalogoRespuestaDto,
+  fase2: Fase2RespuestaDto,
 ): InspeccionRespuestaDto {
   const predio = visita.predio;
   const numeroAves = predio.numeroAves ?? null;
@@ -180,5 +188,6 @@ export function mapearInspeccion(
       sugerido: sugeridos.includes(galpon.numero),
     })),
     catalogo,
+    fase2,
   };
 }

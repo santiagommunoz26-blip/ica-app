@@ -17,20 +17,36 @@ import { MetodologiaService } from '../metodologia/metodologia.service.js';
 import {
   catalogoVacio,
   mapearCatalogo,
+  type CatalogoActivo,
 } from '../metodologia/dto/catalogo-respuesta.dto.js';
+import { GrupoMedidas } from '../metodologia/metodologia.tipos.js';
+import type { Indicador } from '../metodologia/entities/indicador.entity.js';
 import { RegistroAccesoService } from '../usuarios/registro-acceso.service.js';
 import { EventoBitacora } from '../usuarios/entities/registro-acceso.entity.js';
 import { Predio } from '../visitas/entities/predio.entity.js';
 import { Visita } from '../visitas/entities/visita.entity.js';
 import type { VisitaConRelaciones } from '../visitas/dto/visita-respuesta.dto.js';
 import { esEditable } from '../visitas/visitas.tipos.js';
+import { Evidencia } from './entities/evidencia.entity.js';
 import { Inspeccion } from './entities/inspeccion.entity.js';
 import { Galpon } from './entities/galpon.entity.js';
 import { clasificarPorAves } from './inspeccion.reglas.js';
 import {
+  erroresDeEvaluacion,
+  reglasFase2,
+  type ReglasFase2,
+} from './fase2.reglas.js';
+import {
+  claveEvaluacion,
+  escribirEvaluaciones,
+  leerEvaluaciones,
+  type EvaluacionFase2,
+} from './fase2.tipos.js';
+import {
   mapearInspeccion,
   type InspeccionRespuestaDto,
 } from './dto/inspeccion-respuesta.dto.js';
+import { mapearFase2 } from './dto/fase2-respuesta.dto.js';
 import type { GuardarInspeccionDto } from './dto/guardar-inspeccion.dto.js';
 
 /** Contexto de la petición para la bitácora (RNF11). */
@@ -59,6 +75,8 @@ export class InspeccionService {
     private readonly inspecciones: Repository<Inspeccion>,
     @InjectRepository(Galpon)
     private readonly galpones: Repository<Galpon>,
+    @InjectRepository(Evidencia)
+    private readonly evidencias: Repository<Evidencia>,
     private readonly metodologia: MetodologiaService,
     private readonly bitacora: RegistroAccesoService,
   ) {}
@@ -91,10 +109,10 @@ export class InspeccionService {
 
     await this.actualizarPredio(visita.predio, dto);
 
-    const catalogo = await this.metodologia.activa();
     let inspeccion = await this.inspecciones.findOne({
       where: { visitaId: visita.id },
     });
+    const catalogo = await this.catalogoDe(inspeccion);
     if (!inspeccion) {
       inspeccion = this.inspecciones.create({
         visitaId: visita.id,
@@ -118,6 +136,15 @@ export class InspeccionService {
 
     if (dto.galpones) {
       await this.reemplazarGalpones(inspeccion.id, dto.galpones);
+    }
+
+    if (dto.evaluaciones) {
+      await this.guardarEvaluaciones(
+        inspeccion,
+        dto.evaluaciones,
+        visita.predio,
+        catalogo,
+      );
     }
 
     await this.bitacora.registrar(EventoBitacora.INSPECCION_GUARDADA, {
@@ -147,14 +174,172 @@ export class InspeccionService {
         })
       : [];
 
-    const catalogoActivo = inspeccion?.metodologiaId
-      ? await this.metodologia.porId(inspeccion.metodologiaId)
-      : await this.metodologia.activa();
+    const catalogoActivo = await this.catalogoDe(inspeccion);
     const catalogo = catalogoActivo
       ? mapearCatalogo(catalogoActivo)
       : catalogoVacio();
 
-    return mapearInspeccion(visita, inspeccion ?? null, galpones, catalogo);
+    const evaluaciones = leerEvaluaciones(inspeccion?.respuestas);
+    const indicadores = catalogoActivo
+      ? indicadoresDeFase2(
+          catalogoActivo.indicadores,
+          inspeccion?.grupoProductivo ?? null,
+        )
+      : [];
+    const evidencias = await this.evidencias.find({
+      where: { visitaId: visita.id },
+      order: { creadaEn: 'ASC' },
+    });
+    const fase2 = mapearFase2(
+      this.reglasDe(visita.predio, inspeccion),
+      indicadores,
+      galpones
+        .filter((galpon) => galpon.seleccionado)
+        .map((galpon) => galpon.numero),
+      evaluaciones,
+      evidencias,
+    );
+
+    return mapearInspeccion(
+      visita,
+      inspeccion ?? null,
+      galpones,
+      catalogo,
+      fase2,
+    );
+  }
+
+  /** Catálogo que le toca a la inspección: el suyo (RF49) o el vigente. */
+  private async catalogoDe(
+    inspeccion: Inspeccion | null,
+  ): Promise<CatalogoActivo | null> {
+    return inspeccion?.metodologiaId
+      ? this.metodologia.porId(inspeccion.metodologiaId)
+      : this.metodologia.activa();
+  }
+
+  /** Reglas de muestreo de la Fase II para esta visita (RF18–RF22). */
+  private reglasDe(predio: Predio, inspeccion: Inspeccion | null): ReglasFase2 {
+    const tipoPredio =
+      predio.numeroAves === null
+        ? predio.tipoPredio
+        : clasificarPorAves(predio.numeroAves);
+    return reglasFase2(tipoPredio, inspeccion?.grupoProductivo ?? null);
+  }
+
+  /**
+   * Guarda las evaluaciones de la Fase II (M4 · RF18–RF26).
+   *
+   * Las respuestas viven en `inspeccion.respuestas` (JSONB, ADR-001), por
+   * galpón e indicador. El servidor comprueba que el galpón y el indicador
+   * existan, que el indicador aplique al grupo productivo (RF17) y que sea de
+   * esta fase (MBA o MBR: la gestión es la Fase III), y valida los puntajes y
+   * los tamaños de muestra contra la metodología (RF19–RF21). Guardar no exige
+   * que el indicador esté completo: el borrador se guarda por partes (RF26).
+   */
+  private async guardarEvaluaciones(
+    inspeccion: Inspeccion,
+    evaluaciones: GuardarInspeccionDto['evaluaciones'],
+    predio: Predio,
+    catalogo: CatalogoActivo | null,
+  ): Promise<void> {
+    const enviadas = evaluaciones ?? [];
+    if (enviadas.length === 0) return;
+
+    if (!inspeccion.grupoProductivo) {
+      throw new BadRequestException(
+        'Elija el grupo productivo en la Fase I antes de calificar los indicadores.',
+      );
+    }
+    if (!catalogo) {
+      throw new BadRequestException(
+        'No hay una versión del catálogo de la metodología cargada.',
+      );
+    }
+
+    const galpones = await this.galpones.find({
+      where: { inspeccionId: inspeccion.id },
+    });
+    const numeros = new Set(galpones.map((galpon) => galpon.numero));
+    const indicadores = new Map(
+      catalogo.indicadores.map((indicador) => [indicador.codigo, indicador]),
+    );
+    const reglas = this.reglasDe(predio, inspeccion);
+
+    const errores: string[] = [];
+    const nuevas = new Map<string, EvaluacionFase2>();
+    const ahora = new Date().toISOString();
+
+    for (const evaluacion of enviadas) {
+      if (!numeros.has(evaluacion.galponNumero)) {
+        errores.push(
+          `El galpón ${evaluacion.galponNumero} no está registrado en la ficha.`,
+        );
+        continue;
+      }
+      const indicador = indicadores.get(evaluacion.indicadorCodigo);
+      if (!indicador) {
+        errores.push(
+          `El indicador ${evaluacion.indicadorCodigo} no existe en el catálogo.`,
+        );
+        continue;
+      }
+      if (indicador.grupo === GrupoMedidas.MBG) {
+        errores.push(
+          `«${indicador.nombre}» es de gestión: se evalúa en la Fase III.`,
+        );
+        continue;
+      }
+      if (!indicador.gruposProductivos.includes(inspeccion.grupoProductivo)) {
+        errores.push(
+          `«${indicador.nombre}» no aplica al grupo productivo elegido.`,
+        );
+        continue;
+      }
+
+      const noAplica = evaluacion.noAplica ?? false;
+      const normalizada: EvaluacionFase2 = {
+        galponNumero: evaluacion.galponNumero,
+        indicadorCodigo: evaluacion.indicadorCodigo,
+        noAplica,
+        motivoNoAplica: limpiarTexto(evaluacion.motivoNoAplica ?? '') || null,
+        observaciones: limpiarTexto(evaluacion.observaciones ?? '') || null,
+        // Un indicador «No aplica» se excluye del cálculo (RF25): no lleva puntos.
+        puntos: noAplica
+          ? []
+          : (evaluacion.puntos ?? []).map((punto) => ({
+              numero: punto.numero,
+              puntaje: punto.puntaje ?? null,
+              aves: punto.aves ?? null,
+              jaulas: punto.jaulas ?? null,
+            })),
+        guardadoEn: ahora,
+      };
+
+      errores.push(...erroresDeEvaluacion(normalizada, indicador, reglas));
+      nuevas.set(
+        claveEvaluacion(normalizada.galponNumero, normalizada.indicadorCodigo),
+        normalizada,
+      );
+    }
+
+    if (errores.length > 0) {
+      throw new BadRequestException(errores.slice(0, 5).join(' '));
+    }
+
+    // Se conservan las evaluaciones de los demás galpones e indicadores.
+    const porClave = new Map(
+      leerEvaluaciones(inspeccion.respuestas).map((evaluacion) => [
+        claveEvaluacion(evaluacion.galponNumero, evaluacion.indicadorCodigo),
+        evaluacion,
+      ]),
+    );
+    for (const [clave, evaluacion] of nuevas) porClave.set(clave, evaluacion);
+
+    inspeccion.respuestas = escribirEvaluaciones(inspeccion.respuestas, [
+      ...porClave.values(),
+    ]);
+    await this.inspecciones.save(inspeccion);
   }
 
   /** Aplica la ficha del predio y reclasifica por el número de aves (RF13, RF14). */
@@ -279,4 +464,21 @@ export class InspeccionService {
     }
     return fecha;
   }
+}
+
+/**
+ * Indicadores que evalúa la Fase II (M4): los del animal (MBA) y de recursos
+ * (MBR) que aplican al grupo productivo elegido (RF15–RF17). Los de gestión
+ * (MBG) se evalúan en la Fase III (M5).
+ */
+function indicadoresDeFase2(
+  indicadores: readonly Indicador[],
+  grupoProductivo: Inspeccion['grupoProductivo'],
+): Indicador[] {
+  if (!grupoProductivo) return [];
+  return indicadores.filter(
+    (indicador) =>
+      indicador.grupo !== GrupoMedidas.MBG &&
+      indicador.gruposProductivos.includes(grupoProductivo),
+  );
 }

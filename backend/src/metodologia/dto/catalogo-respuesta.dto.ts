@@ -12,6 +12,7 @@ import {
   ORDEN_GRUPOS_MEDIDAS,
   ORDEN_GRUPOS_PRODUCTIVOS,
   ORDEN_SISTEMAS_PRODUCCION,
+  TipoMuestreo,
 } from '../metodologia.tipos.js';
 
 /** Versión activa del catálogo con sus indicadores y sus pesos. */
@@ -38,6 +39,17 @@ export class IndicadorRespuestaDto {
   @ApiProperty() orden: number;
   @ApiProperty() escalaMin: number;
   @ApiProperty() escalaMax: number;
+  @ApiProperty({
+    nullable: true,
+    isArray: true,
+    type: String,
+    description:
+      'Descripción de cada puntaje (RF19), en orden; nula mientras el catálogo no la traiga.',
+  })
+  escalaDescripciones: string[] | null;
+  @ApiProperty({ enum: TipoMuestreo, enumName: 'TipoMuestreo' })
+  tipoMuestreo: TipoMuestreo;
+  @ApiProperty({ nullable: true }) pregunta: string | null;
   @ApiProperty({
     enum: GrupoProductivo,
     enumName: 'GrupoProductivo',
@@ -139,6 +151,9 @@ export function mapearCatalogo(catalogo: CatalogoActivo): CatalogoRespuestaDto {
       orden: indicador.orden,
       escalaMin: indicador.escalaMin,
       escalaMax: indicador.escalaMax,
+      escalaDescripciones: indicador.escalaDescripciones,
+      tipoMuestreo: indicador.tipoMuestreo,
+      pregunta: indicador.pregunta,
       gruposProductivos: indicador.gruposProductivos,
     })),
     aplicables: aplicablesPorGrupo(indicadores),

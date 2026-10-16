@@ -463,6 +463,43 @@ dentro de la pantalla) para no dejar mensajes pegados al formulario.
     provisional se anuncia con `app-aviso tipo="advertencia"`. Cuando todavía no
     se ha registrado el número de aves, la tarjeta de clasificación muestra el
     tipo declarado al programar la visita y lo dice, en vez de quedar vacía.
+17. **La Fase II es un componente aparte de la ficha** (`fase2-galpon`), con la
+    disposición del wireframe en tres columnas: indicadores con su avance a la
+    izquierda, el indicador activo con sus puntos de muestreo en el centro y el
+    cálculo en vivo con el avance del galpón a la derecha. La página solo le
+    pasa la respuesta de la API y le pide guardar o recargar.
+18. **El borrador de la Fase II viaja por la misma cola de M2** (RF12) como una
+    operación `GUARDAR_INSPECCION` más; si ya hay un borrador pendiente de la
+    misma visita, se funde con él (el último gana campo a campo y las
+    evaluaciones se mezclan por galpón e indicador) para que la copia local no
+    acumule una ficha completa por cada guardado.
+19. **Las evaluaciones se guardan semi-estructuradas en JSONB** (ADR-001) y las
+    reglas viven dos veces: en el servidor (`fase2.reglas.ts`, que manda) y
+    espejadas en el frontend (`fase2.modelos.ts`, para poder diligenciar y
+    calcular sin conexión). El servidor rechaza lo imposible —puntajes fuera de
+    0–2, muestras fuera de rango o jaulas calificadas sin conteo previo— y el
+    espejo muestra el mismo mensaje antes de guardar.
+20. **Guardar un borrador no exige el indicador completo** (RF26): lo
+    incompleto se muestra («Faltan 5 de 9 puntos») y la completitud es
+    informativa (marca ✓ en la lista y avance por grupo). «No aplica» exige
+    motivo, vacía los puntos y sale del cálculo (RF25).
+21. **En jaula no se califica antes de contar** (RF21): los botones 0/1/2 del
+    punto quedan deshabilitados con su explicación hasta que tenga jaulas (3–5)
+    y aves (10–20); en piso basta el puntaje. Las hojas centinela (MBR-01) se
+    agregan de a una y una hoja agregada y vacía deja el indicador incompleto,
+    igual que los 9 puntos fijos.
+22. **El cálculo en vivo adelanta solo la parte visible de M6** (RF34): valor
+    del indicador = promedio × 100 / 2, con la operación a la vista como en el
+    wireframe. El cálculo de grupos, la clasificación final y su persistencia
+    siguen en M6. Pregunta y descripciones de la escala salen del catálogo
+    (`pregunta`, `escala_descripciones`); solo se sembró lo que el wireframe
+    muestra (la calidad de la cama).
+23. **Las fotos se suben directo al almacenamiento con URL firmada**
+    (ADR-003, RF23): el binario no pasa por la API; en la base solo quedan
+    metadatos (nombre, tipo, tamaño, hash) y el estado de confirmación. En
+    pantalla se admiten fotos JPG/PNG/WebP hasta 8 MB; sin conexión el botón se
+    bloquea y avisa que se suben al volver la red (los videos y documentos
+    quedan pendientes de definir su tamaño).
 
 ## 8. Observaciones para la pasada de pulido final
 

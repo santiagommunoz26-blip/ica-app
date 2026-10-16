@@ -49,6 +49,8 @@ import { EstadoVacioComponent } from '../../shared/ui/estado-vacio/estado-vacio.
 import { EsqueletoComponent } from '../../shared/ui/esqueleto/esqueleto.component';
 import { InsigniaComponent } from '../../shared/ui/insignia/insignia.component';
 import { TarjetaComponent } from '../../shared/ui/tarjeta/tarjeta.component';
+import type { EvaluacionFase2 } from '../../core/inspeccion/fase2.modelos';
+import { Fase2GalponComponent } from './fase2-galpon.component';
 
 /** Campos de un galpón en el formulario (RF16). */
 interface GalponForm {
@@ -89,6 +91,7 @@ interface GalponForm {
     EncabezadoPaginaComponent,
     EstadoVacioComponent,
     EsqueletoComponent,
+    Fase2GalponComponent,
     InsigniaComponent,
     TarjetaComponent,
   ],
@@ -396,6 +399,47 @@ export class InspeccionComponent {
     this.aviso.set(
       `La fase «${fase.etiqueta}» se construye en el módulo ${fase.modulo}.`,
     );
+  }
+
+  /**
+   * Guarda las evaluaciones de la Fase II (M4 · RF18–RF26). Va por la misma
+   * cola que la ficha (RF12), así que también funciona sin conexión; queda la
+   * fecha y la hora de cada guardado (RF26).
+   */
+  async guardarFase2(evaluaciones: EvaluacionFase2[]): Promise<void> {
+    const visitaId = this.visitaId();
+    if (!visitaId) return;
+
+    this.guardando.set(true);
+    this.error.set(null);
+    this.aviso.set(null);
+    try {
+      const resultado = await this.sincronizacion.guardarInspeccion(visitaId, {
+        evaluaciones,
+      });
+
+      if (resultado.pendiente) {
+        this.aviso.set(
+          'Guardado en este equipo. Se enviará solo cuando vuelva la conexión.',
+        );
+      } else if (resultado.rechazos.length > 0) {
+        this.error.set(resultado.rechazos.join(' '));
+      } else {
+        this.aviso.set('Borrador guardado con su fecha y hora.');
+      }
+
+      await this.cargar(visitaId);
+    } catch (fallo) {
+      this.error.set(mensajeDeError(fallo));
+    } finally {
+      this.guardando.set(false);
+    }
+  }
+
+  /** Recarga la inspección; la usa la Fase II tras subir o borrar una foto. */
+  async recargar(): Promise<void> {
+    const visitaId = this.visitaId();
+    if (visitaId) await this.cargar(visitaId);
   }
 
   // ------------------------------------------------------------- internos

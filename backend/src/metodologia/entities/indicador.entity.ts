@@ -8,7 +8,11 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { GrupoMedidas, GrupoProductivo } from '../metodologia.tipos.js';
+import {
+  GrupoMedidas,
+  GrupoProductivo,
+  TipoMuestreo,
+} from '../metodologia.tipos.js';
 import { Metodologia } from './metodologia.entity.js';
 
 /**
@@ -55,6 +59,36 @@ export class Indicador {
 
   @Column({ type: 'int', name: 'escala_max', default: 2 })
   escalaMax: number;
+
+  /**
+   * Descripción de cada puntaje de la escala (RF19), en el orden de los
+   * puntajes (0, 1, 2…). La metodología no está en docs/, así que el catálogo
+   * provisional solo la trae donde el wireframe la muestra (calidad de la
+   * cama); el resto queda pendiente y la interfaz lo advierte (M8 las carga).
+   */
+  @Column({
+    type: 'text',
+    array: true,
+    name: 'escala_descripciones',
+    nullable: true,
+  })
+  escalaDescripciones: string[] | null;
+
+  /** Forma de muestreo del indicador (RF18, RF22). */
+  @Column({
+    type: 'varchar',
+    length: 20,
+    name: 'tipo_muestreo',
+    default: TipoMuestreo.PUNTOS_9,
+  })
+  tipoMuestreo: TipoMuestreo;
+
+  /**
+   * Pregunta que resume el indicador (RF47), como en el wireframe
+   * («¿La calidad de la cama es adecuada?»). Es del catálogo: M8 la edita.
+   */
+  @Column({ type: 'varchar', length: 300, nullable: true })
+  pregunta: string | null;
 
   /**
    * Grupos productivos a los que aplica (RF46, RF17). Se guarda como lista de

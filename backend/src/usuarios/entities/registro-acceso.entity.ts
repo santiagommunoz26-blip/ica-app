@@ -28,6 +28,9 @@ export enum EventoBitacora {
   VISITAS_SINCRONIZADAS = 'VISITAS_SINCRONIZADAS',
   // M3 · Apertura y ficha general (RF13–RF17).
   INSPECCION_GUARDADA = 'INSPECCION_GUARDADA',
+  // M4 · Inspección en galpón, Fase II (RF18–RF26).
+  EVIDENCIA_SUBIDA = 'EVIDENCIA_SUBIDA',
+  EVIDENCIA_ELIMINADA = 'EVIDENCIA_ELIMINADA',
 }
 
 /**

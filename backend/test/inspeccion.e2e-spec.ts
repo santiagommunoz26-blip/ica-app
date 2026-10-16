@@ -19,11 +19,42 @@ import {
 import { Predio } from './../src/visitas/entities/predio.entity.js';
 import { Visita } from './../src/visitas/entities/visita.entity.js';
 import { EstadoVisita, TipoPredio } from './../src/visitas/visitas.tipos.js';
+import { AlmacenamientoService } from './../src/inspeccion/almacenamiento.service.js';
 
 /**
- * Pruebas de integración de la apertura y la ficha general (M3 · RF13–RF17).
- * Requieren PostgreSQL arriba (make infra).
+ * Pruebas de integración de la apertura y la ficha general (M3 · RF13–RF17) y
+ * de la inspección en galpón (M4 · RF18–RF26). Requieren PostgreSQL arriba
+ * (make infra).
  */
+
+/**
+ * Almacenamiento de mentira para las pruebas: recuerda qué rutas se firmaron
+ * (como si el navegador hubiera subido el archivo) sin depender de MinIO.
+ */
+class AlmacenamientoFalso {
+  readonly objetos = new Set<string>();
+  simularSubida = true;
+
+  async urlSubida(ruta: string): Promise<string> {
+    if (this.simularSubida) this.objetos.add(ruta);
+    return `https://almacenamiento.local/${ruta}?firma=subida`;
+  }
+
+  async urlDescarga(ruta: string): Promise<string> {
+    return `https://almacenamiento.local/${ruta}?firma=descarga`;
+  }
+
+  async existe(ruta: string): Promise<boolean> {
+    return this.objetos.has(ruta);
+  }
+
+  async borrar(ruta: string): Promise<void> {
+    this.objetos.delete(ruta);
+  }
+}
+
+/** Almacenamiento compartido por todas las pruebas del archivo. */
+const almacenamiento = new AlmacenamientoFalso();
 
 /** Fecha de hoy a las 09:00 en la hora de Colombia (sin horario de verano). */
 function hoyEnBogota(hora = '09:00:00'): string {
@@ -96,7 +127,10 @@ describe('Apertura e inspección (e2e)', () => {
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
-    }).compile();
+    })
+      .overrideProvider(AlmacenamientoService)
+      .useValue(almacenamiento)
+      .compile();
 
     app = moduleFixture.createNestApplication();
     configurarApp(app);
@@ -402,5 +436,437 @@ describe('Apertura e inspección (e2e)', () => {
       ],
     }).expect(400);
     expect(String(repetido.body.message)).toContain('repetido');
+  });
+
+  // ------------------------------------------- M4 · Fase II (RF18–RF26)
+
+  /** Ficha de Fase I lista para la Fase II: grupo, aves y galpones. */
+  async function prepararFase2(
+    grupo: GrupoProductivo = GrupoProductivo.POLLO_ENGORDE,
+    numeroAves = 62000,
+  ): Promise<string> {
+    const visitaId = await programarVisita(tokenInspector);
+    await guardar(tokenInspector, visitaId, {
+      numeroAves,
+      grupoProductivo: grupo,
+      galpones: [
+        { numero: 1, edadSemanas: 62, seleccionado: true },
+        { numero: 2, edadSemanas: 40, seleccionado: true },
+      ],
+    }).expect(200);
+    return visitaId;
+  }
+
+  /** Punto de piso válido (RF20). */
+  const punto = (
+    numero: number,
+    puntaje: number | null,
+    aves: number | null = 20,
+  ) => ({ numero, puntaje, aves });
+
+  it('RF18–RF19: guarda los puntos y muestra el cálculo en vivo', async () => {
+    const visitaId = await prepararFase2();
+    const respuesta = await guardar(tokenInspector, visitaId, {
+      evaluaciones: [
+        {
+          galponNumero: 1,
+          indicadorCodigo: 'MBR-02',
+          puntos: [punto(1, 2), punto(2, 2), punto(3, 1), punto(4, 1)],
+        },
+      ],
+    }).expect(200);
+
+    const fase2 = respuesta.body.fase2 as {
+      reglas: { puntos: number; jaula: boolean; avesMin: number };
+      evaluaciones: {
+        indicadorCodigo: string;
+        promedio: number;
+        valor: number;
+        puntosRegistrados: number;
+        completo: boolean;
+        guardadoEn: string;
+        puntos: { numero: number; puntaje: number }[];
+      }[];
+      avance: {
+        galponNumero: number;
+        grupos: { grupo: string; completos: number; total: number }[];
+      }[];
+    };
+
+    expect(fase2.reglas.puntos).toBe(9);
+    expect(fase2.reglas.jaula).toBe(false);
+    expect(fase2.reglas.avesMin).toBe(15);
+
+    const evaluacion = fase2.evaluaciones.find(
+      (fila) => fila.indicadorCodigo === 'MBR-02',
+    );
+    expect(evaluacion).toBeDefined();
+    // El ejemplo del wireframe: (2+2+1+1)/4 = 1,5 → 75 %.
+    expect(evaluacion?.promedio).toBe(1.5);
+    expect(evaluacion?.valor).toBe(75);
+    expect(evaluacion?.puntosRegistrados).toBe(4);
+    expect(evaluacion?.completo).toBe(false);
+    expect(evaluacion?.guardadoEn).toBeTruthy();
+    expect(evaluacion?.puntos.length).toBe(4);
+
+    const avance = fase2.avance.find((fila) => fila.galponNumero === 1);
+    const mbr = avance?.grupos.find((grupo) => grupo.grupo === 'MBR');
+    expect(mbr?.completos).toBe(0);
+    expect(mbr?.total).toBe(9);
+  });
+
+  it('RF20: rechaza puntajes y muestras de piso fuera de rango', async () => {
+    const visitaId = await prepararFase2();
+
+    const puntajeTres = await guardar(tokenInspector, visitaId, {
+      evaluaciones: [
+        { galponNumero: 1, indicadorCodigo: 'MBR-02', puntos: [punto(1, 3)] },
+      ],
+    }).expect(400);
+    expect(String(puntajeTres.body.message)).toContain(
+      'puntaje debe ser 0, 1 o 2',
+    );
+
+    const pocasAves = await guardar(tokenInspector, visitaId, {
+      evaluaciones: [
+        {
+          galponNumero: 1,
+          indicadorCodigo: 'MBR-02',
+          puntos: [punto(1, 2, 10)],
+        },
+      ],
+    }).expect(400);
+    expect(String(pocasAves.body.message)).toContain('entre 15 y 30 aves');
+
+    const muchasAves = await guardar(tokenInspector, visitaId, {
+      evaluaciones: [
+        {
+          galponNumero: 1,
+          indicadorCodigo: 'MBR-02',
+          puntos: [punto(1, 2, 40)],
+        },
+      ],
+    }).expect(400);
+    expect(String(muchasAves.body.message)).toContain('entre 15 y 30 aves');
+  });
+
+  it('RF21: en jaula exige contar las aves antes de calificar', async () => {
+    const visitaId = await prepararFase2(GrupoProductivo.PONEDORA_JAULA);
+
+    const sinConteo = await guardar(tokenInspector, visitaId, {
+      evaluaciones: [
+        {
+          galponNumero: 1,
+          indicadorCodigo: 'MBR-02',
+          puntos: [{ numero: 1, puntaje: 1, jaulas: 4 }],
+        },
+      ],
+    }).expect(400);
+    expect(String(sinConteo.body.message)).toContain('antes de calificar');
+
+    const jaulasFueraDeRango = await guardar(tokenInspector, visitaId, {
+      evaluaciones: [
+        {
+          galponNumero: 1,
+          indicadorCodigo: 'MBR-02',
+          puntos: [{ numero: 1, puntaje: 1, jaulas: 6, aves: 15 }],
+        },
+      ],
+    }).expect(400);
+    expect(String(jaulasFueraDeRango.body.message)).toContain(
+      'entre 3 y 5 jaulas',
+    );
+
+    const avesFueraDeRango = await guardar(tokenInspector, visitaId, {
+      evaluaciones: [
+        {
+          galponNumero: 1,
+          indicadorCodigo: 'MBR-02',
+          puntos: [{ numero: 1, puntaje: 1, jaulas: 4, aves: 25 }],
+        },
+      ],
+    }).expect(400);
+    expect(String(avesFueraDeRango.body.message)).toContain('entre 10 y 20');
+
+    const correcta = await guardar(tokenInspector, visitaId, {
+      evaluaciones: [
+        {
+          galponNumero: 1,
+          indicadorCodigo: 'MBR-02',
+          puntos: [{ numero: 1, puntaje: 1, jaulas: 4, aves: 15 }],
+        },
+      ],
+    }).expect(200);
+    expect(correcta.body.fase2.reglas.jaula).toBe(true);
+  });
+
+  it('RF22: las hojas centinela completan con el mínimo del predio', async () => {
+    const visitaId = await prepararFase2();
+
+    const dosHojas = await guardar(tokenInspector, visitaId, {
+      evaluaciones: [
+        {
+          galponNumero: 1,
+          indicadorCodigo: 'MBR-01',
+          puntos: [punto(1, 2), punto(2, 1)],
+        },
+      ],
+    }).expect(200);
+    const conDos = dosHojas.body.fase2.evaluaciones.find(
+      (fila: { indicadorCodigo: string }) => fila.indicadorCodigo === 'MBR-01',
+    );
+    expect(conDos.completo).toBe(false);
+
+    const tresHojas = await guardar(tokenInspector, visitaId, {
+      evaluaciones: [
+        {
+          galponNumero: 1,
+          indicadorCodigo: 'MBR-01',
+          puntos: [punto(1, 2), punto(2, 1), punto(3, 2)],
+        },
+      ],
+    }).expect(200);
+    const conTres = tresHojas.body.fase2.evaluaciones.find(
+      (fila: { indicadorCodigo: string }) => fila.indicadorCodigo === 'MBR-01',
+    );
+    expect(conTres.completo).toBe(true);
+
+    // El catálogo dice cuáles se miden con hojas centinela (RF22).
+    const catalogo = tresHojas.body.catalogo.indicadores as {
+      codigo: string;
+      tipoMuestreo: string;
+    }[];
+    expect(
+      catalogo.find((indicador) => indicador.codigo === 'MBR-01')?.tipoMuestreo,
+    ).toBe('HOJAS_CENTINELA');
+  });
+
+  it('RF25: «No aplica» exige motivo y sale del cálculo', async () => {
+    const visitaId = await prepararFase2();
+
+    const sinMotivo = await guardar(tokenInspector, visitaId, {
+      evaluaciones: [
+        { galponNumero: 1, indicadorCodigo: 'MBR-08', noAplica: true },
+      ],
+    }).expect(400);
+    expect(String(sinMotivo.body.message)).toContain('motivo');
+
+    const conMotivo = await guardar(tokenInspector, visitaId, {
+      evaluaciones: [
+        {
+          galponNumero: 1,
+          indicadorCodigo: 'MBR-08',
+          noAplica: true,
+          motivoNoAplica: 'El galpón no tiene nidal',
+        },
+      ],
+    }).expect(200);
+    const evaluacion = conMotivo.body.fase2.evaluaciones.find(
+      (fila: { indicadorCodigo: string }) => fila.indicadorCodigo === 'MBR-08',
+    );
+    expect(evaluacion.noAplica).toBe(true);
+    expect(evaluacion.valor).toBeNull();
+    expect(evaluacion.completo).toBe(true);
+  });
+
+  it('RF17: rechaza indicadores que no aplican, de gestión o de otro galpón', async () => {
+    const visitaId = await prepararFase2();
+
+    const deGestion = await guardar(tokenInspector, visitaId, {
+      evaluaciones: [{ galponNumero: 1, indicadorCodigo: 'MBG-01' }],
+    }).expect(400);
+    expect(String(deGestion.body.message)).toContain('Fase III');
+
+    const inexistente = await guardar(tokenInspector, visitaId, {
+      evaluaciones: [{ galponNumero: 1, indicadorCodigo: 'XXX-99' }],
+    }).expect(400);
+    expect(String(inexistente.body.message)).toContain('no existe');
+
+    const galponAjeno = await guardar(tokenInspector, visitaId, {
+      evaluaciones: [{ galponNumero: 7, indicadorCodigo: 'MBR-02' }],
+    }).expect(400);
+    expect(String(galponAjeno.body.message)).toContain('no está registrado');
+  });
+
+  it('RF26: el borrador se guarda por partes y se reemplaza al reenviar', async () => {
+    const visitaId = await prepararFase2();
+
+    await guardar(tokenInspector, visitaId, {
+      evaluaciones: [
+        { galponNumero: 1, indicadorCodigo: 'MBR-02', puntos: [punto(1, 2)] },
+      ],
+    }).expect(200);
+
+    const respuesta = await guardar(tokenInspector, visitaId, {
+      evaluaciones: [
+        {
+          galponNumero: 1,
+          indicadorCodigo: 'MBR-02',
+          puntos: [punto(1, 2), punto(2, 1)],
+          observaciones: 'Cama revisada en dos puntos.',
+        },
+      ],
+    }).expect(200);
+
+    const evaluaciones = respuesta.body.fase2.evaluaciones.filter(
+      (fila: { indicadorCodigo: string }) => fila.indicadorCodigo === 'MBR-02',
+    );
+    expect(evaluaciones.length).toBe(1);
+    expect(evaluaciones[0].puntos.length).toBe(2);
+    expect(evaluaciones[0].observaciones).toBe('Cama revisada en dos puntos.');
+  });
+
+  it('RF23: registra la evidencia, la confirma y la consulta con URL firmada', async () => {
+    const visitaId = await prepararFase2();
+
+    const creada = await servidor()
+      .post(`/api/v1/inspeccion/${visitaId}/evidencias`)
+      .set('Authorization', `Bearer ${tokenInspector}`)
+      .send({
+        galponNumero: 1,
+        indicadorCodigo: 'MBR-02',
+        nombre: 'cama.jpg',
+        tipo: 'image/jpeg',
+        tamano: 240000,
+      })
+      .expect(201);
+
+    const evidenciaId = creada.body.evidencia.id as string;
+    expect(creada.body.evidencia.confirmada).toBe(false);
+    expect(String(creada.body.urlSubida)).toContain('firma=subida');
+
+    const confirmada = await servidor()
+      .post(`/api/v1/inspeccion/evidencias/${evidenciaId}/confirmar`)
+      .set('Authorization', `Bearer ${tokenInspector}`)
+      .expect(201);
+    expect(confirmada.body.confirmada).toBe(true);
+
+    const url = await servidor()
+      .get(`/api/v1/inspeccion/evidencias/${evidenciaId}/url`)
+      .set('Authorization', `Bearer ${tokenInspector}`)
+      .expect(200);
+    expect(String(url.body.url)).toContain('firma=descarga');
+
+    const ficha = await obtener(tokenInspector, visitaId).expect(200);
+    expect(ficha.body.fase2.evidencias.length).toBe(1);
+    expect(ficha.body.fase2.evidencias[0].indicadorCodigo).toBe('MBR-02');
+
+    await servidor()
+      .delete(`/api/v1/inspeccion/evidencias/${evidenciaId}`)
+      .set('Authorization', `Bearer ${tokenInspector}`)
+      .expect(204);
+    await servidor()
+      .get(`/api/v1/inspeccion/evidencias/${evidenciaId}/url`)
+      .set('Authorization', `Bearer ${tokenInspector}`)
+      .expect(404);
+  });
+
+  it('RF23: rechaza evidencias de tipo o tamaño no admitidos y sin subir', async () => {
+    const visitaId = await prepararFase2();
+    const base = {
+      galponNumero: 1,
+      indicadorCodigo: 'MBR-02',
+      nombre: 'archivo',
+      tipo: 'image/jpeg',
+      tamano: 240000,
+    };
+
+    const tipoMalo = await servidor()
+      .post(`/api/v1/inspeccion/${visitaId}/evidencias`)
+      .set('Authorization', `Bearer ${tokenInspector}`)
+      .send({ ...base, tipo: 'application/pdf' })
+      .expect(400);
+    expect(String(tipoMalo.body.message)).toContain('JPG');
+
+    const pesada = await servidor()
+      .post(`/api/v1/inspeccion/${visitaId}/evidencias`)
+      .set('Authorization', `Bearer ${tokenInspector}`)
+      .send({ ...base, tamano: 9 * 1024 * 1024 })
+      .expect(400);
+    expect(String(pesada.body.message)).toContain('8 MB');
+
+    // El archivo nunca llegó al almacenamiento: no se puede confirmar.
+    almacenamiento.simularSubida = false;
+    const sinArchivo = await servidor()
+      .post(`/api/v1/inspeccion/${visitaId}/evidencias`)
+      .set('Authorization', `Bearer ${tokenInspector}`)
+      .send(base)
+      .expect(201);
+    almacenamiento.simularSubida = true;
+
+    const confirmacion = await servidor()
+      .post(
+        `/api/v1/inspeccion/evidencias/${sinArchivo.body.evidencia.id}/confirmar`,
+      )
+      .set('Authorization', `Bearer ${tokenInspector}`)
+      .expect(400);
+    expect(String(confirmacion.body.message)).toContain('no llegó');
+  });
+
+  it('RNF07: un inspector no registra evidencias en visitas ajenas', async () => {
+    const visitaId = await prepararFase2();
+    await servidor()
+      .post(`/api/v1/inspeccion/${visitaId}/evidencias`)
+      .set('Authorization', `Bearer ${tokenOtroInspector}`)
+      .send({
+        galponNumero: 1,
+        indicadorCodigo: 'MBR-02',
+        nombre: 'cama.jpg',
+        tipo: 'image/jpeg',
+        tamano: 240000,
+      })
+      .expect(403);
+
+    await servidor()
+      .post(`/api/v1/inspeccion/${visitaId}/evidencias`)
+      .set('Authorization', `Bearer ${tokenConsulta}`)
+      .send({
+        galponNumero: 1,
+        indicadorCodigo: 'MBR-02',
+        nombre: 'cama.jpg',
+        tipo: 'image/jpeg',
+        tamano: 240000,
+      })
+      .expect(403);
+  });
+
+  it('RF12: las evaluaciones también llegan por la cola de sincronización', async () => {
+    const visitaId = await prepararFase2();
+    const operacionId = randomUUID();
+
+    const respuesta = await servidor()
+      .post('/api/v1/visitas/sincronizar')
+      .set('Authorization', `Bearer ${tokenInspector}`)
+      .send({
+        operaciones: [
+          {
+            id: operacionId,
+            tipo: 'GUARDAR_INSPECCION',
+            visitaId,
+            inspeccion: {
+              evaluaciones: [
+                {
+                  galponNumero: 1,
+                  indicadorCodigo: 'MBR-02',
+                  puntos: [punto(1, 2), punto(2, 2)],
+                },
+              ],
+            },
+            registradoEn: new Date().toISOString(),
+          },
+        ],
+      })
+      .expect(200);
+
+    expect(respuesta.body.resultados[0]).toEqual({
+      id: operacionId,
+      estado: 'APLICADA',
+    });
+
+    const ficha = await obtener(tokenInspector, visitaId).expect(200);
+    const evaluacion = ficha.body.fase2.evaluaciones.find(
+      (fila: { indicadorCodigo: string }) => fila.indicadorCodigo === 'MBR-02',
+    );
+    expect(evaluacion.valor).toBe(100);
   });
 });
