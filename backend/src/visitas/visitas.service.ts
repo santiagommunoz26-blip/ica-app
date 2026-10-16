@@ -19,6 +19,12 @@ import { RegistroAccesoService } from '../usuarios/registro-acceso.service.js';
 import { EventoBitacora } from '../usuarios/entities/registro-acceso.entity.js';
 import { Usuario } from '../usuarios/entities/usuario.entity.js';
 import { InspeccionService } from '../inspeccion/inspeccion.service.js';
+import { Inspeccion } from '../inspeccion/entities/inspeccion.entity.js';
+import type { ResultadoInspeccion } from '../inspeccion/calculo.tipos.js';
+import {
+  ETIQUETA_GRUPO_MEDIDAS,
+  ORDEN_GRUPOS_MEDIDAS,
+} from '../metodologia/metodologia.tipos.js';
 import { Predio } from './entities/predio.entity.js';
 import { Visita } from './entities/visita.entity.js';
 import { clasificar } from './calificacion.js';
@@ -340,6 +346,7 @@ export class VisitasService {
       filasEvolucion,
       filasClasificacion,
       proximas,
+      filasResultado,
     ] = await Promise.all([
       this.contarMes(mesActual, usuario),
       this.contarMes(mesAnterior, usuario),
@@ -359,6 +366,7 @@ export class VisitasService {
       this.filasEvolucion(mesActual, usuario),
       this.filasClasificacion(usuario),
       this.visitasProximas(usuario),
+      this.filasResultado(usuario),
     ]);
 
     const calificacionPromedio =
@@ -427,9 +435,36 @@ export class VisitasService {
         };
       }),
       distribucion,
-      // El promedio por grupo de medidas sale del resultado del motor de cálculo
-      // (M6): hasta entonces la lista llega vacía y el panel lo dice.
-      promedioPorGrupo: [] as PromedioGrupoDto[],
+      // Promedio por grupo de medidas (RF10): se arma con el desglose que el
+      // motor de cálculo (M6) guarda en cada inspección completa. El peso se
+      // muestra solo si todas las visitas con resultado comparten el mismo
+      // perfil (corral 35/35/30, traspatio 60/40/0).
+      promedioPorGrupo: ORDEN_GRUPOS_MEDIDAS.map((grupo) => {
+        const valores: number[] = [];
+        const pesos = new Set<number>();
+        for (const fila of filasResultado) {
+          const delGrupo = fila.resultado?.grupos.find(
+            (dato) => dato.grupo === grupo,
+          );
+          if (delGrupo?.promedio !== null && delGrupo?.promedio !== undefined) {
+            valores.push(delGrupo.promedio);
+            pesos.add(delGrupo.peso);
+          }
+        }
+        return {
+          grupo,
+          etiqueta: ETIQUETA_GRUPO_MEDIDAS[grupo],
+          promedio:
+            valores.length === 0
+              ? null
+              : redondear(
+                  valores.reduce((suma, valor) => suma + valor, 0) /
+                    valores.length,
+                  1,
+                ),
+          peso: pesos.size === 1 ? [...pesos][0] : null,
+        };
+      }) as PromedioGrupoDto[],
       proximas: proximas.map(mapearVisita),
     };
   }
@@ -662,6 +697,21 @@ export class VisitasService {
       .andWhere('v.clasificacion IS NOT NULL')
       .groupBy('v.clasificacion')
       .getRawMany<{ clasificacion: Clasificacion; cantidad: number }>();
+  }
+
+  /**
+   * Resultado guardado de cada visita con calificación (M6 · RF34–RF36). De
+   * aquí sale el «promedio por grupo de medidas» del panel (RF10): solo
+   * cuentan las visitas cuyo cálculo quedó completo (las que tienen
+   * calificación).
+   */
+  private filasResultado(usuario: UsuarioAutenticado) {
+    return this.consultaBase({}, usuario)
+      .innerJoin(Inspeccion, 'i', 'i.visita_id = v.id')
+      .select('i.resultado', 'resultado')
+      .andWhere('v.calificacion IS NOT NULL')
+      .andWhere('i.resultado IS NOT NULL')
+      .getRawMany<{ resultado: ResultadoInspeccion | null }>();
   }
 
   /** Las siguientes visitas sin cerrar, de la más próxima a la más lejana (RF10). */

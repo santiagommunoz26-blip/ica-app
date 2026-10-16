@@ -285,6 +285,9 @@ export class Fase2GalponComponent {
     };
   });
 
+  /** Resultado de la visita: grupos, final y clasificación (M6 · RF34–RF36). */
+  readonly resultado = computed(() => this.respuesta().calculo);
+
   /** Avance del galpón activo, por grupo de medidas (RF24). */
   readonly avance = computed(() => {
     const galpon = this.galponActivo();

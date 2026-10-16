@@ -131,6 +131,24 @@ export enum TipoEvaluacion {
   MORTALIDAD = 'MORTALIDAD',
 }
 
+/**
+ * Rango de una escala numérica (M6 · RF38, RF47): una medición se convierte en
+ * el puntaje cuando es menor o igual a `max`. El último rango lleva `max: null`
+ * y recoge «el resto» de la escala. Los edita M8; el motor de cálculo los lee.
+ */
+export interface RangoEscala {
+  puntaje: number;
+  max: number | null;
+}
+
+/**
+ * Rangos de un indicador por grupo productivo (M6 · RF38): la escala puede
+ * pedir umbrales distintos según el grupo, como la mortalidad de RF30 (en
+ * engorde hasta 6 % son 2 puntos; en ponedoras hasta 12 %). Nulo mientras el
+ * indicador se califique a ojo con la escala 0/1/2.
+ */
+export type RangosEscala = Partial<Record<GrupoProductivo, RangoEscala[]>>;
+
 /** Opción de una lista (código + etiqueta), para enviarla a la interfaz. */
 export interface OpcionCatalogo<T extends string> {
   codigo: T;

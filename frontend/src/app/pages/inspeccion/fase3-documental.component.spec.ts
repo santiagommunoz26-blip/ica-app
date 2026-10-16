@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
+import { calculoVacio } from '../../core/inspeccion/calculo.modelos';
 import {
   reglasFase3,
   type DocumentoEvaluado,
@@ -37,6 +38,7 @@ function indicador(
     tipoMuestreo: 'PUNTOS_9',
     pregunta: null,
     tipoEvaluacion: 'PUNTAJE',
+    escalaRangos: null,
     exigeFirmaProfesional: false,
     gruposProductivos: ['POLLO_ENGORDE', 'PONEDORA_PISO', 'PONEDORA_JAULA'],
     ...extra,
@@ -84,6 +86,24 @@ const CATALOGO: Catalogo = {
     }),
     indicador('MBG-09', 'Mortalidad (5 ciclos)', {
       tipoEvaluacion: 'MORTALIDAD',
+      // Los rangos de RF30 viven en el catálogo (RF38).
+      escalaRangos: {
+        POLLO_ENGORDE: [
+          { puntaje: 2, max: 6 },
+          { puntaje: 1, max: 9 },
+          { puntaje: 0, max: null },
+        ],
+        PONEDORA_PISO: [
+          { puntaje: 2, max: 12 },
+          { puntaje: 1, max: 14 },
+          { puntaje: 0, max: null },
+        ],
+        PONEDORA_JAULA: [
+          { puntaje: 2, max: 12 },
+          { puntaje: 1, max: 14 },
+          { puntaje: 0, max: null },
+        ],
+      },
     }),
     {
       ...indicador('MBA-01', 'Indicador del animal 1'),
@@ -162,6 +182,7 @@ function crearInspeccion(
         total: 3,
       },
     },
+    calculo: calculoVacio(),
   };
 }
 
@@ -301,6 +322,31 @@ describe('Fase3DocumentalComponent', () => {
       // Texto que no es número: también se avisa.
       componente.cambiarMortalidad(evento('abc'));
       expect(componente.mensajeTasa()).toContain('debe ser un número');
+    });
+
+    it('avisa si el catálogo no trae los rangos del indicador (RF38)', async () => {
+      const respuesta = crearInspeccion();
+      // Un catálogo sin rangos para MBG-09: la tasa no se puede calificar.
+      respuesta.catalogo = {
+        ...CATALOGO,
+        indicadores: CATALOGO.indicadores.map((fila) =>
+          fila.codigo === 'MBG-09' ? { ...fila, escalaRangos: null } : fila,
+        ),
+      };
+      await configurar(respuesta);
+
+      componente.abrirDocumento('MBG-09');
+      componente.marcarPresentado(true);
+      componente.cambiarMortalidad(evento('7,5'));
+      fixture.detectChanges();
+
+      expect(componente.documentoActivoEvaluado()?.puntaje).toBeNull();
+      expect(texto()).toContain('salen del catálogo');
+
+      const emitidos = escucharGuardados();
+      componente.guardarBorrador();
+      expect(emitidos.length).toBe(0);
+      expect(componente.error()).toContain('no tiene los rangos');
     });
 
     it('guarda el borrador y pasa al siguiente documento (RF26, RF31)', async () => {

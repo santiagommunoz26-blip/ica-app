@@ -4,13 +4,14 @@ import {
   GrupoProductivo,
   TipoEvaluacion,
   TipoMuestreo,
+  type RangosEscala,
 } from '../metodologia/metodologia.tipos.js';
 import { TipoPredio } from '../visitas/visitas.tipos.js';
+import { rangosDe } from './calculo.reglas.js';
 import {
   avanceFase3,
   documentoVerificado,
   erroresDeDocumento,
-  puntajeMortalidad,
   reglasFase3,
 } from './fase3.reglas.js';
 import type { DocumentoEvaluado } from './fase3.tipos.js';
@@ -34,6 +35,7 @@ function indicadorDePrueba(
     tipoMuestreo: TipoMuestreo.PUNTOS_9,
     pregunta: null,
     tipoEvaluacion: TipoEvaluacion.PUNTAJE,
+    escalaRangos: null,
     exigeFirmaProfesional: false,
     gruposProductivos: [
       GrupoProductivo.POLLO_ENGORDE,
@@ -64,9 +66,29 @@ function documentoDePrueba(
   };
 }
 
-/** El indicador de mortalidad del catálogo provisional. */
+/** Los rangos de mortalidad del catálogo (RF30), por grupo productivo. */
+const RANGOS_MORTALIDAD: RangosEscala = {
+  [GrupoProductivo.POLLO_ENGORDE]: [
+    { puntaje: 2, max: 6 },
+    { puntaje: 1, max: 9 },
+    { puntaje: 0, max: null },
+  ],
+  [GrupoProductivo.PONEDORA_PISO]: [
+    { puntaje: 2, max: 12 },
+    { puntaje: 1, max: 14 },
+    { puntaje: 0, max: null },
+  ],
+  [GrupoProductivo.PONEDORA_JAULA]: [
+    { puntaje: 2, max: 12 },
+    { puntaje: 1, max: 14 },
+    { puntaje: 0, max: null },
+  ],
+};
+
+/** El indicador de mortalidad del catálogo provisional (MBG-09). */
 const MORTALIDAD = indicadorDePrueba('MBG-09', {
   tipoEvaluacion: TipoEvaluacion.MORTALIDAD,
+  escalaRangos: RANGOS_MORTALIDAD,
 });
 
 describe('Reglas de la Fase III (RF27–RF33)', () => {
@@ -79,39 +101,23 @@ describe('Reglas de la Fase III (RF27–RF33)', () => {
         reglasFase3(TipoPredio.TRASPATIO, GrupoProductivo.POLLO_ENGORDE).aplica,
       ).toBe(false);
     });
-
-    it('los rangos de mortalidad salen del grupo productivo (RF30)', () => {
-      const engorde = reglasFase3(
-        TipoPredio.CORRAL,
-        GrupoProductivo.POLLO_ENGORDE,
-      );
-      expect(engorde.rangosMortalidad).toEqual({ max2: 6, max1: 9 });
-
-      const ponedoras = reglasFase3(
-        TipoPredio.CORRAL,
-        GrupoProductivo.PONEDORA_PISO,
-      );
-      expect(ponedoras.rangosMortalidad).toEqual({ max2: 12, max1: 14 });
-
-      const sinGrupo = reglasFase3(TipoPredio.CORRAL, null);
-      expect(sinGrupo.rangosMortalidad).toBeNull();
-    });
   });
 
-  describe('mortalidad por rangos (RF30)', () => {
-    it('en engorde: hasta 6 % son 2, hasta 9 % es 1 y más es 0', () => {
-      expect(puntajeMortalidad(0, GrupoProductivo.POLLO_ENGORDE)).toBe(2);
-      expect(puntajeMortalidad(6, GrupoProductivo.POLLO_ENGORDE)).toBe(2);
-      expect(puntajeMortalidad(6.5, GrupoProductivo.POLLO_ENGORDE)).toBe(1);
-      expect(puntajeMortalidad(9, GrupoProductivo.POLLO_ENGORDE)).toBe(1);
-      expect(puntajeMortalidad(9.1, GrupoProductivo.POLLO_ENGORDE)).toBe(0);
+  describe('rangos del catálogo (RF38)', () => {
+    it('los rangos de la mortalidad salen del catálogo, por grupo productivo', () => {
+      expect(rangosDe(MORTALIDAD, GrupoProductivo.POLLO_ENGORDE)).toEqual(
+        RANGOS_MORTALIDAD[GrupoProductivo.POLLO_ENGORDE],
+      );
+      expect(rangosDe(MORTALIDAD, GrupoProductivo.PONEDORA_PISO)).toEqual(
+        RANGOS_MORTALIDAD[GrupoProductivo.PONEDORA_PISO],
+      );
+      expect(rangosDe(MORTALIDAD, null)).toBeNull();
     });
 
-    it('en ponedoras: hasta 12 % son 2, hasta 14 % es 1 y más es 0', () => {
-      expect(puntajeMortalidad(12, GrupoProductivo.PONEDORA_PISO)).toBe(2);
-      expect(puntajeMortalidad(12.01, GrupoProductivo.PONEDORA_PISO)).toBe(1);
-      expect(puntajeMortalidad(14, GrupoProductivo.PONEDORA_JAULA)).toBe(1);
-      expect(puntajeMortalidad(14.1, GrupoProductivo.PONEDORA_JAULA)).toBe(0);
+    it('un indicador sin rangos no tiene escala numérica', () => {
+      expect(
+        rangosDe(indicadorDePrueba('MBG-01'), GrupoProductivo.POLLO_ENGORDE),
+      ).toBeNull();
     });
   });
 
@@ -228,6 +234,18 @@ describe('Reglas de la Fase III (RF27–RF33)', () => {
           GrupoProductivo.POLLO_ENGORDE,
         ),
       ).toEqual([]);
+    });
+
+    it('si el catálogo no trae los rangos, la mortalidad no se puede calificar (RF38)', () => {
+      const sinRangos = indicadorDePrueba('MBG-09', {
+        tipoEvaluacion: TipoEvaluacion.MORTALIDAD,
+      });
+      const errores = erroresDeDocumento(
+        documentoDePrueba({ presentado: true, mortalidad: 7.5, puntaje: 1 }),
+        sinRangos,
+        GrupoProductivo.POLLO_ENGORDE,
+      );
+      expect(errores[0]).toContain('no tiene los rangos');
     });
   });
 });

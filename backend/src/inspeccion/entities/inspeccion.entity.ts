@@ -12,6 +12,7 @@ import {
 import { Metodologia } from '../../metodologia/entities/metodologia.entity.js';
 import { GrupoProductivo } from '../../metodologia/metodologia.tipos.js';
 import { Visita } from '../../visitas/entities/visita.entity.js';
+import type { ResultadoInspeccion } from '../calculo.tipos.js';
 import { Galpon } from './galpon.entity.js';
 
 /**
@@ -69,6 +70,15 @@ export class Inspeccion {
    */
   @Column({ type: 'jsonb', default: () => "'{}'" })
   respuestas: Record<string, unknown>;
+
+  /**
+   * Último resultado del motor de cálculo (M6 · RF34–RF36): los grupos, la
+   * calificación y la clasificación que se recalcularon al guardar. La visita
+   * guarda la calificación y la clasificación en sus propias columnas (las lee
+   * la lista y el panel); aquí queda el desglose por grupo para los reportes.
+   */
+  @Column({ type: 'jsonb', nullable: true })
+  resultado: ResultadoInspeccion | null;
 
   @OneToMany(() => Galpon, (galpon) => galpon.inspeccion)
   galpones: Galpon[];

@@ -5,6 +5,7 @@
  */
 
 import type { EstadoVisita, TipoPredio } from '../visitas/visitas.modelos';
+import { calcularVisita, type CalculoVisita } from './calculo.modelos';
 import {
   claveEvaluacion,
   proyectarFase2,
@@ -41,6 +42,23 @@ export interface OpcionCatalogo {
   etiqueta: string;
 }
 
+/**
+ * Rango de una escala numérica del indicador (M6 · RF38): la medición se
+ * convierte en el puntaje cuando es menor o igual a `max`. El último rango
+ * lleva `max: null` y recoge «el resto» de la escala.
+ */
+export interface RangoEscala {
+  puntaje: number;
+  max: number | null;
+}
+
+/**
+ * Rangos de un indicador por grupo productivo (M6 · RF30, RF38): la escala
+ * puede pedir umbrales distintos según el grupo. Nulo mientras el indicador se
+ * califique a ojo con la escala 0/1/2.
+ */
+export type RangosEscala = Partial<Record<GrupoProductivo, RangoEscala[]>>;
+
 /** Indicador del catálogo (RF46, RF17). */
 export interface IndicadorCatalogo {
   codigo: string;
@@ -59,6 +77,8 @@ export interface IndicadorCatalogo {
   pregunta: string | null;
   /** Forma de calificación del indicador (RF30). */
   tipoEvaluacion: 'PUNTAJE' | 'MORTALIDAD';
+  /** Rangos de la escala numérica por grupo productivo (RF38). */
+  escalaRangos: RangosEscala | null;
   /** El documento exige firma de MV/MVZ con matrícula vigente (RF28). */
   exigeFirmaProfesional: boolean;
   gruposProductivos: GrupoProductivo[];
@@ -147,6 +167,8 @@ export interface InspeccionRespuesta {
   fase2: Fase2;
   /** Inspección documental: reglas, documentos y avance (M5). */
   fase3: Fase3;
+  /** Resultado del motor de cálculo: grupos, final y clasificación (M6). */
+  calculo: CalculoVisita;
   /** Marca solo local: hay cambios guardados en el equipo sin sincronizar. */
   pendiente?: boolean;
 }
@@ -331,6 +353,37 @@ export function aplicarBorrador(
     grupoProductivo,
   ).filter((indicador) => indicador.grupo === 'MBG');
 
+  const seleccionados = galpones
+    .filter((galpon) => galpon.seleccionado)
+    .map((galpon) => galpon.numero);
+  const reglas2 = reglasFase2(tipoPredio, grupoProductivo);
+  const reglas3 = reglasFase3(tipoPredio, grupoProductivo);
+  const fase2 = proyectarFase2(
+    respuesta.fase2,
+    borrador.evaluaciones ?? [],
+    indicadoresFase2,
+    seleccionados,
+    reglas2,
+  );
+  const fase3 = proyectarFase3(
+    respuesta.fase3,
+    borrador.documentos ?? [],
+    indicadoresFase3,
+    reglas3,
+  );
+
+  // El resultado se recalcula con cada guardado (RF37), como lo hace el
+  // servidor: la interfaz lo muestra en vivo mientras el cambio no llega.
+  const calculo = calcularVisita({
+    indicadores: indicadoresAplicables(respuesta.catalogo, grupoProductivo),
+    pesos: pesosDe(respuesta.catalogo, tipoPredio),
+    galpones: seleccionados,
+    evaluaciones: fase2.evaluaciones,
+    documentos: fase3.documentos,
+    fase3Aplica: reglas3.aplica,
+    reglasFase2: reglas2,
+  });
+
   return {
     ...respuesta,
     predio,
@@ -338,21 +391,9 @@ export function aplicarBorrador(
       ...galpon,
       sugerido: sugeridos.includes(galpon.numero),
     })),
-    fase2: proyectarFase2(
-      respuesta.fase2,
-      borrador.evaluaciones ?? [],
-      indicadoresFase2,
-      galpones
-        .filter((galpon) => galpon.seleccionado)
-        .map((galpon) => galpon.numero),
-      reglasFase2(tipoPredio, grupoProductivo),
-    ),
-    fase3: proyectarFase3(
-      respuesta.fase3,
-      borrador.documentos ?? [],
-      indicadoresFase3,
-      reglasFase3(tipoPredio, grupoProductivo),
-    ),
+    fase2,
+    fase3,
+    calculo,
     ficha: {
       ...respuesta.ficha,
       grupoProductivo,

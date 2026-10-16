@@ -480,6 +480,50 @@
           </p>
           <p class="text-sm font-semibold">{{ textoAvance() }}</p>
         </div>
+
+        <!-- Resultado de la visita: grupos, final y clasificación (M6 · RF34–RF36) -->
+        @if (resultado().indicadores.length > 0) {
+          <div class="border-t border-marca-intermedia pt-3">
+            <p class="text-xs text-marca-suave">Resultado de la visita</p>
+            <ul class="mt-2 flex flex-col gap-1">
+              @for (grupo of resultado().grupos; track grupo.grupo) {
+                <li class="flex items-center justify-between gap-3 text-sm">
+                  <span class="text-marca-suave">
+                    {{ grupo.etiqueta }} · {{ grupo.peso }} %
+                  </span>
+                  <span class="font-semibold">
+                    @if (grupo.promedio === null) {
+                      –
+                    } @else {
+                      {{ grupo.promedio | number: '1.2-2' }} %
+                    }
+                  </span>
+                </li>
+              }
+            </ul>
+            <div class="mt-2 flex items-baseline justify-between gap-3">
+              <span class="text-xs text-marca-suave">Calificación final</span>
+              <span class="text-2xl font-semibold leading-none">
+                @if (resultado().final === null) {
+                  –
+                } @else {
+                  {{ resultado().final | number: '1.2-2'
+                  }}<span class="text-base"> %</span>
+                }
+              </span>
+            </div>
+            <p class="text-xs text-marca-suave">
+              {{ resultado().etiquetaClasificacion ?? 'Sin clasificar' }}
+            </p>
+            @if (!resultado().completo) {
+              <p
+                class="mt-2 rounded-full bg-marca-intermedia px-3 py-2 text-center text-xs font-semibold text-acento"
+              >
+                Cálculo en curso: la visita aún no está completa
+              </p>
+            }
+          </div>
+        }
       </div>
     </div>
   }

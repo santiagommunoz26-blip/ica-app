@@ -15,6 +15,7 @@ import { of } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import type { SesionRespuesta, Usuario } from '../../core/auth/auth.modelos';
 import { AuthService } from '../../core/auth/auth.service';
+import { calculoVacio } from '../../core/inspeccion/calculo.modelos';
 import type {
   Catalogo,
   InspeccionRespuesta,
@@ -88,6 +89,7 @@ const CATALOGO: Catalogo = {
       tipoMuestreo: 'PUNTOS_9',
       pregunta: null,
       tipoEvaluacion: 'PUNTAJE',
+      escalaRangos: null,
       exigeFirmaProfesional: false,
       gruposProductivos: ['POLLO_ENGORDE', 'PONEDORA_PISO', 'PONEDORA_JAULA'],
     },
@@ -104,6 +106,7 @@ const CATALOGO: Catalogo = {
       tipoMuestreo: 'PUNTOS_9',
       pregunta: null,
       tipoEvaluacion: 'PUNTAJE',
+      escalaRangos: null,
       exigeFirmaProfesional: false,
       gruposProductivos: ['POLLO_ENGORDE', 'PONEDORA_PISO', 'PONEDORA_JAULA'],
     },
@@ -120,6 +123,7 @@ const CATALOGO: Catalogo = {
       tipoMuestreo: 'PUNTOS_9',
       pregunta: null,
       tipoEvaluacion: 'PUNTAJE',
+      escalaRangos: null,
       exigeFirmaProfesional: false,
       gruposProductivos: ['POLLO_ENGORDE', 'PONEDORA_PISO', 'PONEDORA_JAULA'],
     },
@@ -200,6 +204,7 @@ const INSPECCION: InspeccionRespuesta = {
     documentos: [],
     avance: { verificados: 0, total: 0 },
   },
+  calculo: calculoVacio(),
 };
 
 const LISTA: ListaVisitas = {

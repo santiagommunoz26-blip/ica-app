@@ -12,6 +12,7 @@ import {
   ORDEN_GRUPOS_MEDIDAS,
   ORDEN_GRUPOS_PRODUCTIVOS,
   ORDEN_SISTEMAS_PRODUCCION,
+  type RangosEscala,
   TipoEvaluacion,
   TipoMuestreo,
 } from '../metodologia.tipos.js';
@@ -57,6 +58,21 @@ export class IndicadorRespuestaDto {
     description: 'Forma de calificación del indicador (RF30).',
   })
   tipoEvaluacion: TipoEvaluacion;
+  @ApiProperty({
+    nullable: true,
+    type: 'object',
+    additionalProperties: true,
+    description:
+      'Rangos de la escala numérica por grupo productivo (RF38): la medición se convierte en 0/1/2. Nulo si el indicador se califica a ojo.',
+    example: {
+      POLLO_ENGORDE: [
+        { puntaje: 2, max: 6 },
+        { puntaje: 1, max: 9 },
+        { puntaje: 0, max: null },
+      ],
+    },
+  })
+  escalaRangos: RangosEscala | null;
   @ApiProperty({
     description:
       'El documento exige firma de MV/MVZ con matrícula vigente (RF28).',
@@ -167,6 +183,7 @@ export function mapearCatalogo(catalogo: CatalogoActivo): CatalogoRespuestaDto {
       tipoMuestreo: indicador.tipoMuestreo,
       pregunta: indicador.pregunta,
       tipoEvaluacion: indicador.tipoEvaluacion,
+      escalaRangos: indicador.escalaRangos,
       exigeFirmaProfesional: indicador.exigeFirmaProfesional,
       gruposProductivos: indicador.gruposProductivos,
     })),

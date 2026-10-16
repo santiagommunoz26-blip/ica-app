@@ -275,8 +275,26 @@ describe('Gestión de visitas (e2e)', () => {
     expect(resumen.body.predios).toBeGreaterThanOrEqual(1);
     expect(resumen.body.evolucion).toHaveLength(6);
     expect(resumen.body.distribucion).toHaveLength(4);
-    // Sin resultados todavía (M6), el promedio por grupo llega vacío.
-    expect(resumen.body.promedioPorGrupo).toEqual([]);
+    // El promedio por grupo se arma con las visitas que ya tienen resultado
+    // (M6): siempre llegan los tres grupos de medidas; sin resultados, en nulo.
+    const grupos = resumen.body.promedioPorGrupo as {
+      grupo: string;
+      etiqueta: string;
+      promedio: number | null;
+      peso: number | null;
+    }[];
+    expect(grupos.map((grupo) => grupo.grupo)).toEqual(['MBA', 'MBR', 'MBG']);
+    expect(grupos.map((grupo) => grupo.etiqueta)).toEqual([
+      'Animal (MBA)',
+      'Recursos (MBR)',
+      'Gestión (MBG)',
+    ]);
+    for (const grupo of grupos) {
+      expect(
+        grupo.promedio === null || typeof grupo.promedio === 'number',
+      ).toBe(true);
+      expect(grupo.peso === null || typeof grupo.peso === 'number').toBe(true);
+    }
     expect(Array.isArray(resumen.body.proximas)).toBe(true);
   });
 

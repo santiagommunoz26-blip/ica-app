@@ -11,6 +11,7 @@ import {
 import {
   GrupoMedidas,
   GrupoProductivo,
+  type RangosEscala,
   TipoEvaluacion,
   TipoMuestreo,
 } from '../metodologia.tipos.js';
@@ -107,6 +108,15 @@ export class Indicador {
     default: TipoEvaluacion.PUNTAJE,
   })
   tipoEvaluacion: TipoEvaluacion;
+
+  /**
+   * Rangos de la escala numérica, por grupo productivo (M6 · RF38, RF47): la
+   * medición se convierte en 0/1/2 con estos umbrales y el motor de cálculo los
+   * lee del catálogo, no del código (RNF17). Nulo mientras el indicador se
+   * califique a ojo con la escala 0/1/2. Los edita M8.
+   */
+  @Column({ type: 'jsonb', name: 'escala_rangos', nullable: true })
+  escalaRangos: RangosEscala | null;
 
   /**
    * Grupos productivos a los que aplica (RF46, RF17). Se guarda como lista de

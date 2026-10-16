@@ -4,6 +4,7 @@ import {
   TipoEvaluacion,
 } from '../metodologia/metodologia.tipos.js';
 import { TipoPredio } from '../visitas/visitas.tipos.js';
+import { puntajePorRangos, rangosDe } from './calculo.reglas.js';
 import { redondear } from './fase2.reglas.js';
 import type { DocumentoEvaluado } from './fase3.tipos.js';
 
@@ -15,21 +16,10 @@ import type { DocumentoEvaluado } from './fase3.tipos.js';
  * dos reglas automáticas: sin documento el puntaje es 0 (RF29) y el documento
  * no presentado puede marcarse pendiente para entregarlo dentro del plazo de
  * cierre (RF31). En traspatio la fase no existe (RF33).
+ *
+ * Los rangos de la mortalidad ya no viven aquí: son datos del catálogo
+ * (`indicador.escalaRangos`, RF38/RNF17) y los aplica el motor de cálculo (M6).
  */
-
-/**
- * Rangos de mortalidad acumulada en % (RF30): hasta `max2` son 2 puntos, hasta
- * `max1` es 1, y más de `max1` es 0. En ponedoras: 12 % y 14 %; en engorde:
- * 6 % y 9 %.
- */
-export const RANGOS_MORTALIDAD: Record<
-  GrupoProductivo,
-  { max2: number; max1: number }
-> = {
-  [GrupoProductivo.POLLO_ENGORDE]: { max2: 6, max1: 9 },
-  [GrupoProductivo.PONEDORA_PISO]: { max2: 12, max1: 14 },
-  [GrupoProductivo.PONEDORA_JAULA]: { max2: 12, max1: 14 },
-};
 
 /** Decimales admitidos en la tasa de mortalidad. */
 export const MORTALIDAD_DECIMALES = 2;
@@ -44,8 +34,6 @@ export interface ReglasFase3 {
   aplica: boolean;
   /** Grupo productivo elegido en la Fase I; de él salen los rangos (RF30). */
   grupoProductivo: GrupoProductivo | null;
-  /** Rangos de mortalidad que le tocan al grupo; nulos sin grupo elegido. */
-  rangosMortalidad: { max2: number; max1: number } | null;
 }
 
 /** Avance de la fase documental (RF24, RF27). */
@@ -57,8 +45,8 @@ export interface AvanceFase3 {
 }
 
 /**
- * Reglas de la fase documental (RF30, RF33): en traspatio no aplica y los
- * rangos de mortalidad salen del grupo productivo elegido.
+ * Reglas de la fase documental (RF33): en traspatio no aplica. Los rangos de
+ * la mortalidad salen del catálogo de la visita (RF38).
  */
 export function reglasFase3(
   tipoPredio: TipoPredio,
@@ -67,21 +55,7 @@ export function reglasFase3(
   return {
     aplica: tipoPredio === TipoPredio.CORRAL,
     grupoProductivo: grupoProductivo ?? null,
-    rangosMortalidad: grupoProductivo
-      ? { ...RANGOS_MORTALIDAD[grupoProductivo] }
-      : null,
   };
-}
-
-/** Puntaje de la mortalidad por rangos (RF30). */
-export function puntajeMortalidad(
-  tasa: number,
-  grupoProductivo: GrupoProductivo,
-): number {
-  const rangos = RANGOS_MORTALIDAD[grupoProductivo];
-  if (tasa <= rangos.max2) return 2;
-  if (tasa <= rangos.max1) return 1;
-  return 0;
 }
 
 /**
@@ -118,7 +92,7 @@ export function avanceFase3(
  * Guardar un borrador no exige que el documento esté verificado (RF26): se
  * acepta a medio llenar. Lo que no se acepta es un dato imposible: un puntaje
  * que contradiga la regla del 0 (RF29), una tasa de mortalidad fuera de
- * 0–100 % o un puntaje que no salga de los rangos (RF30).
+ * 0–100 % o un puntaje que no salga de los rangos del catálogo (RF30, RF38).
  */
 export function erroresDeDocumento(
   documento: DocumentoEvaluado,
@@ -160,12 +134,19 @@ export function erroresDeDocumento(
           `«${nombre}»: use máximo ${MORTALIDAD_DECIMALES} decimales en la tasa de mortalidad.`,
         );
       } else if (documento.presentado === true && grupoProductivo) {
-        // El puntaje sale de los rangos (RF30): no se digita.
-        const esperado = puntajeMortalidad(tasa, grupoProductivo);
-        if (documento.puntaje !== null && documento.puntaje !== esperado) {
+        // El puntaje sale de los rangos del catálogo (RF30, RF38): no se digita.
+        const rangos = rangosDe(indicador, grupoProductivo);
+        if (!rangos) {
           errores.push(
-            `«${nombre}»: el puntaje de la mortalidad sale de los rangos de la metodología (RF30).`,
+            `«${nombre}»: el catálogo no tiene los rangos de este indicador.`,
           );
+        } else {
+          const esperado = puntajePorRangos(tasa, rangos);
+          if (documento.puntaje !== null && documento.puntaje !== esperado) {
+            errores.push(
+              `«${nombre}»: el puntaje de la mortalidad sale de los rangos de la metodología (RF30).`,
+            );
+          }
         }
       }
     }

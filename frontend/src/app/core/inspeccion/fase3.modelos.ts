@@ -7,6 +7,7 @@
  */
 
 import type { TipoPredio } from '../visitas/visitas.modelos';
+import { puntajePorRangos, rangosDe } from './calculo.modelos';
 import { redondear } from './fase2.modelos';
 import type { GrupoProductivo, IndicadorCatalogo } from './inspeccion.modelos';
 
@@ -37,20 +38,12 @@ export interface DocumentoRespuesta extends DocumentoEvaluado {
   verificado: boolean;
 }
 
-/** Rangos de mortalidad acumulada del grupo productivo (RF30). */
-export interface RangosMortalidad {
-  /** Hasta aquí, 2 puntos. */
-  max2: number;
-  /** Hasta aquí, 1 punto; más, 0 puntos. */
-  max1: number;
-}
-
 /** Reglas de la fase documental (RF30, RF33). */
 export interface ReglasFase3 {
   /** Solo en corral; en traspatio no aplica (RF33). */
   aplica: boolean;
+  /** Grupo productivo elegido en la Fase I; de él salen los rangos (RF30). */
   grupoProductivo: GrupoProductivo | null;
-  rangosMortalidad: RangosMortalidad | null;
 }
 
 /** Avance de la fase documental (RF24, RF27). */
@@ -67,16 +60,8 @@ export interface Fase3 {
 }
 
 /**
- * Rangos de mortalidad acumulada en % (RF30): hasta `max2` son 2 puntos, hasta
- * `max1` es 1, y más de `max1` es 0. Espejo del backend.
+ * Decimales admitidos en la tasa de mortalidad.
  */
-export const RANGOS_MORTALIDAD: Record<GrupoProductivo, RangosMortalidad> = {
-  POLLO_ENGORDE: { max2: 6, max1: 9 },
-  PONEDORA_PISO: { max2: 12, max1: 14 },
-  PONEDORA_JAULA: { max2: 12, max1: 14 },
-};
-
-/** Decimales admitidos en la tasa de mortalidad. */
 export const MORTALIDAD_DECIMALES = 2;
 
 /** Escala de calificación de los documentos (RF19). */
@@ -88,7 +73,7 @@ export function esMortalidad(indicador: IndicadorCatalogo): boolean {
   return indicador.tipoEvaluacion === 'MORTALIDAD';
 }
 
-/** Reglas de la fase documental (RF30, RF33). Espejo del backend. */
+/** Reglas de la fase documental (RF33). Espejo del backend. */
 export function reglasFase3(
   tipoPredio: TipoPredio,
   grupo: GrupoProductivo | '' | null,
@@ -96,19 +81,7 @@ export function reglasFase3(
   return {
     aplica: tipoPredio === 'CORRAL',
     grupoProductivo: grupo || null,
-    rangosMortalidad: grupo ? { ...RANGOS_MORTALIDAD[grupo] } : null,
   };
-}
-
-/** Puntaje de la mortalidad por rangos (RF30). Espejo del backend. */
-export function puntajeMortalidad(
-  tasa: number,
-  grupo: GrupoProductivo,
-): number {
-  const rangos = RANGOS_MORTALIDAD[grupo];
-  if (tasa <= rangos.max2) return 2;
-  if (tasa <= rangos.max1) return 1;
-  return 0;
 }
 
 /** Documento en blanco, como lo crea la pantalla al abrir un indicador. */
@@ -255,12 +228,19 @@ export function erroresDeDocumento(
       if (mensaje) {
         errores.push(`«${nombre}»: ${mensaje}`);
       } else if (documento.presentado === true && grupo) {
-        // El puntaje sale de los rangos (RF30): no se digita.
-        const esperado = puntajeMortalidad(tasa, grupo);
-        if (documento.puntaje !== null && documento.puntaje !== esperado) {
+        // El puntaje sale de los rangos del catálogo (RF30, RF38): no se digita.
+        const rangos = rangosDe(indicador, grupo);
+        if (!rangos) {
           errores.push(
-            `«${nombre}»: el puntaje de la mortalidad sale de los rangos de la metodología (RF30).`,
+            `«${nombre}»: el catálogo no tiene los rangos de este indicador.`,
           );
+        } else {
+          const esperado = puntajePorRangos(tasa, rangos);
+          if (documento.puntaje !== null && documento.puntaje !== esperado) {
+            errores.push(
+              `«${nombre}»: el puntaje de la mortalidad sale de los rangos de la metodología (RF30).`,
+            );
+          }
         }
       }
     }

@@ -464,6 +464,10 @@ describe('Apertura e inspección (e2e)', () => {
     aves: number | null = 20,
   ) => ({ numero, puntaje, aves });
 
+  /** Nueve puntos de muestreo con los puntajes dados (RF18). */
+  const nuevePuntos = (puntajes: number[]) =>
+    puntajes.map((puntaje, indice) => punto(indice + 1, puntaje));
+
   it('RF18–RF19: guarda los puntos y muestra el cálculo en vivo', async () => {
     const visitaId = await prepararFase2();
     const respuesta = await guardar(tokenInspector, visitaId, {
@@ -891,7 +895,6 @@ describe('Apertura e inspección (e2e)', () => {
     reglas: {
       aplica: boolean;
       grupoProductivo: string | null;
-      rangosMortalidad: { max2: number; max1: number } | null;
     };
     documentos: {
       indicadorCodigo: string;
@@ -923,6 +926,10 @@ describe('Apertura e inspección (e2e)', () => {
       tipoEvaluacion: string;
       exigeFirmaProfesional: boolean;
       escalaDescripciones: string[] | null;
+      escalaRangos: Record<
+        string,
+        { puntaje: number; max: number | null }[]
+      > | null;
     }[];
     const gestion = indicadores.filter((fila) => fila.grupo === 'MBG');
     expect(gestion.length).toBe(10);
@@ -950,9 +957,20 @@ describe('Apertura e inspección (e2e)', () => {
     expect(
       gestion.find((fila) => fila.codigo === 'MBG-04')?.exigeFirmaProfesional,
     ).toBe(true);
-    expect(
-      gestion.find((fila) => fila.codigo === 'MBG-09')?.tipoEvaluacion,
-    ).toBe('MORTALIDAD');
+    const mortalidad = gestion.find((fila) => fila.codigo === 'MBG-09');
+    expect(mortalidad?.tipoEvaluacion).toBe('MORTALIDAD');
+    // Los rangos de la mortalidad son datos del catálogo (RF38): en engorde
+    // hasta 6 % son 2 puntos y hasta 9 % es 1; en ponedoras, 12 % y 14 %.
+    expect(mortalidad?.escalaRangos?.POLLO_ENGORDE).toEqual([
+      { puntaje: 2, max: 6 },
+      { puntaje: 1, max: 9 },
+      { puntaje: 0, max: null },
+    ]);
+    expect(mortalidad?.escalaRangos?.PONEDORA_PISO).toEqual([
+      { puntaje: 2, max: 12 },
+      { puntaje: 1, max: 14 },
+      { puntaje: 0, max: null },
+    ]);
   });
 
   it('RF27–RF28: guarda la verificación de un documento y muestra el avance', async () => {
@@ -981,7 +999,6 @@ describe('Apertura e inspección (e2e)', () => {
 
     const fase3 = respuesta.body.fase3 as Fase3Respuesta;
     expect(fase3.reglas.aplica).toBe(true);
-    expect(fase3.reglas.rangosMortalidad).toEqual({ max2: 6, max1: 9 });
 
     const poe = documentoDe(respuesta.body, 'MBG-04');
     expect(poe?.verificado).toBe(true);
@@ -1062,9 +1079,6 @@ describe('Apertura e inspección (e2e)', () => {
       ],
     }).expect(200);
     expect(documentoDe(respuesta.body, 'MBG-09')?.puntaje).toBe(1);
-    expect(
-      (respuesta.body.fase3 as Fase3Respuesta).reglas.rangosMortalidad,
-    ).toEqual({ max2: 12, max1: 14 });
   });
 
   it('RF31: un documento pendiente cuenta como verificado', async () => {
@@ -1148,5 +1162,205 @@ describe('Apertura e inspección (e2e)', () => {
 
     const ficha = await obtener(tokenInspector, visitaId).expect(200);
     expect(documentoDe(ficha.body, 'MBG-01')?.puntaje).toBe(2);
+  });
+
+  // ------------------------------------------------- Motor (M6 · RF34–RF38)
+
+  /** Lo que la interfaz lee del motor en la respuesta (M6). */
+  interface CalculoRespuesta {
+    completo: boolean;
+    indicadores: {
+      codigo: string;
+      grupo: string;
+      valor: number | null;
+      noAplica: boolean;
+      completo: boolean;
+      galpones: { galponNumero: number; valor: number | null }[];
+    }[];
+    grupos: {
+      grupo: string;
+      etiqueta: string;
+      peso: number;
+      indicadoresConValor: number;
+      indicadoresTotal: number;
+      promedio: number | null;
+      aporte: number | null;
+    }[];
+    final: number | null;
+    clasificacion: string | null;
+    etiquetaClasificacion: string | null;
+  }
+
+  it('RF34–RF36: el motor calcula el indicador, el grupo y el final en vivo', async () => {
+    const visitaId = await prepararFase2();
+    const respuesta = await guardar(tokenInspector, visitaId, {
+      evaluaciones: [
+        {
+          galponNumero: 1,
+          indicadorCodigo: 'MBR-02',
+          puntos: [punto(1, 2), punto(2, 2), punto(3, 1), punto(4, 1)],
+        },
+      ],
+    }).expect(200);
+
+    const calculo = respuesta.body.calculo as CalculoRespuesta;
+    const mbr02 = calculo.indicadores.find((fila) => fila.codigo === 'MBR-02');
+    // (2+2+1+1)/4 = 1,5 → 75 % en el galpón 1; el galpón 2 aún no aporta.
+    expect(mbr02?.valor).toBe(75);
+    expect(mbr02?.completo).toBe(false);
+    expect(mbr02?.galpones).toEqual([
+      { galponNumero: 1, valor: 75, noAplica: false, completo: false },
+      { galponNumero: 2, valor: null, noAplica: false, completo: false },
+    ]);
+
+    const mbr = calculo.grupos.find((grupo) => grupo.grupo === 'MBR');
+    expect(mbr?.peso).toBe(35);
+    expect(mbr?.promedio).toBe(75);
+    expect(mbr?.aporte).toBe(26.25);
+    expect(mbr?.indicadoresConValor).toBe(1);
+
+    // Los grupos sin datos no aportan y el cálculo no está completo (RF37).
+    const mba = calculo.grupos.find((grupo) => grupo.grupo === 'MBA');
+    expect(mba?.promedio).toBeNull();
+    expect(mba?.aporte).toBeNull();
+    expect(calculo.final).toBe(26.25);
+    expect(calculo.completo).toBe(false);
+    // Mientras falten datos, la visita no lleva calificación (RF36).
+    const lista = await servidor()
+      .get('/api/v1/visitas')
+      .set('Authorization', `Bearer ${tokenInspector}`)
+      .expect(200);
+    const enLista = (
+      lista.body.datos as { id: string; calificacion: number | null }[]
+    ).find((visita) => visita.id === visitaId);
+    expect(enLista?.calificacion).toBeNull();
+  });
+
+  it('RF25: un indicador «No aplica» sale del cálculo del grupo', async () => {
+    const visitaId = await prepararFase2();
+    const respuesta = await guardar(tokenInspector, visitaId, {
+      evaluaciones: [
+        {
+          galponNumero: 1,
+          indicadorCodigo: 'MBR-02',
+          puntos: [punto(1, 2), punto(2, 2)],
+        },
+        {
+          galponNumero: 2,
+          indicadorCodigo: 'MBR-02',
+          puntos: [punto(1, 2), punto(2, 2)],
+        },
+        {
+          galponNumero: 1,
+          indicadorCodigo: 'MBR-03',
+          noAplica: true,
+          motivoNoAplica: 'El galpón no tiene comederos lineales.',
+          puntos: [],
+        },
+        {
+          galponNumero: 2,
+          indicadorCodigo: 'MBR-03',
+          noAplica: true,
+          motivoNoAplica: 'El galpón no tiene comederos lineales.',
+          puntos: [],
+        },
+      ],
+    }).expect(200);
+
+    const calculo = respuesta.body.calculo as CalculoRespuesta;
+    const mbr03 = calculo.indicadores.find((fila) => fila.codigo === 'MBR-03');
+    expect(mbr03?.noAplica).toBe(true);
+    expect(mbr03?.valor).toBeNull();
+    expect(mbr03?.completo).toBe(true);
+
+    const mbr = calculo.grupos.find((grupo) => grupo.grupo === 'MBR');
+    expect(mbr?.indicadoresConValor).toBe(1);
+    expect(mbr?.promedio).toBe(100);
+    expect(mbr?.aporte).toBe(35);
+  });
+
+  it('RF36–RF37: una visita completa guarda su calificación y el panel la promedia', async () => {
+    const visitaId = await prepararFase2();
+    const ficha = await obtener(tokenInspector, visitaId).expect(200);
+    const indicadores = ficha.body.catalogo.indicadores as {
+      codigo: string;
+      grupo: string;
+      gruposProductivos: string[];
+    }[];
+    const aplicables = indicadores.filter(
+      (fila) =>
+        fila.grupo !== 'MBG' &&
+        fila.gruposProductivos.includes(GrupoProductivo.POLLO_ENGORDE),
+    );
+    // Todos los indicadores con el mismo patrón: ocho puntos en 2 y el último
+    // en 1 → (2×8+1)/9 = 1,888… → 94,44 %.
+    const puntosPatron = nuevePuntos([2, 2, 2, 2, 2, 2, 2, 2, 1]);
+    const evaluaciones = [1, 2].flatMap((galponNumero) =>
+      aplicables.map((fila) => ({
+        galponNumero,
+        indicadorCodigo: fila.codigo,
+        puntos: puntosPatron,
+      })),
+    );
+    const documentos = indicadores
+      .filter((fila) => fila.grupo === 'MBG')
+      .map((fila) => ({
+        indicadorCodigo: fila.codigo,
+        presentado: true,
+        legible: true,
+        firmadoResponsable: true,
+        puntaje: 2,
+      }));
+
+    const respuesta = await guardar(tokenInspector, visitaId, {
+      evaluaciones,
+      documentos,
+    }).expect(200);
+
+    const calculo = respuesta.body.calculo as CalculoRespuesta;
+    expect(calculo.completo).toBe(true);
+    // 94,4444 × 35 % + 94,4444 × 35 % + 100 × 30 % = 96,1111… → 96,11 (RF36).
+    expect(calculo.final).toBe(96.11);
+    expect(calculo.clasificacion).toBe('EXCELENTE');
+    expect(calculo.etiquetaClasificacion).toBe('Excelente');
+
+    // La calificación queda guardada en la visita y la lista la muestra
+    // (RF36); al volver a abrir la inspección, el resultado sigue ahí (RF37).
+    const lista = await servidor()
+      .get('/api/v1/visitas')
+      .set('Authorization', `Bearer ${tokenInspector}`)
+      .expect(200);
+    const enLista = (
+      lista.body.datos as {
+        id: string;
+        calificacion: number | null;
+        clasificacion: string | null;
+        etiquetaClasificacion: string | null;
+      }[]
+    ).find((visita) => visita.id === visitaId);
+    expect(enLista?.calificacion).toBe(96.11);
+    expect(enLista?.clasificacion).toBe('EXCELENTE');
+    expect(enLista?.etiquetaClasificacion).toBe('Excelente');
+
+    const deNuevo = await obtener(tokenInspector, visitaId).expect(200);
+    expect(deNuevo.body.calculo.final).toBe(96.11);
+
+    // El panel del inspector promedia los grupos con las visitas completas
+    // (RF10): este inspector solo tiene esta visita con resultado.
+    const resumen = await servidor()
+      .get('/api/v1/visitas/resumen')
+      .set('Authorization', `Bearer ${tokenInspector}`)
+      .expect(200);
+    const grupos = resumen.body.promedioPorGrupo as {
+      grupo: string;
+      promedio: number | null;
+      peso: number | null;
+    }[];
+    const mba = grupos.find((grupo) => grupo.grupo === 'MBA');
+    expect(mba?.promedio).toBe(94.4);
+    expect(mba?.peso).toBe(35);
+    const mbg = grupos.find((grupo) => grupo.grupo === 'MBG');
+    expect(mbg?.promedio).toBe(100);
+    expect(mbg?.peso).toBe(30);
   });
 });

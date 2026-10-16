@@ -8,6 +8,10 @@ import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { environment } from '../../../environments/environment';
+import {
+  calculoVacio,
+  calcularVisita,
+} from '../../core/inspeccion/calculo.modelos';
 import type { EvaluacionRespuesta } from '../../core/inspeccion/fase2.modelos';
 import { reglasFase2 } from '../../core/inspeccion/fase2.modelos';
 import { reglasFase3 } from '../../core/inspeccion/fase3.modelos';
@@ -17,6 +21,7 @@ import type {
   IndicadorCatalogo,
   InspeccionRespuesta,
 } from '../../core/inspeccion/inspeccion.modelos';
+import { pesosDe } from '../../core/inspeccion/inspeccion.modelos';
 import { SincronizacionService } from '../../core/visitas/sincronizacion.service';
 import { Fase2GalponComponent } from './fase2-galpon.component';
 
@@ -42,6 +47,7 @@ function indicador(
     tipoMuestreo: 'PUNTOS_9',
     pregunta: null,
     tipoEvaluacion: 'PUNTAJE',
+    escalaRangos: null,
     exigeFirmaProfesional: false,
     gruposProductivos: ['POLLO_ENGORDE', 'PONEDORA_PISO', 'PONEDORA_JAULA'],
     ...extra,
@@ -55,8 +61,16 @@ const CATALOGO: Catalogo = {
   vigenteDesde: '2024-01-01',
   provisional: true,
   nota: null,
-  pesosCorral: [],
-  pesosTraspatio: [],
+  pesosCorral: [
+    { grupo: 'MBA', etiqueta: 'Animal (MBA)', peso: 35 },
+    { grupo: 'MBR', etiqueta: 'Recursos (MBR)', peso: 35 },
+    { grupo: 'MBG', etiqueta: 'Gestión (MBG)', peso: 30 },
+  ],
+  pesosTraspatio: [
+    { grupo: 'MBA', etiqueta: 'Animal (MBA)', peso: 60 },
+    { grupo: 'MBR', etiqueta: 'Recursos (MBR)', peso: 40 },
+    { grupo: 'MBG', etiqueta: 'Gestión (MBG)', peso: 0 },
+  ],
   gruposProductivos: [
     { codigo: 'POLLO_ENGORDE', etiqueta: 'Pollo de engorde' },
     { codigo: 'PONEDORA_PISO', etiqueta: 'Ponedora en piso o pastoreo' },
@@ -168,6 +182,7 @@ function crearInspeccion(
       documentos: [],
       avance: { verificados: 0, total: 0 },
     },
+    calculo: calculoVacio(),
   };
 }
 
@@ -451,6 +466,32 @@ describe('Fase2GalponComponent', () => {
 
       expect(componente.aviso()).toBe('Foto adjuntada.');
       expect(refrescos.length).toBe(1);
+    });
+
+    it('muestra el resultado de la visita: grupos, final y aviso en curso (RF34–RF36)', async () => {
+      const respuesta = crearInspeccion('POLLO_ENGORDE', [
+        evaluacionCompleta('MBA-01'),
+      ]);
+      // Un cálculo con datos, como el que entrega el servidor.
+      respuesta.calculo = calcularVisita({
+        indicadores: CATALOGO.indicadores,
+        pesos: pesosDe(CATALOGO, 'CORRAL'),
+        galpones: [1],
+        evaluaciones: respuesta.fase2.evaluaciones,
+        documentos: [],
+        fase3Aplica: true,
+        reglasFase2: reglasFase2('CORRAL', 'POLLO_ENGORDE'),
+      });
+      await configurar(respuesta);
+
+      expect(texto()).toContain('Resultado de la visita');
+      // MBA-01 quedó en 2: valor 100 → aporte 100 × 35 % = 35.
+      expect(texto()).toContain('Animal (MBA) · 35 %');
+      expect(texto()).toContain('100.00 %');
+      expect(texto()).toContain('35.00 %');
+      expect(texto()).toContain('Bajo');
+      // MBR y MBG todavía no tienen datos: el cálculo está en curso.
+      expect(texto()).toContain('Cálculo en curso');
     });
   });
 

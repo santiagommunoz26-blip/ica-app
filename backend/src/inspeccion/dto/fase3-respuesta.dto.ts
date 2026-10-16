@@ -28,14 +28,6 @@ export class DocumentoRespuestaDto {
   verificado: boolean;
 }
 
-/** Rangos de mortalidad acumulada del grupo productivo (RF30). */
-export class RangosMortalidadRespuestaDto {
-  @ApiProperty({ description: 'Hasta aquí, 2 puntos.' })
-  max2: number;
-  @ApiProperty({ description: 'Hasta aquí, 1 punto; más, 0 puntos.' })
-  max1: number;
-}
-
 /** Reglas de la fase documental (RF30, RF33). */
 export class ReglasFase3RespuestaDto {
   @ApiProperty({
@@ -48,8 +40,6 @@ export class ReglasFase3RespuestaDto {
     nullable: true,
   })
   grupoProductivo: GrupoProductivo | null;
-  @ApiProperty({ type: () => RangosMortalidadRespuestaDto, nullable: true })
-  rangosMortalidad: RangosMortalidadRespuestaDto | null;
 }
 
 /** Avance de la fase documental (RF24, RF27). */
@@ -73,7 +63,7 @@ export class Fase3RespuestaDto {
 /** Fase III vacía: cuando la visita todavía no tiene datos de esta fase. */
 export function fase3Vacia(reglas: ReglasFase3): Fase3RespuestaDto {
   return {
-    reglas: { ...reglas, rangosMortalidad: reglas.rangosMortalidad },
+    reglas: { ...reglas },
     documentos: [],
     avance: { verificados: 0, total: 0 },
   };
@@ -94,7 +84,7 @@ export function mapearFase3(
   if (!reglas.aplica) return fase3Vacia(reglas);
 
   return {
-    reglas: { ...reglas, rangosMortalidad: reglas.rangosMortalidad },
+    reglas: { ...reglas },
     documentos: documentos.map((documento) => ({
       indicadorCodigo: documento.indicadorCodigo,
       presentado: documento.presentado,

@@ -29,7 +29,7 @@ import { EventoBitacora } from '../usuarios/entities/registro-acceso.entity.js';
 import { Predio } from '../visitas/entities/predio.entity.js';
 import { Visita } from '../visitas/entities/visita.entity.js';
 import type { VisitaConRelaciones } from '../visitas/dto/visita-respuesta.dto.js';
-import { esEditable } from '../visitas/visitas.tipos.js';
+import { esEditable, TipoPredio } from '../visitas/visitas.tipos.js';
 import { Evidencia } from './entities/evidencia.entity.js';
 import { Inspeccion } from './entities/inspeccion.entity.js';
 import { Galpon } from './entities/galpon.entity.js';
@@ -47,7 +47,6 @@ import {
 } from './fase2.tipos.js';
 import {
   erroresDeDocumento,
-  puntajeMortalidad,
   reglasFase3,
   type ReglasFase3,
 } from './fase3.reglas.js';
@@ -57,9 +56,17 @@ import {
   type DocumentoEvaluado,
 } from './fase3.tipos.js';
 import {
+  calcularVisita,
+  puntajePorRangos,
+  rangosDe,
+  resultadoPara,
+} from './calculo.reglas.js';
+import type { CalculoVisita } from './calculo.tipos.js';
+import {
   mapearInspeccion,
   type InspeccionRespuestaDto,
 } from './dto/inspeccion-respuesta.dto.js';
+import { mapearCalculo } from './dto/calculo-respuesta.dto.js';
 import { mapearFase2 } from './dto/fase2-respuesta.dto.js';
 import { mapearFase3 } from './dto/fase3-respuesta.dto.js';
 import type { GuardarInspeccionDto } from './dto/guardar-inspeccion.dto.js';
@@ -171,6 +178,10 @@ export class InspeccionService {
       );
     }
 
+    // El resultado se recalcula con cada guardado (RF37) y queda en la
+    // inspección y en la visita (M6).
+    await this.actualizarResultado(visita, inspeccion, catalogo);
+
     await this.bitacora.registrar(EventoBitacora.INSPECCION_GUARDADA, {
       ...contexto,
       usuarioId: usuario.id,
@@ -237,6 +248,10 @@ export class InspeccionService {
       documentos,
     );
 
+    // El motor de cálculo corre con cada respuesta: la interfaz lo muestra en
+    // vivo y el cierre (M7) lo usa para la pantalla de resultados (RF37).
+    const calculo = this.calcular(visita, inspeccion, catalogoActivo, galpones);
+
     return mapearInspeccion(
       visita,
       inspeccion ?? null,
@@ -244,6 +259,7 @@ export class InspeccionService {
       catalogo,
       fase2,
       fase3,
+      mapearCalculo(calculo),
     );
   }
 
@@ -258,11 +274,10 @@ export class InspeccionService {
 
   /** Reglas de muestreo de la Fase II para esta visita (RF18–RF22). */
   private reglasDe(predio: Predio, inspeccion: Inspeccion | null): ReglasFase2 {
-    const tipoPredio =
-      predio.numeroAves === null
-        ? predio.tipoPredio
-        : clasificarPorAves(predio.numeroAves);
-    return reglasFase2(tipoPredio, inspeccion?.grupoProductivo ?? null);
+    return reglasFase2(
+      this.tipoPredioDe(predio),
+      inspeccion?.grupoProductivo ?? null,
+    );
   }
 
   /** Reglas de la fase documental para esta visita (RF30, RF33). */
@@ -270,11 +285,88 @@ export class InspeccionService {
     predio: Predio,
     inspeccion: Inspeccion | null,
   ): ReglasFase3 {
-    const tipoPredio =
-      predio.numeroAves === null
-        ? predio.tipoPredio
-        : clasificarPorAves(predio.numeroAves);
-    return reglasFase3(tipoPredio, inspeccion?.grupoProductivo ?? null);
+    return reglasFase3(
+      this.tipoPredioDe(predio),
+      inspeccion?.grupoProductivo ?? null,
+    );
+  }
+
+  /** Tipo de predio que manda: el clasificado por aves o el declarado (RF14). */
+  private tipoPredioDe(predio: Predio): TipoPredio {
+    return predio.numeroAves === null
+      ? predio.tipoPredio
+      : clasificarPorAves(predio.numeroAves);
+  }
+
+  /**
+   * Corre el motor de cálculo sobre lo que hay guardado (M6 · RF34–RF38).
+   *
+   * El cálculo se hace siempre con el catálogo de la visita (RF49) y con
+   * precisión completa; el redondeo a dos decimales lo hace el motor al
+   * entregar (RNF03).
+   */
+  private calcular(
+    visita: VisitaConRelaciones,
+    inspeccion: Inspeccion | null,
+    catalogo: CatalogoActivo | null,
+    galpones: readonly Galpon[],
+  ): CalculoVisita {
+    const grupoProductivo = inspeccion?.grupoProductivo ?? null;
+    const indicadores =
+      catalogo && grupoProductivo
+        ? catalogo.indicadores.filter((indicador) =>
+            indicador.gruposProductivos.includes(grupoProductivo),
+          )
+        : [];
+
+    return calcularVisita({
+      indicadores,
+      grupoProductivo,
+      tipoPredio: this.tipoPredioDe(visita.predio),
+      pesos: catalogo?.pesos ?? [],
+      galpones: galpones
+        .filter((galpon) => galpon.seleccionado)
+        .map((galpon) => galpon.numero),
+      evaluaciones: leerEvaluaciones(inspeccion?.respuestas),
+      documentos: leerDocumentos(inspeccion?.respuestas),
+      fase3Aplica: this.reglasDe3(visita.predio, inspeccion).aplica,
+      reglasFase2: this.reglasDe(visita.predio, inspeccion),
+    });
+  }
+
+  /**
+   * Recalcula y guarda el resultado al terminar un guardado (RF37).
+   *
+   * En la inspección queda el resumen de la última pasada (para el panel,
+   * RF10). En la visita, la calificación y la clasificación se guardan **solo
+   * cuando el cálculo quedó completo** (RF36): mientras falten indicadores, la
+   * lista y el panel muestran «—»; si la visita vuelve a quedar incompleta, se
+   * limpian.
+   */
+  private async actualizarResultado(
+    visita: VisitaConRelaciones,
+    inspeccion: Inspeccion,
+    catalogo: CatalogoActivo | null,
+  ): Promise<void> {
+    const galpones = await this.galpones.find({
+      where: { inspeccionId: inspeccion.id },
+    });
+    const calculo = this.calcular(visita, inspeccion, catalogo, galpones);
+
+    inspeccion.resultado =
+      calculo.indicadores.length === 0
+        ? null
+        : resultadoPara(calculo, new Date());
+    await this.inspecciones.save(inspeccion);
+
+    if (calculo.completo && calculo.final !== null) {
+      visita.calificacion = calculo.final.toFixed(2);
+      visita.clasificacion = calculo.clasificacion;
+    } else {
+      visita.calificacion = null;
+      visita.clasificacion = null;
+    }
+    await this.visitas.save(visita);
   }
 
   /**
@@ -480,17 +572,21 @@ export class InspeccionService {
       );
 
       // Reglas automáticas de la metodología: sin documento, 0 (RF29);
-      // mortalidad por rangos (RF30). Sin documento tampoco hay tasa.
+      // mortalidad por los rangos del catálogo (RF30, RF38). Sin documento
+      // tampoco hay tasa.
       if (normalizada.presentado === false) normalizada.puntaje = 0;
       if (
         indicador.tipoEvaluacion === TipoEvaluacion.MORTALIDAD &&
         normalizada.presentado === true &&
         normalizada.mortalidad !== null
       ) {
-        normalizada.puntaje = puntajeMortalidad(
-          normalizada.mortalidad,
-          grupoProductivo,
-        );
+        const rangos = rangosDe(indicador, grupoProductivo);
+        if (rangos) {
+          normalizada.puntaje = puntajePorRangos(
+            normalizada.mortalidad,
+            rangos,
+          );
+        }
       }
       if (normalizada.presentado !== true) normalizada.mortalidad = null;
 

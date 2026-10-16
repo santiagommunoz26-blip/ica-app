@@ -591,6 +591,49 @@ dentro de la pantalla) para no dejar mensajes pegados al formulario.
     calculado en vivo y los rangos a la vista; y las acciones se acompañan de
     textos de apoyo con la referencia del requisito. No hay botón «Anterior»,
     como en el wireframe.
+38. **El motor de cálculo es un módulo aislado y probable** (M6 · RF34–RF38):
+    `backend/src/inspeccion/calculo.reglas.ts` hace las cuentas con las fórmulas
+    de la metodología —indicador = promedio de los puntos × 100 / escala máxima
+    (RF34); grupo = promedio de sus indicadores con valor × su peso (RF35);
+    final = suma de los aportes (RF36)— y su espejo
+    `frontend/src/app/core/inspeccion/calculo.modelos.ts` lo replica para
+    mostrar el resultado en vivo y poder diligenciar sin conexión (RF12). Las
+    cuentas van con precisión completa y se redondean a dos decimales solo los
+    valores que se entregan (promedio, aporte y final); la clasificación (RF36:
+    ≥90 Excelente, ≥75 Alto, ≥50 Medio, <50 Bajo) se decide sobre el final ya
+    redondeado. El ejemplo verificado contra el motor del spike es 75,21 · Alto
+    (RNF03) y quedó como prueba de ambos lados.
+39. **La agregación entre galpones es el promedio de los valores por galpón**
+    (interpretación a informar, la metodología no lo dice con todas las letras):
+    el valor del indicador es el promedio de los galpones seleccionados que
+    tienen valor; un galpón en «No aplica» no aporta (RF25). Si ningún galpón
+    tiene valor, el indicador queda sin valor.
+40. **Los parámetros de calificación salen del catálogo** (RF38, RNF17): los
+    rangos de las escalas numéricas viven en `indicador.escala_rangos` (JSONB)
+    por grupo productivo y los lee el motor; la migración v7 siembra los de la
+    mortalidad (RF30: ponedoras ≤12 % → 2, ≤14 % → 1, más → 0; engorde ≤6 % → 2,
+    ≤9 % → 1, más → 0). `RANGOS_MORTALIDAD` salió del código y de la API: la
+    pantalla de la Fase III lee los rangos del catálogo, como el motor.
+41. **Casos borde del cálculo** (a informar): un grupo sin promedio deja su
+    aporte nulo (no 0) y el final suma solo los aportes con valor; si ningún
+    grupo tiene datos, el final es nulo (no 0); un indicador que todos los
+    galpones excluyeron con «No aplica» sale del promedio de su grupo; un
+    documento pendiente sin puntaje deja la visita incompleta; y en traspatio
+    MBG queda fuera del cálculo (RF33).
+42. **El resultado se guarda con la inspección y el panel lee de ahí** (RF37):
+    `inspeccion.resultado` (JSONB) guarda el cálculo completo y
+    `visita.calificacion` / `visita.clasificacion` solo se publican cuando el
+    cálculo quedó completo —si la visita deja de estarlo, se limpian—; el
+    `promedioPorGrupo` del panel (RF10) sale de esos resultados (el peso solo se
+    muestra si todas las visitas comparten perfil). La respuesta de la
+    inspección lleva el bloque `calculo` (indicadores con detalle por galpón,
+    grupos, final, clasificación y «completo»).
+43. **Bloque «Resultado de la visita» en el panel de la Fase II** (desviación
+    del wireframe, a informar al entregar): muestra los tres grupos con su
+    promedio, el final, el nivel y, mientras falten datos, el aviso «Cálculo en
+    curso»; se actualiza con cada guardado, tanto en línea como sin conexión
+    (con el espejo del motor). El wireframe solo muestra los avances por
+    indicador y galpón.
 
 ## 8. Observaciones para la pasada de pulido final
 

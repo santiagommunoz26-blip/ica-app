@@ -18,10 +18,13 @@ import {
   erroresDeDocumento,
   esMortalidad,
   mensajeMortalidad,
-  puntajeMortalidad,
   reglasFase3,
   type DocumentoEvaluado,
 } from '../../core/inspeccion/fase3.modelos';
+import {
+  puntajePorRangos,
+  rangosDe,
+} from '../../core/inspeccion/calculo.modelos';
 import {
   indicadoresAplicables,
   type IndicadorCatalogo,
@@ -183,15 +186,25 @@ export class Fase3DocumentalComponent {
     };
   });
 
-  /** Rangos de mortalidad que se muestran bajo el campo (RF30). */
+  /** Rangos de mortalidad que se muestran bajo el campo (RF30, RF38). */
   readonly textoRangos = computed(() => {
-    const rangos = this.reglas().rangosMortalidad;
+    const indicador = this.documentoActivoObj();
+    const rangos = indicador
+      ? rangosDe(indicador, this.respuesta().ficha.grupoProductivo)
+      : null;
     if (!rangos) {
-      return 'Los rangos de mortalidad salen del grupo productivo elegido en la Fase I (RF30).';
+      return 'Los rangos de mortalidad salen del catálogo, según el grupo productivo elegido en la Fase I (RF30).';
     }
     const grupo =
       this.respuesta().ficha.etiquetaGrupoProductivo ?? 'el grupo productivo';
-    return `${grupo}: hasta ${rangos.max2} % → 2 pts · hasta ${rangos.max1} % → 1 pt · más de ${rangos.max1} % → 0 pts (RF30).`;
+    const partes = rangos.map((rango, indice) => {
+      const anterior = rangos[indice - 1]?.max;
+      const unidad = rango.puntaje === 1 ? 'pt' : 'pts';
+      return rango.max === null
+        ? `más de ${anterior} % → ${rango.puntaje} ${unidad}`
+        : `hasta ${rango.max} % → ${rango.puntaje} ${unidad}`;
+    });
+    return `${grupo}: ${partes.join(' · ')} (RF30).`;
   });
 
   constructor() {
@@ -289,20 +302,23 @@ export class Fase3DocumentalComponent {
     }));
   }
 
-  /** Escribe la tasa de mortalidad y recalcula su puntaje (RF30). */
+  /** Escribe la tasa de mortalidad y recalcula su puntaje (RF30, RF38). */
   cambiarMortalidad(evento: Event): void {
     const texto = (evento.target as HTMLInputElement).value;
     this.textoMortalidad.set(texto);
     const tasa = leerDecimal(texto);
-    const grupo = this.respuesta().ficha.grupoProductivo;
+    const indicador = this.documentoActivoObj();
+    const rangos = indicador
+      ? rangosDe(indicador, this.respuesta().ficha.grupoProductivo)
+      : null;
     this.editarActiva((documento) => ({
       ...documento,
       mortalidad: tasa,
       puntaje:
         documento.presentado === true
-          ? tasa === null || !grupo
+          ? tasa === null || !rangos
             ? null
-            : puntajeMortalidad(tasa, grupo)
+            : puntajePorRangos(tasa, rangos)
           : documento.puntaje,
     }));
   }
