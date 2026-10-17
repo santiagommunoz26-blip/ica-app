@@ -1,0 +1,35 @@
+<h2 mat-dialog-title>Firma del inspector</h2>
+
+<mat-dialog-content class="flex flex-col gap-3">
+  <p class="text-sm text-contenido-suave">
+    Dibuje su firma con el dedo o el ratón. Quedará estampada en el acta en PDF
+    (RF42).
+  </p>
+  <canvas
+    #lienzo
+    class="h-40 w-full cursor-crosshair rounded-sm border border-borde bg-superficie"
+    style="touch-action: none"
+    (pointerdown)="iniciar($event)"
+    (pointermove)="mover($event)"
+    (pointerup)="terminar()"
+    (pointerleave)="terminar()"
+    (pointercancel)="terminar()"
+  ></canvas>
+  @if (error(); as mensaje) {
+    <app-aviso tipo="advertencia">{{ mensaje }}</app-aviso>
+  }
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button type="button" (click)="limpiar()">Limpiar</button>
+  <button mat-button type="button" (click)="cancelar()">Cancelar</button>
+  <button
+    mat-flat-button
+    color="primary"
+    type="button"
+    [disabled]="!hayTrazo()"
+    (click)="firmar()"
+  >
+    Firmar
+  </button>
+</mat-dialog-actions>

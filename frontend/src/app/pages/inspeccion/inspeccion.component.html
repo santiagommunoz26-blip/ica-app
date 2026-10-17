@@ -152,6 +152,17 @@
         [guardando]="guardando()"
         (guardar)="guardarFase3($event)"
       />
+    } @else if (faseActiva() === 4) {
+      <!-- Fase IV: cierre, calificación y acta (M7 · RF39–RF45) -->
+      <app-fase4-cierre
+        [respuesta]="respuesta()!"
+        [guardando]="guardando()"
+        [enLinea]="sincronizacion.enLinea()"
+        (firmar)="firmarActa($event)"
+        (enviar)="enviarActa($event)"
+        (descargar)="descargarActa()"
+        (cargarDocumentos)="irADocumentos()"
+      />
     } @else {
       <form [formGroup]="ficha" class="flex flex-col gap-4">
         <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
@@ -194,6 +205,21 @@
                   <mat-error>
                     El nombre del responsable debe tener al menos 3 caracteres.
                   </mat-error>
+                }
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="sm:col-span-2">
+                <mat-label
+                  >Correo del responsable (para enviarle el acta)</mat-label
+                >
+                <input
+                  matInput
+                  type="email"
+                  formControlName="correoResponsable"
+                  maxlength="180"
+                />
+                @if (ficha.controls.correoResponsable.hasError('email')) {
+                  <mat-error>Escriba un correo válido.</mat-error>
                 }
               </mat-form-field>
 

@@ -702,6 +702,52 @@ dentro de la pantalla) para no dejar mensajes pegados al formulario.
     regresión que cambia de rol después de la primera lectura (roja antes del
     arreglo) y verificación en navegador con el catálogo real (las marcas de
     los tres roles, distintas entre sí).
+51. **La firma del acta es un trazo dibujado en pantalla** (RF42): el inspector
+    firma con el dedo o el ratón sobre un lienzo; el trazo sale como imagen PNG
+    en datos (data URL) y viaja en la petición. El servidor la valida (PNG de
+    verdad por sus bytes mágicos, hasta 300 KB) y la estampa en el PDF. No es
+    una firma electrónica certificada: es la firma manuscrita digitalizada del
+    inspector, con su usuario, la fecha de firma y la huella SHA-256 del PDF
+    como respaldo (RNF10).
+52. **La prioridad de las mejoras sale del valor del indicador** (RF40): por
+    debajo de 60 % es prioridad alta; de 60 % a 79,99 %, media; 80 % o más, sin
+    prioridad. La lista de «indicadores a mejorar» va de la prioridad más
+    urgente a la menos y, dentro de cada una, del valor más bajo al más alto.
+53. **El plazo de los documentos pendientes es de un día hábil a las 5:00 p. m.
+    de Bogotá** (RF43): cuentan de lunes a viernes (los festivos no se
+    descuentan todavía: queda anotado como pendiente conocido) y la hora se fija
+    en −05:00, que en Colombia no cambia con el horario de verano. El
+    vencimiento se fija al firmar el acta provisional.
+54. **Cierre con pendientes: provisional con recalculo o definitiva al vencer**
+    (RF29, RF43, RF44): los documentos pendientes cuentan como puntaje 0 (lo
+    que RF29 haría si nunca llegaran) para poder firmar un acta provisional con
+    calificación; si los documentos llegan antes del vencimiento, la visita se
+    recalcula y se firma la definitiva v2; si el plazo vence, la misma acta
+    pasa a definitiva —sin recalcular— y la visita queda CERRADA. El
+    vencimiento se materializa al consultar o guardar la visita (perezoso) y el
+    acta guarda su calificación y su clasificación congeladas del momento de
+    firmar, para restaurarlas al vencer.
+55. **El acta es un PDF en MinIO, versionado y con huella** (RF41, RNF10): cada
+    firmado genera una versión nueva (v1, v2) con su huella SHA-256; la
+    descarga usa una URL firmada de vida corta (RNF22), no un adjunto en la
+    respuesta. Firmar de nuevo solo se ofrece cuando ya no hay pendientes; con
+    acta definitiva el servidor responde 409 (no se reemplaza ni se modifica).
+56. **El correo del acta usa el correo del responsable del predio** (RF45):
+    campo nuevo opcional `correo_responsable` en la ficha del predio (Fase I;
+    desviación mínima del wireframe) y, además, un destinatario puntual que el
+    inspector puede escribir en el cierre. El transporte actual es de consola
+    —queda el registro del envío en el log, sin adjunto— y el SMTP real queda
+    pendiente de credenciales. Permisos: emitir y enviar el acta los tiene el
+    inspector (`acta:generar`); descargar, cualquiera que consulte visitas.
+57. **Sin conexión no se emite acta**: la firma, el PDF y el correo son del
+    servidor (RF42, RF45), así que la pestaña del cierre avisa y bloquea los
+    botones cuando el equipo está sin conexión; los borradores de las fases
+    I–III siguen funcionando sin red (RF12).
+58. **Desviaciones mínimas del wireframe de la página 7**, a informar: el campo
+    del correo del responsable en la Fase I; el destinatario opcional en el
+    cierre; el aviso del nivel («NIVEL ALTO») como insignia junto a la nota; y
+    el botón «Descargar acta PDF» cuando ya hay acta (el wireframe solo muestra
+    «Firmar y generar acta PDF»).
 
 ## 8. Observaciones para la pasada de pulido final
 

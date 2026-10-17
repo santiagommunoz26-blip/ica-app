@@ -8,6 +8,7 @@ import {
 } from '@angular/core';
 import { firstValueFrom, type Observable } from 'rxjs';
 import { AuthService } from '../auth/auth.service';
+import { fase4Vacia } from '../inspeccion/cierre.modelos';
 import { InspeccionService } from '../inspeccion/inspeccion.service';
 import {
   aplicarBorrador,
@@ -455,7 +456,13 @@ export class SincronizacionService {
     visitaId: string,
     respuesta: InspeccionRespuesta,
   ): InspeccionRespuesta {
-    let resultado = respuesta;
+    // Una copia guardada por una versión anterior al cierre (M7) puede no
+    // traer el bloque de la Fase IV; se completa vacío para que la pantalla
+    // del cierre no falle.
+    let resultado: InspeccionRespuesta = {
+      ...respuesta,
+      fase4: respuesta.fase4 ?? fase4Vacia(),
+    };
     for (const operacion of this.cola()) {
       if (
         operacion.tipo === 'GUARDAR_INSPECCION' &&

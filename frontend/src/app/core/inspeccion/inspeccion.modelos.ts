@@ -6,6 +6,7 @@
 
 import type { EstadoVisita, TipoPredio } from '../visitas/visitas.modelos';
 import { calcularVisita, type CalculoVisita } from './calculo.modelos';
+import type { Fase4 } from './cierre.modelos';
 import {
   claveEvaluacion,
   proyectarFase2,
@@ -114,6 +115,8 @@ export interface PredioFicha {
   municipio: string;
   vereda: string;
   responsable: string | null;
+  /** Correo del responsable, para enviarle el acta al cierre (RF45). */
+  correoResponsable: string | null;
   numeroAves: number | null;
   sistemaProduccion: SistemaProduccion | null;
   etiquetaSistemaProduccion: string | null;
@@ -154,8 +157,8 @@ export interface FichaInspeccion {
 }
 
 /**
- * Respuesta completa de la Fase I (RF13–RF17), la Fase II (RF18–RF26) y la
- * Fase III (RF27–RF33).
+ * Respuesta completa de la Fase I (RF13–RF17), la Fase II (RF18–RF26), la
+ * Fase III (RF27–RF33) y el cierre (M7 · RF39–RF45).
  */
 export interface InspeccionRespuesta {
   visita: VisitaFicha;
@@ -169,6 +172,8 @@ export interface InspeccionRespuesta {
   fase3: Fase3;
   /** Resultado del motor de cálculo: grupos, final y clasificación (M6). */
   calculo: CalculoVisita;
+  /** Cierre: resultado, indicadores a mejorar, plazo y acta (M7). */
+  fase4: Fase4;
   /** Marca solo local: hay cambios guardados en el equipo sin sincronizar. */
   pendiente?: boolean;
 }
@@ -187,6 +192,8 @@ export interface PeticionGuardarInspeccion {
   municipio?: string;
   vereda?: string;
   responsable?: string;
+  /** Correo del responsable (RF45): opcional, se envía si es válido. */
+  correoResponsable?: string;
   numeroAves?: number;
   sistemaProduccion?: SistemaProduccion;
   fechaHora?: string;
@@ -232,7 +239,7 @@ export const FASES_INSPECCION: readonly {
     numero: 4,
     romano: 'IV',
     etiqueta: 'Cierre',
-    disponible: false,
+    disponible: true,
     modulo: 'M7',
   },
 ];
@@ -311,6 +318,10 @@ export function aplicarBorrador(
       borrador.responsable !== undefined
         ? borrador.responsable
         : respuesta.predio.responsable,
+    correoResponsable:
+      borrador.correoResponsable !== undefined
+        ? borrador.correoResponsable
+        : respuesta.predio.correoResponsable,
     numeroAves:
       borrador.numeroAves !== undefined
         ? borrador.numeroAves

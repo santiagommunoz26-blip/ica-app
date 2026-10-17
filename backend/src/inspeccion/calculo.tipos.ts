@@ -110,4 +110,11 @@ export interface EntradaCalculo {
   fase3Aplica: boolean;
   /** Reglas de muestreo de la visita: definen si un galpón terminó (RF18–RF22). */
   reglasFase2: ReglasFase2;
+  /**
+   * El cierre (M7 · RF43/RF44) cuenta los documentos pendientes como puntaje
+   * 0 (lo que RF29 haría si nunca llegaran): así el cierre puede firmar una
+   * acta provisional con calificación, que se recalcula si los documentos
+   * llegan dentro del plazo.
+   */
+  pendientesCuentanCero?: boolean;
 }

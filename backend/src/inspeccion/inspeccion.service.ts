@@ -29,39 +29,33 @@ import { EventoBitacora } from '../usuarios/entities/registro-acceso.entity.js';
 import { Predio } from '../visitas/entities/predio.entity.js';
 import { Visita } from '../visitas/entities/visita.entity.js';
 import type { VisitaConRelaciones } from '../visitas/dto/visita-respuesta.dto.js';
-import { esEditable, TipoPredio } from '../visitas/visitas.tipos.js';
+import { esEditable } from '../visitas/visitas.tipos.js';
 import { Evidencia } from './entities/evidencia.entity.js';
 import { Inspeccion } from './entities/inspeccion.entity.js';
 import { Galpon } from './entities/galpon.entity.js';
+import { ActasService } from './actas.service.js';
 import { clasificarPorAves } from './inspeccion.reglas.js';
-import {
-  erroresDeEvaluacion,
-  reglasFase2,
-  type ReglasFase2,
-} from './fase2.reglas.js';
+import { erroresDeEvaluacion, type ReglasFase2 } from './fase2.reglas.js';
 import {
   claveEvaluacion,
   escribirEvaluaciones,
   leerEvaluaciones,
   type EvaluacionFase2,
 } from './fase2.tipos.js';
-import {
-  erroresDeDocumento,
-  reglasFase3,
-  type ReglasFase3,
-} from './fase3.reglas.js';
+import { erroresDeDocumento, type ReglasFase3 } from './fase3.reglas.js';
 import {
   escribirDocumentos,
   leerDocumentos,
   type DocumentoEvaluado,
 } from './fase3.tipos.js';
-import {
-  calcularVisita,
-  puntajePorRangos,
-  rangosDe,
-  resultadoPara,
-} from './calculo.reglas.js';
+import { puntajePorRangos, rangosDe, resultadoPara } from './calculo.reglas.js';
 import type { CalculoVisita } from './calculo.tipos.js';
+import {
+  calcularVisitaDe,
+  catalogoDeVisita,
+  reglasDeFase2De,
+  reglasDeFase3De,
+} from './calculo-visita.js';
 import {
   mapearInspeccion,
   type InspeccionRespuestaDto,
@@ -101,6 +95,7 @@ export class InspeccionService {
     private readonly evidencias: Repository<Evidencia>,
     private readonly metodologia: MetodologiaService,
     private readonly bitacora: RegistroAccesoService,
+    private readonly actas: ActasService,
   ) {}
 
   /** Ficha y catálogo de la visita (RF13–RF17). */
@@ -123,6 +118,9 @@ export class InspeccionService {
     contexto: ContextoAuditoria,
   ): Promise<InspeccionRespuestaDto> {
     const visita = await this.exigirVisita(visitaId, usuario);
+    // El plazo vencido cierra la visita antes de aceptar cualquier cambio
+    // (RF44): los pendientes que llegan tarde ya no recalculan nada.
+    await this.actas.revisarVencimiento(visita);
     if (!esEditable(visita.estado)) {
       throw new ConflictException(
         'Una visita cerrada no se puede editar; su ficha tampoco.',
@@ -252,6 +250,10 @@ export class InspeccionService {
     // vivo y el cierre (M7) lo usa para la pantalla de resultados (RF37).
     const calculo = this.calcular(visita, inspeccion, catalogoActivo, galpones);
 
+    // El cierre materializa el vencimiento del plazo de documentos si pasó
+    // (RF44) y arma la pantalla de resultados y el acta (M7 · RF39–RF45).
+    const fase4 = await this.actas.estadoDe(visita);
+
     return mapearInspeccion(
       visita,
       inspeccion ?? null,
@@ -260,6 +262,7 @@ export class InspeccionService {
       fase2,
       fase3,
       mapearCalculo(calculo),
+      fase4,
     );
   }
 
@@ -267,17 +270,12 @@ export class InspeccionService {
   private async catalogoDe(
     inspeccion: Inspeccion | null,
   ): Promise<CatalogoActivo | null> {
-    return inspeccion?.metodologiaId
-      ? this.metodologia.porId(inspeccion.metodologiaId)
-      : this.metodologia.activa();
+    return catalogoDeVisita(this.metodologia, inspeccion);
   }
 
   /** Reglas de muestreo de la Fase II para esta visita (RF18–RF22). */
   private reglasDe(predio: Predio, inspeccion: Inspeccion | null): ReglasFase2 {
-    return reglasFase2(
-      this.tipoPredioDe(predio),
-      inspeccion?.grupoProductivo ?? null,
-    );
+    return reglasDeFase2De(predio, inspeccion);
   }
 
   /** Reglas de la fase documental para esta visita (RF30, RF33). */
@@ -285,17 +283,7 @@ export class InspeccionService {
     predio: Predio,
     inspeccion: Inspeccion | null,
   ): ReglasFase3 {
-    return reglasFase3(
-      this.tipoPredioDe(predio),
-      inspeccion?.grupoProductivo ?? null,
-    );
-  }
-
-  /** Tipo de predio que manda: el clasificado por aves o el declarado (RF14). */
-  private tipoPredioDe(predio: Predio): TipoPredio {
-    return predio.numeroAves === null
-      ? predio.tipoPredio
-      : clasificarPorAves(predio.numeroAves);
+    return reglasDeFase3De(predio, inspeccion);
   }
 
   /**
@@ -311,27 +299,7 @@ export class InspeccionService {
     catalogo: CatalogoActivo | null,
     galpones: readonly Galpon[],
   ): CalculoVisita {
-    const grupoProductivo = inspeccion?.grupoProductivo ?? null;
-    const indicadores =
-      catalogo && grupoProductivo
-        ? catalogo.indicadores.filter((indicador) =>
-            indicador.gruposProductivos.includes(grupoProductivo),
-          )
-        : [];
-
-    return calcularVisita({
-      indicadores,
-      grupoProductivo,
-      tipoPredio: this.tipoPredioDe(visita.predio),
-      pesos: catalogo?.pesos ?? [],
-      galpones: galpones
-        .filter((galpon) => galpon.seleccionado)
-        .map((galpon) => galpon.numero),
-      evaluaciones: leerEvaluaciones(inspeccion?.respuestas),
-      documentos: leerDocumentos(inspeccion?.respuestas),
-      fase3Aplica: this.reglasDe3(visita.predio, inspeccion).aplica,
-      reglasFase2: this.reglasDe(visita.predio, inspeccion),
-    });
+    return calcularVisitaDe(visita.predio, inspeccion, catalogo, galpones);
   }
 
   /**
@@ -645,6 +613,13 @@ export class InspeccionService {
       if (responsable !== predio.responsable) {
         predio.responsable = responsable;
         cambios.push('responsable');
+      }
+    }
+    if (dto.correoResponsable !== undefined) {
+      const correo = limpiarTexto(dto.correoResponsable) || null;
+      if (correo !== predio.correoResponsable) {
+        predio.correoResponsable = correo;
+        cambios.push('correo del responsable');
       }
     }
     if (dto.sistemaProduccion !== undefined) {

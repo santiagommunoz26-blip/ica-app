@@ -22,6 +22,7 @@ import { numerosSugeridos, clasificarPorAves } from '../inspeccion.reglas.js';
 import { CalculoRespuestaDto } from './calculo-respuesta.dto.js';
 import { Fase2RespuestaDto } from './fase2-respuesta.dto.js';
 import { Fase3RespuestaDto } from './fase3-respuesta.dto.js';
+import { Fase4RespuestaDto } from './fase4-respuesta.dto.js';
 
 /** Predio, con el tipo ya clasificado por el número de aves (RF14). */
 export class PredioFichaRespuestaDto {
@@ -30,6 +31,7 @@ export class PredioFichaRespuestaDto {
   @ApiProperty() municipio: string;
   @ApiProperty() vereda: string;
   @ApiProperty({ nullable: true }) responsable: string | null;
+  @ApiProperty({ nullable: true }) correoResponsable: string | null;
   @ApiProperty({ nullable: true }) numeroAves: number | null;
   @ApiProperty({
     enum: SistemaProduccion,
@@ -129,6 +131,12 @@ export class InspeccionRespuestaDto {
     description: 'Resultado del motor de cálculo (M6 · RF34–RF38).',
   })
   calculo: CalculoRespuestaDto;
+
+  @ApiProperty({
+    type: () => Fase4RespuestaDto,
+    description: 'Cierre y acta, Fase IV (M7 · RF39–RF45).',
+  })
+  fase4: Fase4RespuestaDto;
 }
 
 /** Arma la respuesta de la Fase I a partir de lo que hay en la base. */
@@ -140,6 +148,7 @@ export function mapearInspeccion(
   fase2: Fase2RespuestaDto,
   fase3: Fase3RespuestaDto,
   calculo: CalculoRespuestaDto,
+  fase4: Fase4RespuestaDto,
 ): InspeccionRespuestaDto {
   const predio = visita.predio;
   const numeroAves = predio.numeroAves ?? null;
@@ -169,6 +178,7 @@ export function mapearInspeccion(
       municipio: predio.municipio,
       vereda: predio.vereda,
       responsable: predio.responsable ?? null,
+      correoResponsable: predio.correoResponsable ?? null,
       numeroAves,
       sistemaProduccion: predio.sistemaProduccion ?? null,
       etiquetaSistemaProduccion: predio.sistemaProduccion
@@ -207,5 +217,6 @@ export function mapearInspeccion(
     fase2,
     fase3,
     calculo,
+    fase4,
   };
 }

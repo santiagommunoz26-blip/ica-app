@@ -31,6 +31,10 @@ export enum EventoBitacora {
   // M4 · Inspección en galpón, Fase II (RF18–RF26).
   EVIDENCIA_SUBIDA = 'EVIDENCIA_SUBIDA',
   EVIDENCIA_ELIMINADA = 'EVIDENCIA_ELIMINADA',
+  // M7 · Cierre y reportes, Fase IV (RF39–RF45).
+  ACTA_EMITIDA = 'ACTA_EMITIDA',
+  ACTA_DEFINITIVA = 'ACTA_DEFINITIVA',
+  ACTA_ENVIADA = 'ACTA_ENVIADA',
 }
 
 /**

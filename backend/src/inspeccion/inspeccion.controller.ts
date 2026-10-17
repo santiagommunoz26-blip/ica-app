@@ -26,9 +26,17 @@ import { contextoDePeticion } from '../common/contexto-peticion.js';
 import type { UsuarioAutenticado } from '../common/interfaces/usuario-autenticado.interface.js';
 import { InspeccionService } from './inspeccion.service.js';
 import { EvidenciasService } from './evidencias.service.js';
+import { ActasService } from './actas.service.js';
 import { CrearEvidenciaDto } from './dto/crear-evidencia.dto.js';
+import { EmitirActaDto } from './dto/emitir-acta.dto.js';
+import { EnviarActaDto } from './dto/enviar-acta.dto.js';
 import { GuardarInspeccionDto } from './dto/guardar-inspeccion.dto.js';
 import { InspeccionRespuestaDto } from './dto/inspeccion-respuesta.dto.js';
+import {
+  ActaUrlRespuestaDto,
+  EnvioActaRespuestaDto,
+  Fase4RespuestaDto,
+} from './dto/fase4-respuesta.dto.js';
 import {
   EvidenciaRespuestaDto,
   EvidenciaSubidaRespuestaDto,
@@ -50,6 +58,7 @@ export class InspeccionController {
   constructor(
     private readonly inspeccion: InspeccionService,
     private readonly evidencias: EvidenciasService,
+    private readonly actas: ActasService,
   ) {}
 
   @Get(':visitaId')
@@ -145,5 +154,58 @@ export class InspeccionController {
       ...contextoDePeticion(peticion),
       actorId: usuario.id,
     });
+  }
+
+  // ------------------------------------------- cierre y actas (RF39–RF45, M7)
+
+  @Post(':visitaId/acta')
+  @Roles(Rol.INSPECTOR)
+  @ApiOperation({
+    summary:
+      'Firma el acta y cierra la visita; con pendientes abre el plazo (RF41–RF43)',
+  })
+  @ApiCreatedResponse({ type: Fase4RespuestaDto })
+  emitirActa(
+    @Param('visitaId', ParseUUIDPipe) visitaId: string,
+    @Body() dto: EmitirActaDto,
+    @Req() peticion: Request,
+    @UsuarioActual() usuario: UsuarioAutenticado,
+  ): Promise<Fase4RespuestaDto> {
+    return this.actas.emitir(visitaId, dto, usuario, {
+      ...contextoDePeticion(peticion),
+      actorId: usuario.id,
+    });
+  }
+
+  @Post(':visitaId/acta/correo')
+  @Roles(Rol.INSPECTOR)
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Envía el acta al responsable del predio por correo (RF45)',
+  })
+  @ApiOkResponse({ type: EnvioActaRespuestaDto })
+  enviarActa(
+    @Param('visitaId', ParseUUIDPipe) visitaId: string,
+    @Body() dto: EnviarActaDto,
+    @Req() peticion: Request,
+    @UsuarioActual() usuario: UsuarioAutenticado,
+  ): Promise<EnvioActaRespuestaDto> {
+    return this.actas.enviar(visitaId, dto, usuario, {
+      ...contextoDePeticion(peticion),
+      actorId: usuario.id,
+    });
+  }
+
+  @Get(':visitaId/acta/descarga')
+  @Roles(Rol.ADMINISTRADOR, Rol.INSPECTOR, Rol.CONSULTA)
+  @ApiOperation({
+    summary: 'URL firmada de vida corta para descargar el acta (RNF22)',
+  })
+  @ApiOkResponse({ type: ActaUrlRespuestaDto })
+  async urlActa(
+    @Param('visitaId', ParseUUIDPipe) visitaId: string,
+    @UsuarioActual() usuario: UsuarioAutenticado,
+  ): Promise<ActaUrlRespuestaDto> {
+    return { url: await this.actas.urlDescarga(visitaId, usuario) };
   }
 }

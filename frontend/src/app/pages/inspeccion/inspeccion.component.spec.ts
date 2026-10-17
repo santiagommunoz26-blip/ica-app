@@ -16,6 +16,7 @@ import { environment } from '../../../environments/environment';
 import type { SesionRespuesta, Usuario } from '../../core/auth/auth.modelos';
 import { AuthService } from '../../core/auth/auth.service';
 import { calculoVacio } from '../../core/inspeccion/calculo.modelos';
+import { fase4Vacia } from '../../core/inspeccion/cierre.modelos';
 import type {
   Catalogo,
   InspeccionRespuesta,
@@ -24,6 +25,7 @@ import type { ListaVisitas } from '../../core/visitas/visitas.modelos';
 import { reglasFase3 } from '../../core/inspeccion/fase3.modelos';
 import { Fase2GalponComponent } from './fase2-galpon.component';
 import { Fase3DocumentalComponent } from './fase3-documental.component';
+import { Fase4CierreComponent } from './fase4-cierre.component';
 import { InspeccionComponent } from './inspeccion.component';
 
 const USUARIO: Usuario = {
@@ -149,6 +151,7 @@ const INSPECCION: InspeccionRespuesta = {
     municipio: 'Sopó',
     vereda: 'Vereda 1',
     responsable: null,
+    correoResponsable: null,
     numeroAves: null,
     sistemaProduccion: null,
     etiquetaSistemaProduccion: null,
@@ -205,6 +208,7 @@ const INSPECCION: InspeccionRespuesta = {
     avance: { verificados: 0, total: 0 },
   },
   calculo: calculoVacio(),
+  fase4: fase4Vacia(),
 };
 
 const LISTA: ListaVisitas = {
@@ -435,6 +439,80 @@ describe('InspeccionComponent', () => {
       fixture.detectChanges();
 
       expect(texto()).toContain('Borrador guardado');
+    });
+  });
+
+  describe('Fase IV · cierre y acta (M7 · RF39–RF45)', () => {
+    /** La inspección con todo listo para firmar el acta. */
+    const CERRADA: InspeccionRespuesta = {
+      ...INSPECCION,
+      fase4: {
+        completo: true,
+        indicadoresSinEvaluar: 0,
+        indicadores: [],
+        final: 96.11,
+        clasificacion: 'EXCELENTE',
+        etiquetaClasificacion: 'Excelente',
+        grupos: [],
+        documentosPendientes: 0,
+        vencimiento: null,
+        vencido: false,
+        acta: null,
+        puedeEmitir: true,
+        motivoNoEmitir: null,
+      },
+    };
+
+    /** El componente del cierre que monta la página. */
+    const hijo = () =>
+      fixture.debugElement.query(By.directive(Fase4CierreComponent))
+        .componentInstance as Fase4CierreComponent;
+
+    beforeEach(async () => {
+      await configurar(VISITA_ID);
+      http
+        .expectOne(esPeticion(`/inspeccion/${VISITA_ID}`, 'GET'))
+        .flush(CERRADA);
+      await tick();
+      fixture.detectChanges();
+
+      componente.abrirFase(componente.fases[3]);
+      fixture.detectChanges();
+    });
+
+    it('abre la pestaña del cierre con el resultado (RF39)', () => {
+      expect(componente.faseActiva()).toBe(4);
+      expect(texto()).toContain('Calificación final');
+      expect(texto()).toContain('96.1 %');
+    });
+
+    it('al firmar envía el PNG, avisa y recarga el acta (RF42)', async () => {
+      hijo().firmar.emit('data:image/png;base64,AAAA');
+      await tick();
+
+      const firma = http.expectOne(
+        esPeticion(`/inspeccion/${VISITA_ID}/acta`, 'POST'),
+      );
+      expect(firma.request.body.firma).toBe('data:image/png;base64,AAAA');
+      firma.flush(CERRADA.fase4);
+      await tick();
+
+      // Tras firmar, la pantalla vuelve a leer la ficha con su acta (RF41).
+      http
+        .expectOne(esPeticion(`/inspeccion/${VISITA_ID}`, 'GET'))
+        .flush(CERRADA);
+      await tick();
+      fixture.detectChanges();
+
+      expect(texto()).toContain('Acta firmada');
+    });
+
+    it('con «Cargar docs» vuelve a la Fase III (RF44)', () => {
+      hijo().cargarDocumentos.emit();
+      fixture.detectChanges();
+
+      expect(componente.faseActiva()).toBe(3);
+      expect(texto()).toContain('Cargue los documentos pendientes');
     });
   });
 

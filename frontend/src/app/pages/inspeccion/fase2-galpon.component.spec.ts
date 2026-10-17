@@ -12,6 +12,7 @@ import {
   calculoVacio,
   calcularVisita,
 } from '../../core/inspeccion/calculo.modelos';
+import { fase4Vacia } from '../../core/inspeccion/cierre.modelos';
 import type { EvaluacionRespuesta } from '../../core/inspeccion/fase2.modelos';
 import { reglasFase2 } from '../../core/inspeccion/fase2.modelos';
 import { reglasFase3 } from '../../core/inspeccion/fase3.modelos';
@@ -143,6 +144,7 @@ function crearInspeccion(
       municipio: 'Sopó',
       vereda: 'Vereda 1',
       responsable: null,
+      correoResponsable: null,
       numeroAves: 60000,
       sistemaProduccion: null,
       etiquetaSistemaProduccion: null,
@@ -183,6 +185,7 @@ function crearInspeccion(
       avance: { verificados: 0, total: 0 },
     },
     calculo: calculoVacio(),
+    fase4: fase4Vacia(),
   };
 }
 

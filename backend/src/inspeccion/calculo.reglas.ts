@@ -90,7 +90,11 @@ export function calcularVisita(entrada: EntradaCalculo): CalculoVisita {
       // En traspatio no hay fase documental ni indicadores de gestión (RF33).
       if (!entrada.fase3Aplica) continue;
       indicadores.push(
-        calcularDocumento(indicador, porCodigo.get(indicador.codigo)),
+        calcularDocumento(
+          indicador,
+          porCodigo.get(indicador.codigo),
+          entrada.pendientesCuentanCero ?? false,
+        ),
       );
     } else {
       indicadores.push(calcularEnGalpones(indicador, entrada, porClave));
@@ -236,15 +240,20 @@ function calcularEnGalpones(
 function calcularDocumento(
   indicador: Indicador,
   documento: DocumentoEvaluado | undefined,
+  pendientesCuentanCero: boolean,
 ): CalculoIndicador {
-  const puntaje = documento?.puntaje ?? null;
+  const pendiente = documento?.pendiente === true;
+  const puntaje =
+    documento?.puntaje ?? (pendiente && pendientesCuentanCero ? 0 : null);
   return {
     codigo: indicador.codigo,
     grupo: indicador.grupo,
     valor: puntaje === null ? null : (puntaje * 100) / indicador.escalaMax,
     noAplica: false,
     // Un documento pendiente todavía no tiene puntaje: falta para el cálculo
-    // (el cierre lo recalcula dentro del plazo, RF43/RF44).
+    // (el cierre lo recalcula dentro del plazo, RF43/RF44). En el cierre,
+    // `pendientesCuentanCero` lo cuenta como 0 —lo que RF29 haría si nunca
+    // llegara— para poder firmar la acta provisional con calificación.
     completo: puntaje !== null,
     galpones: [],
   };

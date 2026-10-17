@@ -8,6 +8,19 @@ export interface DatosCorreoRecuperacion {
   token: string;
 }
 
+/** Datos del correo con el acta oficial al responsable del predio (RF45). */
+export interface DatosCorreoActa {
+  destinatario: string;
+  /** Nombre del responsable, para saludarlo en el correo. */
+  responsable: string | null;
+  /** Nombre del predio. */
+  predio: string;
+  version: number;
+  definitiva: boolean;
+  /** Vencimiento del plazo de documentos, si el acta es provisional (RF43). */
+  vencimiento: Date | null;
+}
+
 /**
  * Envío de correos (RF06).
  *
@@ -53,6 +66,34 @@ export class CorreoService {
 
     this.logger.error(
       `Transporte de correo "${this.transporte}" no implementado todavía: el enlace para ${datos.destinatario} no se envió (${enlace}).`,
+    );
+  }
+
+  /**
+   * Envía (o registra, en modo consola) el acta al responsable del predio
+   * (RF45).
+   *
+   * En modo consola queda en el registro del servidor con el resumen del
+   * acta; cuando haya credenciales SMTP (pendiente con el usuario) este mismo
+   * punto adjuntará el PDF que vive en el almacenamiento. El envío no cambia
+   * el acta: solo se anota en ella la fecha y el destinatario.
+   */
+  async enviarActa(datos: DatosCorreoActa): Promise<void> {
+    const saludo = datos.responsable ? `, ${datos.responsable},` : ',';
+    const estado = datos.definitiva
+      ? 'acta definitiva'
+      : `acta provisional (documentos pendientes hasta ${datos.vencimiento?.toISOString() ?? 'el vencimiento'})`;
+    const resumen = `${estado} de la visita a ${datos.predio}, versión ${datos.version}`;
+
+    if (this.transporte === 'consola') {
+      this.logger.log(
+        `[CORREO · consola] Actas para ${datos.destinatario}${saludo} ${resumen}. El PDF adjunto quedará cuando haya un transporte configurado.`,
+      );
+      return;
+    }
+
+    this.logger.error(
+      `Transporte de correo "${this.transporte}" no implementado todavía: el ${resumen} para ${datos.destinatario} no se envió.`,
     );
   }
 }

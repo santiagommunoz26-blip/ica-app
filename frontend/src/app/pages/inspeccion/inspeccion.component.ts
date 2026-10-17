@@ -15,9 +15,10 @@ import { MatInputModule } from '@angular/material/input';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSelectModule } from '@angular/material/select';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { map } from 'rxjs';
+import { firstValueFrom, map } from 'rxjs';
 import { AuthService } from '../../core/auth/auth.service';
 import { mensajeDeError } from '../../core/http/errores';
+import { InspeccionService } from '../../core/inspeccion/inspeccion.service';
 import {
   FASES_INSPECCION,
   clasificarPorAves,
@@ -52,6 +53,7 @@ import type { EvaluacionFase2 } from '../../core/inspeccion/fase2.modelos';
 import type { DocumentoEvaluado } from '../../core/inspeccion/fase3.modelos';
 import { Fase2GalponComponent } from './fase2-galpon.component';
 import { Fase3DocumentalComponent } from './fase3-documental.component';
+import { Fase4CierreComponent } from './fase4-cierre.component';
 
 /** Campos de un galpón en el formulario (RF16). */
 interface GalponForm {
@@ -62,16 +64,19 @@ interface GalponForm {
 }
 
 /**
- * Apertura y ficha general, Fase I de la inspección (M3 · RF13–RF17).
+ * Sección «Inspección» con las cuatro fases del wireframe: la ficha general
+ * (M3 · RF13–RF17), la inspección en galpón (M4 · RF18–RF26), la documental
+ * (M5 · RF27–RF33) y el cierre con acta (M7 · RF39–RF45).
  *
- * Monta la sección «Inspección» con las cuatro fases del wireframe; en M3 solo
- * la Fase I está construida (las demás son marcadores). Desde aquí se registra
- * la ficha del predio y del responsable, el sistema se clasifica solo por el
- * número de aves (RF14), se elige el grupo productivo (RF15), se registran los
- * galpones (RF16) y se ven los indicadores que aplican (RF17).
+ * Desde aquí se registra la ficha del predio y del responsable, el sistema se
+ * clasifica solo por el número de aves (RF14), se elige el grupo productivo
+ * (RF15), se registran los galpones (RF16) y se ven los indicadores que
+ * aplican (RF17).
  *
- * Los cambios se guardan por la cola de sincronización (RF12): primero en el
- * equipo y luego en el servidor.
+ * Los cambios de las fases I a III se guardan por la cola de sincronización
+ * (RF12): primero en el equipo y luego en el servidor. El cierre (firma,
+ * descarga y envío del acta) solo funciona con conexión: el acta se genera en
+ * el servidor (RF42).
  */
 @Component({
   selector: 'app-inspeccion',
@@ -93,6 +98,7 @@ interface GalponForm {
     EsqueletoComponent,
     Fase2GalponComponent,
     Fase3DocumentalComponent,
+    Fase4CierreComponent,
     InsigniaComponent,
     TarjetaComponent,
   ],
@@ -101,6 +107,7 @@ interface GalponForm {
 export class InspeccionComponent {
   readonly sincronizacion = inject(SincronizacionService);
   private readonly auth = inject(AuthService);
+  private readonly inspeccion = inject(InspeccionService);
   private readonly ruta = inject(ActivatedRoute);
   private readonly fb = inject(FormBuilder);
 
@@ -136,6 +143,10 @@ export class InspeccionComponent {
     responsable: this.fb.nonNullable.control('', [
       Validators.minLength(3),
       Validators.maxLength(150),
+    ]),
+    correoResponsable: this.fb.nonNullable.control('', [
+      Validators.email,
+      Validators.maxLength(180),
     ]),
     numeroAves: this.fb.control<number | string | null>(null, [
       entero({ min: 0, max: 10_000_000 }),
@@ -305,6 +316,7 @@ export class InspeccionComponent {
       municipio: respuesta.predio.municipio,
       vereda: respuesta.predio.vereda,
       responsable: respuesta.predio.responsable ?? '',
+      correoResponsable: respuesta.predio.correoResponsable ?? '',
       numeroAves: respuesta.predio.numeroAves,
       sistemaProduccion: respuesta.predio.sistemaProduccion ?? '',
       fecha,
@@ -370,7 +382,8 @@ export class InspeccionComponent {
    * ¿La fase ya quedó lista? Fase I: ficha guardada. Fase II: todos los
    * indicadores de los galpones marcados, completos o con «No aplica» (RF24).
    * Fase III: todos los documentos calificados o marcados pendientes (RF31).
-   * Es lo que pinta la pestaña con el visto bueno del wireframe.
+   * Fase IV: el acta quedó definitiva (RF44). Es lo que pinta la pestaña con
+   * el visto bueno del wireframe.
    */
   faseCompleta(numero: number): boolean {
     const respuesta = this.respuesta();
@@ -391,6 +404,7 @@ export class InspeccionComponent {
       const avance = respuesta.fase3.avance;
       return avance.total > 0 && avance.verificados === avance.total;
     }
+    if (numero === 4) return respuesta.fase4.acta?.definitiva === true;
     return false;
   }
 
@@ -569,6 +583,83 @@ export class InspeccionComponent {
     }
   }
 
+  // ---------------------------------------------------- cierre y acta (M7)
+
+  /**
+   * Firma y emite el acta con el PNG dibujado (RF41–RF43). El cierre no se
+   * encola sin conexión: el acta se genera en el servidor, que guarda el PDF
+   * y su huella (RNF10).
+   */
+  async firmarActa(firma: string): Promise<void> {
+    const visitaId = this.visitaId();
+    if (!visitaId) return;
+
+    this.guardando.set(true);
+    this.error.set(null);
+    this.aviso.set(null);
+    try {
+      const fase4 = await firstValueFrom(
+        this.inspeccion.firmarActa(visitaId, firma),
+      );
+      this.aviso.set(
+        fase4.acta?.definitiva
+          ? 'Acta definitiva firmada: el PDF quedó guardado (RF42).'
+          : 'Acta firmada y guardada en PDF. Queda provisional hasta que lleguen los documentos o venza el plazo (RF43).',
+      );
+      await this.cargar(visitaId);
+    } catch (fallo) {
+      this.error.set(mensajeDeError(fallo));
+    } finally {
+      this.guardando.set(false);
+    }
+  }
+
+  /** Envía el acta al responsable por correo (RF45). */
+  async enviarActa(destinatario?: string): Promise<void> {
+    const visitaId = this.visitaId();
+    if (!visitaId) return;
+
+    this.guardando.set(true);
+    this.error.set(null);
+    this.aviso.set(null);
+    try {
+      const envio = await firstValueFrom(
+        this.inspeccion.enviarActa(visitaId, destinatario),
+      );
+      this.aviso.set(`Acta enviada a ${envio.destinatario} (RF45).`);
+      await this.cargar(visitaId);
+    } catch (fallo) {
+      this.error.set(mensajeDeError(fallo));
+    } finally {
+      this.guardando.set(false);
+    }
+  }
+
+  /** Abre el PDF del acta vigente en otra pestaña (RF41). */
+  async descargarActa(): Promise<void> {
+    const visitaId = this.visitaId();
+    if (!visitaId) return;
+
+    this.error.set(null);
+    this.aviso.set(null);
+    try {
+      const { url } = await firstValueFrom(this.inspeccion.urlActa(visitaId));
+      window.open(url, '_blank', 'noopener');
+      this.aviso.set('El acta se abrió en una pestaña nueva (RF41).');
+    } catch (fallo) {
+      this.error.set(mensajeDeError(fallo));
+    }
+  }
+
+  /** Lleva a la Fase III a cargar los documentos pendientes (RF44). */
+  irADocumentos(): void {
+    this.error.set(null);
+    this.faseActiva.set(3);
+    this.aviso.set(
+      'Cargue los documentos pendientes: si llegan antes del vencimiento, la visita se recalcula y se firma el acta definitiva (RF44).',
+    );
+  }
+
   // ------------------------------------------------------------- internos
 
   private crearGrupoGalpon(galpon: {
@@ -613,6 +704,10 @@ export class InspeccionComponent {
 
     const responsable = valor.responsable.trim();
     if (responsable.length >= 3) peticion.responsable = responsable;
+    const correoResponsable = valor.correoResponsable.trim();
+    if (correoResponsable.length > 0) {
+      peticion.correoResponsable = correoResponsable;
+    }
     const numeroAves = valorEntero(valor.numeroAves);
     if (numeroAves !== null) peticion.numeroAves = numeroAves;
     if (valor.sistemaProduccion) {

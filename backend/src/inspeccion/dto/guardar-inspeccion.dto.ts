@@ -4,6 +4,7 @@ import {
   ArrayMaxSize,
   IsArray,
   IsBoolean,
+  IsEmail,
   IsEnum,
   IsInt,
   IsISO8601,
@@ -270,6 +271,21 @@ export class GuardarInspeccionDto {
   @IsString()
   @Length(3, 150)
   responsable?: string;
+
+  @ApiPropertyOptional({
+    example: 'carlos.rojas@correo.com',
+    maxLength: 180,
+    description:
+      'Correo del responsable, para enviarle el acta al cierre (RF45).',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(180)
+  @IsEmail(
+    {},
+    { message: 'El correo del responsable no tiene un formato válido.' },
+  )
+  correoResponsable?: string;
 
   @ApiPropertyOptional({
     example: 62000,

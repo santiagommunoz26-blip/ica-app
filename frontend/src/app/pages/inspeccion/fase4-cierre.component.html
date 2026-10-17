@@ -1,0 +1,282 @@
+<div class="flex flex-col gap-4">
+  <div class="grid gap-4 lg:grid-cols-2">
+    <!-- Columna izquierda: calificación e indicadores a mejorar -->
+    <div class="flex flex-col gap-4">
+      <app-tarjeta>
+        <div class="flex flex-col gap-4">
+          <p class="text-sm font-semibold text-contenido">Calificación final</p>
+
+          @if (fase4().final !== null) {
+            <div class="flex items-end justify-between gap-3">
+              <p
+                class="text-6xl font-semibold leading-none"
+                [class]="claseNivel()"
+              >
+                {{ fase4().final | number: '1.1-1' }} %
+              </p>
+              @if (fase4().etiquetaClasificacion; as etiqueta) {
+                <app-insignia [tono]="tonoNivel()">
+                  NIVEL {{ etiqueta | uppercase }}
+                </app-insignia>
+              }
+            </div>
+
+            <!-- Escala de la calificación (wireframe): bajo a excelente -->
+            <div class="flex flex-col gap-1.5">
+              <div class="relative h-2.5 w-full overflow-hidden rounded-full">
+                <span
+                  class="absolute inset-y-0 left-0 w-1/2 bg-nivel-bajo"
+                ></span>
+                <span
+                  class="absolute inset-y-0 left-1/2 w-1/4 bg-nivel-medio"
+                ></span>
+                <span
+                  class="absolute inset-y-0 left-3/4 w-[15%] bg-nivel-alto"
+                ></span>
+                <span
+                  class="absolute inset-y-0 left-[90%] right-0 bg-nivel-excelente"
+                ></span>
+                @if (marcador(); as posicion) {
+                  <span
+                    class="absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-contenido bg-acento"
+                    [style.left.%]="posicion"
+                    aria-hidden="true"
+                  ></span>
+                }
+              </div>
+              <div class="flex justify-between text-xs text-contenido-suave">
+                <span>Bajo</span>
+                <span>Excelente</span>
+              </div>
+            </div>
+
+            @if (pendientesVigentes()) {
+              <p class="text-xs text-contenido-suave">
+                Los documentos pendientes cuentan como 0 % mientras no se
+                entreguen (RF29, RF43).
+              </p>
+            }
+          } @else {
+            <p class="text-sm text-contenido-suave">
+              Todavía no hay calificación: evalúe la Fase II (y la documental)
+              para calcularla (RF36).
+            </p>
+          }
+
+          @if (fase4().indicadoresSinEvaluar > 0) {
+            <p class="text-xs text-contenido-suave">
+              Faltan {{ fase4().indicadoresSinEvaluar }} indicadores sin evaluar
+              para poder firmar el acta.
+            </p>
+          }
+        </div>
+      </app-tarjeta>
+
+      <app-tarjeta
+        titulo="Indicadores a mejorar"
+        descripcion="Los de menor valor primero; dentro de cada prioridad, del más bajo al más alto (RF40)."
+      >
+        @if (fase4().indicadores.length > 0) {
+          <ul class="flex flex-col divide-y divide-borde">
+            @for (fila of fase4().indicadores; track fila.codigo) {
+              <li class="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0">
+                <div class="flex min-w-0 flex-1 flex-col gap-0.5">
+                  <p class="truncate text-sm font-medium text-contenido">
+                    {{ fila.nombre }}
+                  </p>
+                  <p class="text-xs text-contenido-suave">
+                    {{ fila.etiquetaGrupo }} · {{ fila.grupo }}
+                  </p>
+                </div>
+                @if (fila.etiquetaPrioridad; as prioridad) {
+                  <span
+                    class="shrink-0 text-xs font-medium text-contenido-suave"
+                  >
+                    {{ prioridad }}
+                  </span>
+                }
+                <app-insignia [tono]="tonoDe(fila)">
+                  @if (fila.pendiente) {
+                    Pendiente
+                  } @else {
+                    {{ fila.valor | number: '1.0-1' }} %
+                  }
+                </app-insignia>
+              </li>
+            }
+          </ul>
+        } @else {
+          <p class="text-sm text-contenido-suave">
+            Todavía no hay indicadores evaluados que mostrar.
+          </p>
+        }
+      </app-tarjeta>
+    </div>
+
+    <!-- Columna derecha: aportes, plazo y acciones del acta -->
+    <div class="flex flex-col gap-4">
+      <app-tarjeta variante="marca" titulo="Aporte por grupo de medidas">
+        <ul class="flex flex-col gap-4">
+          @for (grupo of fase4().grupos; track grupo.grupo) {
+            <li class="flex flex-col gap-1.5">
+              <div class="flex items-baseline justify-between gap-3 text-sm">
+                <span class="font-medium">{{ grupo.etiqueta }}</span>
+                <span>
+                  @if (grupo.promedio !== null) {
+                    {{ grupo.promedio | number: '1.1-1' }} % ×
+                    {{ grupo.peso | number: '1.0-2' }} % =
+                    <span class="font-semibold">
+                      {{ grupo.aporte | number: '1.1-1' }}
+                    </span>
+                  } @else {
+                    Sin datos todavía
+                  }
+                </span>
+              </div>
+              <div
+                class="h-1.5 w-full overflow-hidden rounded-full bg-marca-media"
+              >
+                <div
+                  class="h-full rounded-full bg-acento transition-all"
+                  [style.width.%]="grupo.promedio ?? 0"
+                ></div>
+              </div>
+            </li>
+          } @empty {
+            <li class="text-sm opacity-80">
+              Los grupos aparecen al calcular la visita (RF35).
+            </li>
+          }
+        </ul>
+      </app-tarjeta>
+
+      @if (pendientesVigentes()) {
+        <div
+          class="flex items-start gap-3 rounded-tarjeta bg-advertencia p-lg text-advertencia-contraste shadow-suave"
+        >
+          <mat-icon aria-hidden="true">schedule</mat-icon>
+          <div class="flex flex-col gap-1">
+            <p class="font-semibold">
+              Documentos pendientes: {{ fase4().documentosPendientes }}
+            </p>
+            <p class="text-sm">
+              @if (tieneActa()) {
+                Plazo: 1 día hábil.
+                @if (vencimiento(); as vencimiento) {
+                  Vence el
+                  {{ vencimiento | date: 'd MMM y, h:mm a' : '-0500' }}.
+                }
+                Si llegan a tiempo, la visita se recalcula y se firma el acta
+                definitiva; si no, esta acta queda definitiva (RF43, RF44).
+              } @else {
+                Al firmar, el acta queda provisional con esta calificación. El
+                plazo de 1 día hábil corre desde la firma y, si los documentos
+                no llegan, esta acta queda definitiva (RF43).
+              }
+            </p>
+          </div>
+        </div>
+      }
+
+      <app-tarjeta titulo="Acta de la visita">
+        <div class="flex flex-col gap-4">
+          @if (acta(); as acta) {
+            <div
+              class="flex flex-wrap items-center gap-2 text-sm text-contenido"
+            >
+              <app-insignia [tono]="acta.definitiva ? 'exito' : 'advertencia'">
+                {{ acta.definitiva ? 'Definitiva' : 'Provisional' }}
+              </app-insignia>
+              <span class="font-medium">Acta v{{ acta.version }}</span>
+              <span class="text-contenido-suave">
+                Firmada por {{ acta.firmadaPorNombre }} el
+                {{ acta.firmadaEn | date: 'd MMM y, h:mm a' }}
+              </span>
+            </div>
+            @if (acta.correoEnviadoEn; as enviadoEn) {
+              <p class="text-xs text-contenido-suave">
+                Último envío a {{ acta.correoDestinatario }} el
+                {{ enviadoEn | date: 'd MMM y, h:mm a' }} (RF45).
+              </p>
+            }
+          } @else {
+            <p class="text-sm text-contenido-suave">
+              Todavía no hay acta firmada. Revise el resultado y firme para
+              generar el PDF (RF41, RF42).
+            </p>
+          }
+
+          @if (fase4().motivoNoEmitir; as motivo) {
+            <app-aviso tipo="advertencia">{{ motivo }}</app-aviso>
+          }
+
+          @if (!enLinea()) {
+            <app-aviso tipo="info">
+              Sin conexión: el acta se firma, descarga y envía en línea (RF42,
+              RF45). Vuelva a intentarlo cuando recupere la señal.
+            </app-aviso>
+          }
+
+          @if (acta()) {
+            <mat-form-field class="w-full" subscriptSizing="dynamic">
+              <mat-label>Otro destinatario (opcional)</mat-label>
+              <input
+                matInput
+                type="email"
+                [value]="destinatario()"
+                [placeholder]="
+                  respuesta().predio.correoResponsable ??
+                  'Sin correo registrado'
+                "
+                (input)="actualizarDestinatario($event)"
+              />
+            </mat-form-field>
+          }
+
+          <div class="flex flex-wrap gap-2">
+            @if (fase4().puedeEmitir) {
+              <button
+                mat-flat-button
+                color="primary"
+                type="button"
+                [disabled]="guardando() || !enLinea()"
+                (click)="abrirFirma()"
+              >
+                <mat-icon aria-hidden="true">draw</mat-icon>
+                {{
+                  acta()
+                    ? 'Firmar acta definitiva'
+                    : 'Firmar y generar acta PDF'
+                }}
+              </button>
+            }
+            @if (acta()) {
+              <button
+                mat-flat-button
+                color="primary"
+                type="button"
+                [disabled]="guardando() || !enLinea()"
+                (click)="descargarActa()"
+              >
+                <mat-icon aria-hidden="true">download</mat-icon>
+                Descargar acta PDF
+              </button>
+            }
+            <button
+              mat-stroked-button
+              type="button"
+              [disabled]="guardando() || !enLinea() || acta() === null"
+              (click)="enviarCorreo()"
+            >
+              <mat-icon aria-hidden="true">mail</mat-icon>
+              Enviar correo
+            </button>
+            <button mat-button type="button" (click)="irADocumentos()">
+              Cargar docs
+            </button>
+          </div>
+        </div>
+      </app-tarjeta>
+    </div>
+  </div>
+</div>

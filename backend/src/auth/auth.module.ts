@@ -37,6 +37,6 @@ import { TokensPasswordService } from './tokens-password.service.js';
     CorreoService,
     JwtStrategy,
   ],
-  exports: [AuthService],
+  exports: [AuthService, CorreoService],
 })
 export class AuthModule {}

@@ -6,6 +6,7 @@ import type {
   InspeccionRespuesta,
   PeticionGuardarInspeccion,
 } from './inspeccion.modelos';
+import type { EnvioActa, Fase4 } from './cierre.modelos';
 import type { Evidencia } from './fase2.modelos';
 
 /** Respuesta al registrar una evidencia: metadatos y URL firmada de subida. */
@@ -93,5 +94,31 @@ export class InspeccionService {
   /** Borra una evidencia (RF23). */
   eliminarEvidencia(id: string): Observable<void> {
     return this.http.delete<void>(`${this.base}/evidencias/${id}`);
+  }
+
+  // ------------------------------------------------- cierre y acta (RF39–RF45)
+
+  /**
+   * Firma y emite la siguiente acta de la visita (RF41–RF43) y devuelve el
+   * cierre actualizado. El cierre no se encola sin conexión: el acta se emite
+   * contra el servidor, que es quien genera y guarda el PDF.
+   */
+  firmarActa(visitaId: string, firma: string): Observable<Fase4> {
+    return this.http.post<Fase4>(`${this.base}/${visitaId}/acta`, { firma });
+  }
+
+  /** Envía el acta al responsable por correo (RF45). */
+  enviarActa(visitaId: string, destinatario?: string): Observable<EnvioActa> {
+    return this.http.post<EnvioActa>(
+      `${this.base}/${visitaId}/acta/correo`,
+      destinatario ? { destinatario } : {},
+    );
+  }
+
+  /** URL firmada de vida corta para descargar el acta vigente (RNF22). */
+  urlActa(visitaId: string): Observable<{ url: string }> {
+    return this.http.get<{ url: string }>(
+      `${this.base}/${visitaId}/acta/descarga`,
+    );
   }
 }

@@ -46,6 +46,15 @@ export class Predio {
   @Column({ type: 'varchar', length: 150, nullable: true })
   responsable: string | null;
 
+  /** Correo del responsable, al que se envía el acta (RF45; dato de M7). */
+  @Column({
+    type: 'varchar',
+    length: 180,
+    name: 'correo_responsable',
+    nullable: true,
+  })
+  correoResponsable: string | null;
+
   /** Número total de aves, capacidad instalada (RF13). */
   @Column({ type: 'int', name: 'numero_aves', nullable: true })
   numeroAves: number | null;

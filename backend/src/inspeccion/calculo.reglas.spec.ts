@@ -530,4 +530,45 @@ describe('Motor de cálculo (RF34–RF38)', () => {
       ]);
     });
   });
+
+  describe('cierre con documentos pendientes (M7 · RF43/RF44)', () => {
+    it('un documento pendiente deja el cálculo en vivo incompleto (M6)', () => {
+      const resultado = calcularVisita(
+        entradaDePrueba({
+          indicadores: [indicadorDePrueba('MBG-01', GrupoMedidas.MBG)],
+          documentos: [documentoDePrueba('MBG-01', null, { pendiente: true })],
+        }),
+      );
+      expect(resultado.indicadores[0].valor).toBeNull();
+      expect(resultado.indicadores[0].completo).toBe(false);
+      expect(resultado.completo).toBe(false);
+      expect(resultado.final).toBeNull();
+    });
+
+    it('el cierre los cuenta como 0 (RF29) y permite firmar la acta provisional', () => {
+      const resultado = calcularVisita(
+        entradaDePrueba({
+          indicadores: [indicadorDePrueba('MBG-01', GrupoMedidas.MBG)],
+          documentos: [documentoDePrueba('MBG-01', null, { pendiente: true })],
+          pendientesCuentanCero: true,
+        }),
+      );
+      expect(resultado.indicadores[0].valor).toBe(0);
+      expect(resultado.indicadores[0].completo).toBe(true);
+      expect(resultado.completo).toBe(true);
+      expect(resultado.final).not.toBeNull();
+    });
+
+    it('un documento entregado no cambia con el modo del cierre', () => {
+      const resultado = calcularVisita(
+        entradaDePrueba({
+          indicadores: [indicadorDePrueba('MBG-01', GrupoMedidas.MBG)],
+          documentos: [documentoDePrueba('MBG-01', 2)],
+          pendientesCuentanCero: true,
+        }),
+      );
+      expect(resultado.indicadores[0].valor).toBe(100);
+      expect(resultado.completo).toBe(true);
+    });
+  });
 });

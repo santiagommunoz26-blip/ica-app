@@ -13,6 +13,7 @@ import { PesoGrupo } from '../metodologia/entities/peso-grupo.entity.js';
 import { Galpon } from '../inspeccion/entities/galpon.entity.js';
 import { Inspeccion } from '../inspeccion/entities/inspeccion.entity.js';
 import { Evidencia } from '../inspeccion/entities/evidencia.entity.js';
+import { Acta } from '../inspeccion/entities/acta.entity.js';
 
 /** Lector de variables de entorno (compatible con process.env y ConfigService). */
 export interface EnvReader {
@@ -55,6 +56,7 @@ export function buildDatabaseOptions(env: EnvReader): DataSourceOptions {
       Inspeccion,
       Galpon,
       Evidencia,
+      Acta,
     ],
     // Al ejecutarse compilado, este archivo vive en dist/database, así que el
     // patrón apunta a las migraciones compiladas en dist/database/migrations.

@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { calculoVacio } from '../../core/inspeccion/calculo.modelos';
+import { fase4Vacia } from '../../core/inspeccion/cierre.modelos';
 import {
   reglasFase3,
   type DocumentoEvaluado,
@@ -137,6 +138,7 @@ function crearInspeccion(
       municipio: 'Sopó',
       vereda: 'Vereda 1',
       responsable: null,
+      correoResponsable: null,
       numeroAves: tipoPredio === 'CORRAL' ? 60000 : 150,
       sistemaProduccion: null,
       etiquetaSistemaProduccion: null,
@@ -183,6 +185,7 @@ function crearInspeccion(
       },
     },
     calculo: calculoVacio(),
+    fase4: fase4Vacia(),
   };
 }
 

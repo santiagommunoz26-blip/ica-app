@@ -26,9 +26,11 @@ const MINUTOS_DESCARGA = 5;
  *
  * Es el **único** punto del backend que habla con el almacenamiento: en local
  * es MinIO (API S3) y en producción será Cloud Storage, sin tocar el resto del
- * código (portabilidad de RNF26). El binario nunca pasa por la API: el
- * navegador lo sube y lo consulta con **URLs firmadas** de vida corta, y aquí
- * solo se emiten esas URLs, se comprueba que el objeto llegó y se borra.
+ * código (portabilidad de RNF26). Las evidencias nunca pasan por la API: el
+ * navegador las sube y las consulta con **URLs firmadas** de vida corta, y aquí
+ * solo se emiten esas URLs, se comprueba que el objeto llegó y se borra. La
+ * excepción es el acta (M7): el PDF y la firma los genera el backend, así que
+ * se suben desde aquí.
  */
 @Injectable()
 export class AlmacenamientoService implements OnModuleInit {
@@ -102,6 +104,21 @@ export class AlmacenamientoService implements OnModuleInit {
         ResponseContentDisposition: `inline; filename="${nombre.replace(/"/g, '')}"`,
       }),
       { expiresIn: MINUTOS_DESCARGA * 60 },
+    );
+  }
+
+  /**
+   * Sube un objeto desde el backend (M7 · RF41): el PDF del acta y la firma
+   * los genera el servidor, así que no hay URL firmada de subida.
+   */
+  async subir(ruta: string, contenido: Buffer, tipo: string): Promise<void> {
+    await this.exigirCliente().send(
+      new PutObjectCommand({
+        Bucket: this.bucket,
+        Key: ruta,
+        ContentType: tipo,
+        Body: contenido,
+      }),
     );
   }
 
