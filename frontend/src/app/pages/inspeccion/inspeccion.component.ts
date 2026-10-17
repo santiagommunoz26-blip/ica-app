@@ -275,7 +275,11 @@ export class InspeccionComponent {
 
   /** Carga la ficha de una visita (RF13–RF17). */
   async cargar(visitaId: string): Promise<void> {
-    this.cargando.set(true);
+    // El esqueleto solo aparece al abrir otra visita: al refrescar la misma
+    // (guardar, subir o borrar una foto) las fases siguen montadas y no
+    // pierden su estado, como el documento activo de la Fase III (RF27).
+    const primeraCarga = this.respuesta()?.visita.id !== visitaId;
+    if (primeraCarga) this.cargando.set(true);
     this.error.set(null);
     try {
       const respuesta = await this.sincronizacion.cargarInspeccion(visitaId);
@@ -289,7 +293,7 @@ export class InspeccionComponent {
     } catch (fallo) {
       this.error.set(mensajeDeError(fallo));
     } finally {
-      this.cargando.set(false);
+      if (primeraCarga) this.cargando.set(false);
     }
   }
 

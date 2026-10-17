@@ -691,6 +691,74 @@ describe('InspeccionComponent', () => {
       expect(texto()).toContain('Borrador guardado');
     });
 
+    it('conserva el documento activo al pasar al siguiente (RF27)', async () => {
+      // Un segundo documento de gestión para poder avanzar.
+      const catalogo: Catalogo = {
+        ...CATALOGO,
+        indicadores: [
+          ...CATALOGO.indicadores,
+          {
+            ...CATALOGO.indicadores[2],
+            codigo: 'MBG-04',
+            nombre: 'POE de bienestar animal',
+            orden: 4,
+          },
+        ],
+        aplicables: {
+          ...CATALOGO.aplicables,
+          POLLO_ENGORDE: [...CATALOGO.aplicables['POLLO_ENGORDE'], 'MBG-04'],
+        },
+      };
+      const dosDocumentos: InspeccionRespuesta = { ...CON_FICHA, catalogo };
+      componente.respuesta.set(dosDocumentos);
+      fixture.detectChanges();
+
+      const panel = hijo();
+      panel.marcarPresentado(true);
+      panel.calificar(2);
+      panel.siguiente();
+      await tick();
+
+      // «Siguiente documento» guarda por la cola y abre el que sigue.
+      const sincronizar = http.expectOne(
+        esPeticion('/visitas/sincronizar', 'POST'),
+      );
+      expect(
+        sincronizar.request.body.operaciones[0].inspeccion.documentos[0]
+          .indicadorCodigo,
+      ).toBe('MBG-01');
+      expect(panel.documentoActivo()).toBe('MBG-04');
+      sincronizar.flush({
+        resultados: [
+          {
+            id: sincronizar.request.body.operaciones[0].id,
+            estado: 'APLICADA',
+          },
+        ],
+        visitas: [],
+      });
+
+      // Tras sincronizar, el servicio refresca la lista de visitas (RF12).
+      await tick();
+      http.expectOne(esPeticion('/visitas', 'GET')).flush(LISTA);
+
+      // Al refrescar la inspección, el panel no se cubre con el esqueleto.
+      await tick();
+      const refresco = http.expectOne(
+        esPeticion(`/inspeccion/${VISITA_ID}`, 'GET'),
+      );
+      fixture.detectChanges();
+      expect(texto()).toContain('Documentos (MBG)');
+
+      refresco.flush(dosDocumentos);
+      await tick();
+      fixture.detectChanges();
+
+      // El mismo panel sigue abierto en el documento que seguía (RF27).
+      expect(hijo()).toBe(panel);
+      expect(panel.documentoActivo()).toBe('MBG-04');
+    });
+
     it('en traspatio la pestaña queda sin aplicar (RF33)', async () => {
       // La visita se reclasifica como traspatio desde la Fase I.
       const traspatio: InspeccionRespuesta = {
