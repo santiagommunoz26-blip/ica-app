@@ -118,6 +118,27 @@ describe('UsuariosComponent (RF04, RF05)', () => {
     );
   });
 
+  it('actualiza los permisos al cambiar de rol (RF04)', () => {
+    componente.abrirNuevo();
+    fixture.detectChanges();
+
+    // Primera lectura: el rol por defecto (Inspector).
+    expect(componente.permisosDelRol().map((permiso) => permiso.clave)).toEqual(
+      ['visitas:crear', 'catalogo:editar'],
+    );
+
+    componente.formulario.controls.rol.setValue('ADMINISTRADOR');
+    fixture.detectChanges();
+
+    // Antes la lista se quedaba con la del primer rol leído.
+    expect(componente.permisosDelRol().map((permiso) => permiso.clave)).toEqual(
+      ['usuarios:gestionar'],
+    );
+    const texto = (fixture.nativeElement as HTMLElement).textContent ?? '';
+    expect(texto).toContain('Gestionar usuarios');
+    expect(texto).not.toContain('Crear y programar visitas');
+  });
+
   it('crea un usuario y muestra la contraseña temporal una sola vez (RF05, RF07)', async () => {
     componente.abrirNuevo();
     componente.formulario.setValue({

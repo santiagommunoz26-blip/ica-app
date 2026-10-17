@@ -1,4 +1,5 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { firstValueFrom, type Observable } from 'rxjs';
 import { DatePipe } from '@angular/common';
@@ -83,9 +84,21 @@ export class UsuariosComponent implements OnInit {
     passwordTemporal: [''],
   });
 
-  /** Permisos del rol seleccionado en el formulario (RF04). */
+  /** Rol elegido en el formulario, en vivo; los permisos dependen de él (RF04). */
+  private readonly rolElegido = toSignal(
+    this.formulario.controls.rol.valueChanges,
+    { initialValue: this.formulario.controls.rol.value },
+  );
+
+  /**
+   * Permisos del rol seleccionado en el formulario (RF04).
+   *
+   * Sigue al rol en vivo: al cambiarlo, la lista se actualiza. Antes leía el
+   * valor del formulario una sola vez y se quedaba con los permisos del primer
+   * rol mostrado.
+   */
   readonly permisosDelRol = computed(() => {
-    const rol = this.formulario.controls.rol.value;
+    const rol = this.rolElegido();
     return (
       this.catalogo().find((entrada) => entrada.rol === rol)?.permisos ?? []
     );

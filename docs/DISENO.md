@@ -688,6 +688,20 @@ dentro de la pantalla) para no dejar mensajes pegados al formulario.
     y salen de la cola, de modo que una sola operación no bloquea el trabajo de
     campo (RF12). Los DTO del backend siguen estrictos a propósito: el error de
     formato se paga en la frontera del envío, no relajando el contrato.
+50. **La lista de permisos sigue al rol elegido en la pantalla de Usuarios**
+    (corrección del 16 oct 2026, a partir de «son 3 roles y en los 3 aparecen
+    las mismas opciones»): la lista muestra siempre el catálogo completo de
+    permisos con casillas **no editables** y marca las que concede el rol
+    elegido —así lo pide el wireframe: los permisos los da el rol y no se
+    editan por usuario—, de modo que las «opciones» iguales en los tres roles
+    son el diseño. El fallo real era que las **marcas** no seguían al rol: la
+    lista se calculaba una sola vez leyendo el valor del formulario (que no es
+    una señal de Angular) y quedaba memorizada con las del primer rol
+    mostrado. Arreglo: el rol elegido se sigue en vivo (sus cambios
+    convertidos a señal) y la lista se recalcula al cambiarlo; con prueba de
+    regresión que cambia de rol después de la primera lectura (roja antes del
+    arreglo) y verificación en navegador con el catálogo real (las marcas de
+    los tres roles, distintas entre sí).
 
 ## 8. Observaciones para la pasada de pulido final
 
