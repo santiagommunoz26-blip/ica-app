@@ -12,6 +12,8 @@ import { buildDatabaseOptions } from './database/database.config.js';
 import { HealthModule } from './health/health.module.js';
 import { UsuariosModule } from './usuarios/usuarios.module.js';
 import { VisitasModule } from './visitas/visitas.module.js';
+import { AdministracionDeLaMetodologiaModule } from './administracion-de-la-metodologia/administracion-de-la-metodologia.module.js';
+import { CierreYReportesFaseIvModule } from './cierre-y-reportes-fase-iv/cierre-y-reportes-fase-iv.module.js';
 
 @Module({
   imports: [
@@ -29,6 +31,8 @@ import { VisitasModule } from './visitas/visitas.module.js';
     UsuariosModule,
     AuthModule,
     VisitasModule,
+    CierreYReportesFaseIvModule,
+    AdministracionDeLaMetodologiaModule,
   ],
   controllers: [AppController],
   providers: [

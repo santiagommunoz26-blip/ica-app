@@ -7,6 +7,11 @@ import { TokenPassword } from '../usuarios/entities/token-password.entity.js';
 import { Usuario } from '../usuarios/entities/usuario.entity.js';
 import { Predio } from '../visitas/entities/predio.entity.js';
 import { Visita } from '../visitas/entities/visita.entity.js';
+import { ActaVisita } from '../cierre-y-reportes-fase-iv/entities/acta-visita.entity.js';
+import { AuditoriaModulo } from '../common/entities/auditoria-modulo.entity.js';
+import { IndicadorMetodologia } from '../administracion-de-la-metodologia/entities/indicador-metodologia.entity.js';
+import { MetodologiaVersion } from '../administracion-de-la-metodologia/entities/metodologia-version.entity.js';
+import { PesoGrupo } from '../administracion-de-la-metodologia/entities/peso-grupo.entity.js';
 
 /** Lector de variables de entorno (compatible con process.env y ConfigService). */
 export interface EnvReader {
@@ -43,6 +48,11 @@ export function buildDatabaseOptions(env: EnvReader): DataSourceOptions {
       RegistroAcceso,
       Predio,
       Visita,
+      MetodologiaVersion,
+      IndicadorMetodologia,
+      PesoGrupo,
+      ActaVisita,
+      AuditoriaModulo,
     ],
     // Al ejecutarse compilado, este archivo vive en dist/database, así que el
     // patrón apunta a las migraciones compiladas en dist/database/migrations.

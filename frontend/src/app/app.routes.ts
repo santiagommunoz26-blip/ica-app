@@ -63,6 +63,24 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'resultados',
+        title: 'Cierre, resultados e historial · EBA Aves',
+        loadComponent: () =>
+          import('./pages/resultados/resultados.component').then(
+            (m) => m.ResultadosComponent,
+          ),
+      },
+      {
+        path: 'administracion/metodologia',
+        title: 'Metodología EBA · EBA Aves',
+        canActivate: [rolGuard],
+        data: { roles: ['ADMINISTRADOR'] },
+        loadComponent: () =>
+          import('./pages/metodologia/metodologia.component').then(
+            (m) => m.MetodologiaComponent,
+          ),
+      },
+      {
         path: 'administracion/usuarios',
         title: 'Usuarios y roles · EBA Aves',
         canActivate: [rolGuard],

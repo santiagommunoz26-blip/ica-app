@@ -68,8 +68,7 @@ Se adopta la **opción 4 (híbrida)**:
   - Confirmar con el docente si además de «grupo de medidas → indicador» existe un nivel
     intermedio de criterios/subcriterios: los documentos fuente **no** mencionan «subcriterio»
     (el plan de sprint sí lo mencionaba; queda por confirmar).
-  - Definir el catálogo real de indicadores, escalas y muestreos desde el manual del ICA
-    (documento que todavía **no** tenemos).
+  - El manual ICA EBA v2.0 (2024) se recibió y sus 55 escalas se resumieron en la migración `1792454400000-seed-ica-verified-scales`. Las 14 escalas que solo definen 0 y 2 marcan 1 como no aplicable; M7 no ofrece ni acepta ese puntaje. La versión se crea sin modificar versiones ni snapshots de actas anteriores. Las paráfrasis deben cotejarse con el manual antes de uso regulatorio/productivo.
 - Event sourcing y «todo JSONB» se descartan por complejidad/costos frente al alcance académico.
 
 ## Nota de verificación

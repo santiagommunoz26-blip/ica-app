@@ -84,8 +84,7 @@ export class ShellComponent {
       icono: 'calculate',
       ruta: '/resultados',
       permiso: PERMISOS.HISTORIAL_CONSULTAR,
-      disponible: false,
-      modulo: 'M5',
+      disponible: true,
     },
     {
       etiqueta: 'Reportes',
@@ -94,6 +93,14 @@ export class ShellComponent {
       permiso: PERMISOS.REPORTES_CONSULTAR,
       disponible: false,
       modulo: 'M6',
+    },
+    {
+      etiqueta: 'Metodología',
+      icono: 'tune',
+      ruta: '/administracion/metodologia',
+      permiso: PERMISOS.CATALOGO_EDITAR,
+      disponible: true,
+      modulo: 'M8',
     },
     {
       etiqueta: 'Administración',
